@@ -23,4 +23,3 @@ my_project/
 ├── docs/
 │
 ├── README.md
-└── .gitignore
