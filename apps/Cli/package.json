@@ -1,0 +1,35 @@
+{
+  "name": "gent-cli",
+  "version": "1.0.0",
+  "description": "A Git-like version control CLI tool",
+  "main": "src/index.js",
+  "bin": {
+    "gent": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "demo": "bash demo.sh",
+    "link": "npm link",
+    "unlink": "npm unlink"
+  },
+  "keywords": [
+    "cli",
+    "version-control",
+    "git-like",
+    "gent"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "chalk": "^4.1.2",
+    "inquirer": "^8.2.5",
+    "ora": "^5.4.1",
+    "boxen": "^5.1.2",
+    "date-fns": "^2.30.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
