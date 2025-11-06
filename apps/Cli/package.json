@@ -19,8 +19,16 @@
     "git-like",
     "gent"
   ],
-  "author": "",
+  "author": "Abdalrahman Kanawati <kanawatiabdalrahman@gmail.com>",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SaadShaya7/gent.git"
+  },
+  "homepage": "https://github.com/SaadShaya7/gent#readme",
+  "bugs": {
+    "url": "https://github.com/SaadShaya7/gent/issues"
+  },
   "dependencies": {
     "commander": "^11.1.0",
     "chalk": "^4.1.2",
