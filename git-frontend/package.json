@@ -11,6 +11,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.90.10",
     "next": "16.0.3",
+    "next-auth": "^4.24.13",
     "next-i18next": "^15.4.2",
     "postcss": "^8.5.6",
     "react": "19.2.0",
