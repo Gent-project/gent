@@ -1,316 +1,142 @@
-# Gent CLI - A Git-like Version Control System
+# Gent CLI
 
-🚀 **Gent** is a lightweight, Git-inspired version control CLI tool built with Node.js. It provides essential version control features with an intuitive command-line interface.
+> A modern, Git-like version control CLI with built-in cloud authentication and global user identity management.
 
-## Features
+`gent` is a lightweight version control system that feels exactly like Git but handles user identity automatically through the cloud. No more configuring `user.name` and `user.email` for every repository!
 
-- **Repository Initialization** - Set up new Gent repositories with custom configuration
-- **File Staging** - Add files to staging area before committing
-- **Commit Management** - Record changes with descriptive messages
-- **Branch Operations** - Create, switch, and manage branches
-- **Status Tracking** - View working tree status and changes
-- **Commit History** - Browse commit logs with detailed information
+## 🚀 Features
 
-## Installation
+- **Cloud Authentication**: Login once, work everywhere. Your identity follows you across projects.
+- **Git-like Experience**: Familiar commands (`init`, `add`, `commit`, `status`, `log`, `branch`, `checkout`).
+- **Zero Configuration**: `gent init` is silent and auto-detects your authenticated user profile.
+- **Global Identity**: Commits are automatically authored with your cloud profile.
+- **Secure**: Tokens stored securely in your home directory.
+
+## 📦 Installation
 
 ```bash
-# Navigate to the CLI directory
-cd apps/Cli
-
-# Install dependencies
-npm install
-
-# Link globally (optional)
-npm link
+npm install -g gent-cli
 ```
 
-## Usage
+## 🔐 Authentication (The Magic mmss)
 
-### Initialize a Repository
+Gent uses a global authentication system. You only need to login once.
 
-Create a new Gent repository in the current directory:
+### Create an Account
 
 ```bash
-gent init
+gent register
 ```
 
-With default configuration (skip prompts):
+### Login
 
 ```bash
-gent init -y
+gent login
+# or
+gent login -e user@example.com -p YourPassword
 ```
 
 ### Check Status
 
-View the current state of your working tree:
+```bash
+gent whoami
+```
+
+### Logout
+
+```bash
+gent logout
+```
+
+## 🛠 Usage
+
+### 1. Initialize a Repository
+
+Just like Git, `gent init` is silent and sets up a new repository in your current directory. It automatically uses your logged-in identity for configuration.
+
+```bash
+gent init
+# Output: Initialized empty Gent repository in /path/to/project
+```
+
+### 2. Check Status
+
+See which files are modified or untracked.
 
 ```bash
 gent status
 ```
 
-Short format:
+### 3. Stage Files
+
+Add files to the staging area.
 
 ```bash
-gent status -s
-```
-
-### Stage Files
-
-Add files to the staging area:
-
-```bash
-# Add specific files
-gent add file1.js file2.js
-
-# Add all files
-gent add --all
+gent add filename.js
+# or add all files
 gent add .
 ```
 
-### Commit Changes
+### 4. Commit Changes
 
-Record changes to the repository:
+Create a commit. Gent automatically fetches your name and email from your global login session.
 
 ```bash
-# With inline message
-gent commit -m "Your commit message"
-
-# Interactive (will prompt for message)
-gent commit
+gent commit -m "Initial commit"
+# Output: [main a1b2c3d] Initial commit
+# Author: Your Name <your.email@example.com>
 ```
 
-Auto-stage all modified files:
+### 5. View History
+
+See your commit history.
 
 ```bash
-gent commit -a -m "Commit all changes"
-```
-
-### View Commit History
-
-Display commit logs:
-
-```bash
-# Show last 10 commits (default)
 gent log
-
-# Show specific number of commits
-gent log -n 5
-
-# Compact oneline format
+# or compact view
 gent log --oneline
 ```
 
-### Branch Management
+## 🌿 Branching
 
-List all branches:
+Manage branches just like you're used to.
 
 ```bash
+# Create and switch to a new branch
+gent checkout -b feature-login
+
+# List branches
 gent branch
-```
-
-Create a new branch:
-
-```bash
-gent branch feature-name
-```
-
-Delete a branch:
-
-```bash
-gent branch -d branch-name
-```
-
-### Switch Branches
-
-Switch to an existing branch:
-
-```bash
-gent checkout branch-name
-```
-
-Create and switch to a new branch:
-
-```bash
-gent checkout -b new-branch
-```
-
-## Project Structure
-
-```
-apps/Cli/
-├── src/
-│   ├── index.js              # Main entry point
-│   ├── commands/             # Command implementations
-│   │   ├── init.js          # Initialize repository
-│   │   ├── status.js        # Show status
-│   │   ├── add.js           # Stage files
-│   │   ├── commit.js        # Create commits
-│   │   ├── log.js           # View history
-│   │   ├── branch.js        # Manage branches
-│   │   └── checkout.js      # Switch branches
-│   └── utils/               # Utility modules
-│       ├── constants.js     # Application constants
-│       ├── fileSystem.js    # File operations
-│       └── helpers.js       # Helper functions
-├── package.json             # Dependencies and scripts
-└── README.md               # Documentation
-```
-
-## Repository Structure
-
-When you initialize a Gent repository, it creates a `.gent` directory:
-
-```
-.gent/
-├── config.json              # Repository configuration
-├── staging.json             # Staged files
-├── commits.json            # Commit history
-├── HEAD                    # Current branch reference
-├── objects/                # File objects (future use)
-└── refs/                   # Branch references
-    ├── heads/             # Branch pointers
-    └── tags/              # Tag references
-```
-
-## Configuration
-
-Gent stores configuration in `.gent/config.json`:
-
-```json
-{
-  "user": {
-    "name": "Your Name",
-    "email": "your.email@example.com"
-  },
-  "repository": {
-    "name": "project-name",
-    "description": "Project description",
-    "created": "2025-11-06T00:00:00.000Z"
-  }
-}
-```
-
-## Ignore Patterns
-
-Create a `.gentignore` file to exclude files from tracking:
-
-```
-# Dependencies
-node_modules/
-
-# Build outputs
-dist/
-build/
-
-# Environment files
-.env
-.env.local
-
-# Logs
-*.log
-
-# OS files
-.DS_Store
-```
-
-## Command Reference
-
-| Command | Description | Options |
-|---------|-------------|---------|
-| `gent init` | Initialize repository | `-y, --yes` Skip prompts |
-| `gent status` | Show working tree status | `-s, --short` Short format |
-| `gent add <files>` | Stage files | `-A, --all` Stage all files |
-| `gent commit` | Record changes | `-m <msg>` Message, `-a` Stage all |
-| `gent log` | Show commit history | `-n <num>` Limit, `--oneline` Compact |
-| `gent branch [name]` | Manage branches | `-d <name>` Delete, `-a` List all |
-| `gent checkout <branch>` | Switch branches | `-b` Create new |
-| `gent help [command]` | Show help | |
-
-## Dependencies
-
-- **commander** - CLI framework
-- **chalk** - Terminal styling
-- **inquirer** - Interactive prompts
-- **ora** - Elegant terminal spinners
-- **boxen** - Create boxes in terminal
-- **date-fns** - Date formatting utilities
-
-## Development
-
-```bash
-# Run locally
-npm start
-
-# Run specific command
-node src/index.js init
-node src/index.js status
-```
-
-## Examples
-
-### Complete Workflow
-
-```bash
-# Initialize repository
-gent init
-
-# Add some files
-echo "console.log('Hello');" > app.js
-gent add app.js
-
-# Commit changes
-gent commit -m "Initial commit"
-
-# Create a feature branch
-gent branch feature-login
-gent checkout feature-login
-
-# Make changes and commit
-echo "// Login logic" >> app.js
-gent add app.js
-gent commit -m "Add login feature"
-
-# View history
-gent log
 
 # Switch back to main
 gent checkout main
+
+# Delete a branch
+gent branch -d feature-login
 ```
 
-## Error Handling
+## 📂 Repository Structure
 
-Gent provides clear error messages:
+Gent creates a `.gent` directory in your project root:
 
-- **Not a gent repository** - Run `gent init` first
-- **No changes to commit** - Stage files with `gent add`
-- **Branch not found** - Check available branches with `gent branch`
+```
+.gent/
+├── config.json       # Project configuration
+├── objects/          # Stored file contents
+├── refs/             # Branch pointers
+└── HEAD             # Current branch reference
+```
 
-## Best Practices
+Your authentication tokens are stored globally in `~/.gent/auth.json`.
 
-1. **Commit Often** - Make small, focused commits
-2. **Write Clear Messages** - Describe what and why
-3. **Use Branches** - Isolate features and experiments
-4. **Check Status** - Review changes before committing
-5. **Update .gentignore** - Exclude unnecessary files
+## 🤝 Contributing
 
-## Future Enhancements
+We welcome contributions! Please fork the repository and submit a Pull Request.
 
-- [ ] Diff visualization
-- [ ] Remote repository support
-- [ ] Merge functionality
-- [ ] Tag management
-- [ ] Stash implementation
-- [ ] File restoration
-- [ ] Conflict resolution
-
-## License
+## 📄 License
 
 ISC
 
-## Author
-
-Built with ❤️ using Node.js
-
 ---
 
-**Note**: Gent is a learning project and educational tool. For production use, consider established version control systems like Git.
+Built with ❤️ by [Abdalrahman Kanawati](https://github.com/SaadShaya7)
