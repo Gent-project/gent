@@ -12,6 +12,12 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
+import logging
+from decouple import config
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,17 +27,42 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-r5b26+1j8tksnm16#e4i)#%x$oa2@x__953wbk9=0sz2umn29('
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']  # Restrict in production
+
+
+# Sentry Integration
+if SENTRY_DSN := config('SENTRY_DSN', default=''):
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=config('SENTRY_ENVIRONMENT', default='development'),
+        traces_sample_rate=float(config('SENTRY_TRACES_SAMPLE_RATE', default='1.0')),
+        profiles_sample_rate=float(config('SENTRY_PROFILES_SAMPLE_RATE', default='1.0')),
+        integrations=[
+            DjangoIntegration(
+                transaction_style='url',
+                middleware_spans=True,
+                signals_spans=True,
+                cache_spans=True,
+            ),
+            LoggingIntegration(
+                level=logging.INFO,
+                event_level=logging.ERROR
+            ),
+        ],
+        send_default_pii=False,
+        attach_stacktrace=True,
+    )
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'django_prometheus',  # FIRST - for metrics collection
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -47,6 +78,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',  # FIRST - start request timing
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -55,6 +87,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'gent_api.middleware.SentryUserContextMiddleware',  # Custom - attach user context to Sentry
+    'django_prometheus.middleware.PrometheusAfterMiddleware',  # LAST - complete metrics collection
 ]
 
 ROOT_URLCONF = 'gent_api.urls'
@@ -82,7 +116,7 @@ WSGI_APPLICATION = 'gent_api.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
+        'ENGINE': 'django_prometheus.db.backends.sqlite3',  # Prometheus-wrapped backend for metrics
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
@@ -185,3 +219,134 @@ SPECTACULAR_SETTINGS = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
 }
+
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'json': {
+            '()': 'pythonjsonlogger.jsonlogger.JsonFormatter',
+            'format': '%(asctime)s %(name)s %(levelname)s %(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'django.log',
+            'maxBytes': 10485760,  # 10MB
+            'backupCount': 5,
+            'formatter': 'json',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+        },
+        'api': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
+
+# Create logs directory if it doesn't exist
+os.makedirs(BASE_DIR / 'logs', exist_ok=True)
+
+
+# ============================================================================
+# OpenTelemetry Configuration for Grafana LGTM Stack
+# ============================================================================
+# This configures Django to send traces, metrics, and logs to Grafana LGTM
+# via the OpenTelemetry Protocol (OTLP).
+
+OTEL_ENABLED = config('OTEL_ENABLED', default=True, cast=bool)
+
+if OTEL_ENABLED:
+    from opentelemetry import trace, metrics
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_VERSION
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+    from opentelemetry.instrumentation.django import DjangoInstrumentor
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+    from opentelemetry.instrumentation.logging import LoggingInstrumentor
+    from opentelemetry._logs import set_logger_provider
+    from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+    from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+
+    # Configure resource attributes
+    resource = Resource(attributes={
+        SERVICE_NAME: config('OTEL_SERVICE_NAME', default='gent-api'),
+        SERVICE_VERSION: '1.0.0',
+        'deployment.environment': config('SENTRY_ENVIRONMENT', default='development'),
+    })
+
+    # OTLP endpoint configuration
+    OTLP_ENDPOINT = config('OTEL_EXPORTER_OTLP_ENDPOINT', default='http://localhost:4318')
+
+    # Configure Tracing
+    trace_provider = TracerProvider(resource=resource)
+    trace_exporter = OTLPSpanExporter(
+        endpoint=f"{OTLP_ENDPOINT}/v1/traces",
+    )
+    trace_provider.add_span_processor(BatchSpanProcessor(trace_exporter))
+    trace.set_tracer_provider(trace_provider)
+
+    # Configure Metrics
+    metric_reader = PeriodicExportingMetricReader(
+        OTLPMetricExporter(
+            endpoint=f"{OTLP_ENDPOINT}/v1/metrics",
+        ),
+        export_interval_millis=10000,  # Export every 10 seconds
+    )
+    meter_provider = MeterProvider(
+        resource=resource,
+        metric_readers=[metric_reader]
+    )
+    metrics.set_meter_provider(meter_provider)
+
+    # Configure Logging to Loki via OTLP
+    logger_provider = LoggerProvider(resource=resource)
+    set_logger_provider(logger_provider)
+
+    log_exporter = OTLPLogExporter(
+        endpoint=f"{OTLP_ENDPOINT}/v1/logs",
+    )
+    logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
+
+    # Add OTLP log handler to root logger
+    otlp_handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
+    logging.getLogger().addHandler(otlp_handler)
+
+    # Add OTLP handler to api logger
+    logging.getLogger('api').addHandler(otlp_handler)
+
+    # Auto-instrument Django
+    DjangoInstrumentor().instrument()
+
+    # Auto-instrument requests library (for external HTTP calls)
+    RequestsInstrumentor().instrument()
+
+    # Auto-instrument logging for trace correlation
+    LoggingInstrumentor().instrument(
+        set_logging_format=True,
+        log_level=logging.INFO,
+    )

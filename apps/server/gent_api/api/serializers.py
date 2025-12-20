@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User
+from .models import User, Repository, Commit
+import hashlib
+import secrets
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -57,3 +59,50 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['first_name', 'last_name']
+
+
+class RepositorySerializer(serializers.ModelSerializer):
+    """Serializer for Repository model."""
+    owner_email = serializers.EmailField(source='owner.email', read_only=True)
+    commit_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Repository
+        fields = ['id', 'name', 'description', 'owner', 'owner_email', 'is_private', 'commit_count', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'owner', 'created_at', 'updated_at']
+
+    def get_commit_count(self, obj):
+        """Get total number of commits in the repository."""
+        return obj.commits.count()
+
+
+class RepositoryCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating a repository."""
+    class Meta:
+        model = Repository
+        fields = ['name', 'description', 'is_private']
+
+
+class CommitSerializer(serializers.ModelSerializer):
+    """Serializer for Commit model."""
+    author_email = serializers.EmailField(source='author.email', read_only=True)
+    repository_name = serializers.CharField(source='repository.name', read_only=True)
+
+    class Meta:
+        model = Commit
+        fields = ['id', 'hash', 'message', 'parent_hash', 'author', 'author_email', 'repository', 'repository_name', 'created_at']
+        read_only_fields = ['id', 'hash', 'author', 'created_at']
+
+
+class CommitCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating a commit."""
+    class Meta:
+        model = Commit
+        fields = ['message', 'parent_hash']
+
+    def validate(self, attrs):
+        """Generate a unique hash for the commit."""
+        # Generate a unique hash based on message, timestamp, and random data
+        hash_input = f"{attrs['message']}{secrets.token_hex(16)}"
+        attrs['hash'] = hashlib.sha1(hash_input.encode()).hexdigest()
+        return attrs

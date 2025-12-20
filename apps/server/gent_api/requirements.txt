@@ -3,3 +3,29 @@ djangorestframework==3.16.1
 djangorestframework-simplejwt==5.3.1
 django-cors-headers==4.6.0
 drf-spectacular==0.27.2
+
+# Sentry Integration
+sentry-sdk==1.40.0
+
+# Prometheus Metrics
+django-prometheus==2.3.1
+
+# Environment Management
+python-decouple==3.8
+
+# Structured Logging
+python-json-logger==2.0.7
+
+# OpenTelemetry for LGTM Integration (Latest versions with Python 3.14 support)
+opentelemetry-api>=1.29.0
+opentelemetry-sdk>=1.29.0
+opentelemetry-instrumentation>=0.50b0
+opentelemetry-instrumentation-django>=0.50b0
+opentelemetry-instrumentation-requests>=0.50b0
+opentelemetry-instrumentation-logging>=0.50b0
+opentelemetry-exporter-otlp>=1.29.0
+opentelemetry-exporter-otlp-proto-grpc>=1.29.0
+opentelemetry-exporter-otlp-proto-http>=1.29.0
+
+# Protobuf - Python 3.14 compatibility (required by OpenTelemetry)
+protobuf>=5.28.0

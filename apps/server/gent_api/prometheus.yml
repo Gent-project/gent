@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 15s       # How frequently to scrape targets
+  evaluation_interval: 15s   # How frequently to evaluate rules
+  external_labels:
+    monitor: 'gent-api-monitor'
+
+# Scrape configuration
+scrape_configs:
+  # Django API metrics
+  - job_name: 'django-api'
+    static_configs:
+      # Django runs on host machine, use host.docker.internal to access from container
+      - targets: ['host.docker.internal:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+    # Optional: Add labels to all metrics from this job
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        target_label: service
+        replacement: 'gent-api'
+
+# Note: If you run Django inside Docker, replace 'host.docker.internal:8000'
+# with the Django container service name (e.g., 'django:8000')

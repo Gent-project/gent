@@ -58,3 +58,40 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_short_name(self):
         """Return the short name for the user."""
         return self.first_name or self.email
+
+
+class Repository(models.Model):
+    """Repository model for Git-like version control."""
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='repositories')
+    is_private = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'repository'
+        verbose_name_plural = 'repositories'
+        ordering = ['-created_at']
+        unique_together = ['owner', 'name']
+
+    def __str__(self):
+        return f"{self.owner.email}/{self.name}"
+
+
+class Commit(models.Model):
+    """Commit model for tracking repository changes."""
+    repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='commits')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='commits')
+    hash = models.CharField(max_length=40, unique=True, db_index=True)
+    message = models.TextField()
+    parent_hash = models.CharField(max_length=40, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'commit'
+        verbose_name_plural = 'commits'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.hash[:7]} - {self.message[:50]}"

@@ -165,6 +165,7 @@ db.sqlite3-journal
 /media
 /staticfiles
 /static
+logs/
 
 # Local settings
 local_settings.py

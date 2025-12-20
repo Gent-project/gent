@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # Grafana OTEL LGTM - Complete Observability Stack
+  # Includes: OpenTelemetry Collector, Prometheus, Loki, Tempo, and Grafana
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: gent-otel-lgtm
+    ports:
+      - "3000:3000"   # Grafana UI - http://localhost:3000 (admin/admin)
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "9090:9090"   # Prometheus UI (optional, for debugging)
+    environment:
+      # Grafana credentials
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      # Enable anonymous access for easier development (disable in production)
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - otel-lgtm-data:/data
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  otel-lgtm-data:
+
+# Usage Instructions:
+#
+# 1. Start observability stack:
+#    docker-compose up -d
+#
+# 2. Start Django API (with OpenTelemetry configured):
+#    python manage.py runserver
+#
+# 3. Access services:
+#    - Grafana: http://localhost:3000 (admin/admin)
+#    - Prometheus: http://localhost:9090
+#
+# 4. Configure Django to send telemetry:
+#    Set OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 in .env
+#
+# 5. In Grafana, the data sources are pre-configured:
+#    - Prometheus (metrics)
+#    - Loki (logs)
+#    - Tempo (traces)
+#
+# 6. View your data:
+#    - Explore > Select Prometheus for metrics
+#    - Explore > Select Loki for logs
+#    - Explore > Select Tempo for traces
