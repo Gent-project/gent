@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     dockerContext: apps/server/gent_api
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: apps/server/gent_api/Dockerfile
     envVars:
       - key: SECRET_KEY
         generateValue: true
