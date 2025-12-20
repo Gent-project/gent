@@ -1,6 +1,6 @@
 {
   "name": "gent-cli",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "A modern, Git-like version control CLI with built-in cloud authentication and global user identity management.",
   "main": "src/index.js",
   "bin": {
