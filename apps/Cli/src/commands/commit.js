@@ -8,6 +8,7 @@ const chalk = require('chalk');
 const inquirer = require('inquirer');
 const ora = require('ora');
 const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
+const authStorage = require('../utils/auth-storage');
 const { STAGING_FILE, COMMITS_FILE, CONFIG_FILE } = require('../utils/constants');
 const { generateCommitHash, getFileHash } = require('../utils/helpers');
 
@@ -49,17 +50,41 @@ async function commit(options) {
 
         const spinner = ora('Creating commit...').start();
 
-        // Read config and repository
         const config = await readJSON(path.join(gentPath, CONFIG_FILE));
         const repository = await readJSON(path.join(gentPath, COMMITS_FILE));
+
+        // Resolve author identity
+        let authorName = config.user.name;
+        let authorEmail = config.user.email;
+
+        // Fallback to global auth if local config is empty
+        if (!authorName || !authorEmail) {
+            const globalUser = await authStorage.getUser();
+            if (globalUser) {
+                if (!authorName) {
+                    authorName = [globalUser.first_name, globalUser.last_name].filter(Boolean).join(' ');
+                }
+                if (!authorEmail) {
+                    authorEmail = globalUser.email;
+                }
+            }
+        }
+
+        // Fail if still no identity
+        if (!authorName || !authorEmail) {
+            spinner.stop();
+            console.error(chalk.red('Author identity unknown'));
+            console.log(chalk.yellow('Please run "gent login" to set your identity globally'));
+            return;
+        }
 
         // Create commit object
         const commit = {
             hash: generateCommitHash(),
             message: message,
             author: {
-                name: config.user.name,
-                email: config.user.email
+                name: authorName,
+                email: authorEmail
             },
             timestamp: new Date().toISOString(),
             parent: repository.branches[repository.currentBranch] || null,

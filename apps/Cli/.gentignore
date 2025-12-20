@@ -1,0 +1,6 @@
+# Gent ignore patterns
+node_modules/
+.DS_Store
+*.log
+.env
+.gent/

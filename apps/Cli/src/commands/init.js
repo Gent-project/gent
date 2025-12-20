@@ -6,10 +6,8 @@
 const fs = require('fs').promises;
 const path = require('path');
 const chalk = require('chalk');
-const inquirer = require('inquirer');
-const ora = require('ora');
-const boxen = require('boxen');
 const { ensureDir, writeJSON, pathExists } = require('../utils/fileSystem');
+const authStorage = require('../utils/auth-storage');
 const { GENT_DIR, CONFIG_FILE, STAGING_FILE, COMMITS_FILE } = require('../utils/constants');
 
 /**
@@ -17,24 +15,38 @@ const { GENT_DIR, CONFIG_FILE, STAGING_FILE, COMMITS_FILE } = require('../utils/
  * @param {Object} options - Command options
  */
 async function init(options) {
-    const spinner = ora('Initializing gent repository...').start();
-
     try {
         const cwd = process.cwd();
         const gentPath = path.join(cwd, GENT_DIR);
+        let isReinit = false;
 
         // Check if already initialized
         if (await pathExists(gentPath)) {
-            spinner.fail(chalk.red('Gent repository already exists!'));
-            console.log(chalk.yellow('\nℹ Use gent status to see the current state'));
-            return;
+            isReinit = true;
         }
 
-        // Get user configuration if not using defaults
+        // Get authenticated user profile if available
+        let defaultName = '';
+        let defaultEmail = '';
+
+        try {
+            const user = await authStorage.getUser();
+            if (user) {
+                if (user.first_name || user.last_name) {
+                    defaultName = [user.first_name, user.last_name].filter(Boolean).join(' ');
+                }
+                if (user.email) {
+                    defaultEmail = user.email;
+                }
+            }
+        } catch (error) {
+            // Ignore auth errors
+        }
+
         let config = {
             user: {
-                name: 'Anonymous',
-                email: 'anonymous@example.com'
+                name: defaultName,
+                email: defaultEmail
             },
             repository: {
                 name: path.basename(cwd),
@@ -43,96 +55,63 @@ async function init(options) {
             }
         };
 
-        if (!options.yes) {
-            spinner.stop();
-
-            const answers = await inquirer.prompt([
-                {
-                    type: 'input',
-                    name: 'userName',
-                    message: 'Enter your name:',
-                    default: 'Anonymous'
-                },
-                {
-                    type: 'input',
-                    name: 'userEmail',
-                    message: 'Enter your email:',
-                    default: 'anonymous@example.com',
-                    validate: (input) => {
-                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                        return emailRegex.test(input) || 'Please enter a valid email';
-                    }
-                },
-                {
-                    type: 'input',
-                    name: 'repoName',
-                    message: 'Repository name:',
-                    default: path.basename(cwd)
-                },
-                {
-                    type: 'input',
-                    name: 'repoDescription',
-                    message: 'Repository description:',
-                    default: 'A gent repository'
-                }
-            ]);
-
-            config.user.name = answers.userName;
-            config.user.email = answers.userEmail;
-            config.repository.name = answers.repoName;
-            config.repository.description = answers.repoDescription;
-
-            spinner.start('Creating repository structure...');
-        }
-
         // Create directory structure
         await ensureDir(gentPath);
         await ensureDir(path.join(gentPath, 'objects'));
         await ensureDir(path.join(gentPath, 'refs', 'heads'));
         await ensureDir(path.join(gentPath, 'refs', 'tags'));
 
-        // Create initial files
-        await writeJSON(path.join(gentPath, CONFIG_FILE), config);
-        await writeJSON(path.join(gentPath, STAGING_FILE), { files: [] });
-        await writeJSON(path.join(gentPath, COMMITS_FILE), { commits: [], branches: { main: null }, currentBranch: 'main' });
+        // Create/Update configuration
+        // Only write config if it doesn't exist OR if we have valid user info to update
+        const configPath = path.join(gentPath, CONFIG_FILE);
+        if (!(await pathExists(configPath)) || (defaultName && defaultEmail)) {
+            // If re-init, we might want to preserve existing config unless we have better info?
+            // Git re-init doesn't overwrite config usually.
+            // But for now, let's write ensuring we have a config file.
+            if (!isReinit || !(await pathExists(configPath))) {
+                await writeJSON(configPath, config);
+            }
+        }
 
-        // Create HEAD file
-        await fs.writeFile(path.join(gentPath, 'HEAD'), 'ref: refs/heads/main\n');
+        // Create initial files only if they don't exist
+        const stagingPath = path.join(gentPath, STAGING_FILE);
+        if (!(await pathExists(stagingPath))) {
+            await writeJSON(stagingPath, { files: [] });
+        }
 
-        // Create .gentignore
-        const gentignore = `# Gent ignore patterns
+        const commitsPath = path.join(gentPath, COMMITS_FILE);
+        if (!(await pathExists(commitsPath))) {
+            await writeJSON(commitsPath, { commits: [], branches: { main: null }, currentBranch: 'main' });
+        }
+
+        // Create HEAD file only if it doesn't exist
+        const headPath = path.join(gentPath, 'HEAD');
+        if (!(await pathExists(headPath))) {
+            await fs.writeFile(headPath, 'ref: refs/heads/main\n');
+        }
+
+        // Create .gentignore only if it doesn't exist
+        const ignorePath = path.join(cwd, '.gentignore');
+        if (!(await pathExists(ignorePath))) {
+            const gentignore = `# Gent ignore patterns
 node_modules/
 .DS_Store
 *.log
 .env
 .gent/
 `;
-        await fs.writeFile(path.join(cwd, '.gentignore'), gentignore);
+            await fs.writeFile(ignorePath, gentignore);
+        }
 
-        spinner.succeed(chalk.green('✓ Gent repository initialized successfully!'));
-
-        // Display success message
-        const message = chalk.white(`
-${chalk.bold('Repository:')} ${config.repository.name}
-${chalk.bold('User:')} ${config.user.name} <${config.user.email}>
-${chalk.bold('Branch:')} main
-
-${chalk.cyan('Next steps:')}
-  ${chalk.gray('•')} gent add <files>     - Add files to staging
-  ${chalk.gray('•')} gent commit          - Commit your changes
-  ${chalk.gray('•')} gent status          - View repository status
-    `);
-
-        console.log(boxen(message, {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'cyan'
-        }));
+        if (isReinit) {
+            console.log(chalk.gray(`Reinitialized existing Gent repository in ${gentPath}`));
+        } else {
+            console.log(chalk.gray(`Initialized empty Gent repository in ${gentPath}`));
+        }
 
     } catch (error) {
-        spinner.fail(chalk.red('Failed to initialize repository'));
-        console.error(chalk.red('\nError:'), error.message);
+        console.error(chalk.red('Failed to initialize repository'));
+        console.error(chalk.red('Error:'), error.message);
         process.exit(1);
     }
 }

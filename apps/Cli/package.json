@@ -1,23 +1,29 @@
 {
   "name": "gent-cli",
-  "version": "1.0.0",
-  "description": "A Git-like version control CLI tool",
+  "version": "1.4.0",
+  "description": "A Git-like version control CLI tool with cloud authentication",
   "main": "src/index.js",
   "bin": {
-    "gent": "./src/index.js"
+    "gent": "src/index.js"
   },
   "scripts": {
     "start": "node src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "demo": "bash demo.sh",
     "link": "npm link",
-    "unlink": "npm unlink"
+    "unlink": "npm unlink",
+    "prepublishOnly": "echo 'Ready to publish gent-cli!'"
   },
   "keywords": [
     "cli",
     "version-control",
     "git-like",
-    "gent"
+    "gent",
+    "authentication",
+    "jwt",
+    "api",
+    "command-line",
+    "developer-tools"
   ],
   "author": "Abdalrahman Kanawati <kanawatiabdalrahman@gmail.com>",
   "license": "ISC",
@@ -30,14 +36,21 @@
     "url": "https://github.com/SaadShaya7/gent/issues"
   },
   "dependencies": {
-    "commander": "^11.1.0",
-    "chalk": "^4.1.2",
-    "inquirer": "^8.2.5",
-    "ora": "^5.4.1",
+    "axios": "^1.6.0",
     "boxen": "^5.1.2",
-    "date-fns": "^2.30.0"
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "crypto-js": "^4.2.0",
+    "date-fns": "^2.30.0",
+    "inquirer": "^8.2.5",
+    "ora": "^5.4.1"
   },
   "engines": {
     "node": ">=14.0.0"
-  }
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "QUICKSTART.md"
+  ]
 }

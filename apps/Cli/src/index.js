@@ -21,6 +21,12 @@ const logCommand = require('./commands/log');
 const branchCommand = require('./commands/branch');
 const checkoutCommand = require('./commands/checkout');
 
+// Import auth commands
+const registerCommand = require('./commands/register');
+const loginCommand = require('./commands/login');
+const logoutCommand = require('./commands/logout');
+const whoamiCommand = require('./commands/whoami');
+
 // Configure CLI
 program
     .name('gent')
@@ -73,6 +79,29 @@ program
     .description('Switch branches or restore working tree files')
     .option('-b, --create', 'Create a new branch')
     .action(checkoutCommand);
+
+// Authentication commands
+program
+    .command('register')
+    .description('Create a new user account')
+    .action(registerCommand);
+
+program
+    .command('login')
+    .description('Login to your account')
+    .option('-e, --email <email>', 'Email address')
+    .option('-p, --password <password>', 'Password')
+    .action(loginCommand);
+
+program
+    .command('logout')
+    .description('Logout from your account')
+    .action(logoutCommand);
+
+program
+    .command('whoami')
+    .description('Display current user information')
+    .action(whoamiCommand);
 
 // Help command
 program

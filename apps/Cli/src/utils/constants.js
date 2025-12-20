@@ -10,6 +10,17 @@ module.exports = {
     STAGING_FILE: 'staging.json',
     COMMITS_FILE: 'commits.json',
     HEAD_FILE: 'HEAD',
+    AUTH_FILE: 'auth.json',
+
+    // API Configuration
+    API_BASE_URL: 'https://gent-api.onrender.com',
+    API_ENDPOINTS: {
+        LOGIN: '/api/auth/login/',
+        REGISTER: '/api/auth/register/',
+        LOGOUT: '/api/auth/logout/',
+        REFRESH: '/api/auth/token/refresh/',
+        PROFILE: '/api/auth/profile/'
+    },
 
     // Default ignore patterns
     DEFAULT_IGNORE_PATTERNS: [
