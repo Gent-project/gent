@@ -13,6 +13,11 @@ from .serializers import (
 )
 
 
+@extend_schema(
+    responses={200: OpenApiTypes.OBJECT},
+    summary='API Root',
+    description='Returns a welcome message and lists all available API endpoints.'
+)
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def api_root(request):
