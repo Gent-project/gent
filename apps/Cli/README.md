@@ -2,23 +2,23 @@
 
 > A modern, Git-like version control CLI with built-in cloud authentication and global user identity management.
 
-`gent` is a lightweight version control system that feels exactly like Git but handles user identity automatically through the cloud. No more configuring `user.name` and `user.email` for every repository!
+Gent is a lightweight version control system that feels exactly like Git but handles user identity automatically through the cloud. No more configuring user.name and user.email for every repository!
 
-## 🚀 Features
+## Features
 
 - **Cloud Authentication**: Login once, work everywhere. Your identity follows you across projects.
-- **Git-like Experience**: Familiar commands (`init`, `add`, `commit`, `status`, `log`, `branch`, `checkout`).
-- **Zero Configuration**: `gent init` is silent and auto-detects your authenticated user profile.
+- **Git-like Experience**: Familiar commands (init, add, commit, status, log, branch, checkout).
+- **Zero Configuration**: gent init is silent and auto-detects your authenticated user profile.
 - **Global Identity**: Commits are automatically authored with your cloud profile.
 - **Secure**: Tokens stored securely in your home directory.
 
-## 📦 Installation
+## Installation
 
 ```bash
 npm install -g gent-cli
 ```
 
-## 🔐 Authentication (The Magic mmss)
+## Authentication
 
 Gent uses a global authentication system. You only need to login once.
 
@@ -48,11 +48,11 @@ gent whoami
 gent logout
 ```
 
-## 🛠 Usage
+## Usage
 
 ### 1. Initialize a Repository
 
-Just like Git, `gent init` is silent and sets up a new repository in your current directory. It automatically uses your logged-in identity for configuration.
+Just like Git, gent init is silent and sets up a new repository in your current directory. It automatically uses your logged-in identity for configuration.
 
 ```bash
 gent init
@@ -97,7 +97,7 @@ gent log
 gent log --oneline
 ```
 
-## 🌿 Branching
+## Branching
 
 Manage branches just like you're used to.
 
@@ -115,9 +115,9 @@ gent checkout main
 gent branch -d feature-login
 ```
 
-## 📂 Repository Structure
+## Repository Structure
 
-Gent creates a `.gent` directory in your project root:
+Gent creates a .gent directory in your project root:
 
 ```
 .gent/
@@ -127,16 +127,16 @@ Gent creates a `.gent` directory in your project root:
 └── HEAD             # Current branch reference
 ```
 
-Your authentication tokens are stored globally in `~/.gent/auth.json`.
+Your authentication tokens are stored globally in ~/.gent/auth.json.
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please fork the repository and submit a Pull Request.
 
-## 📄 License
+## License
 
 ISC
 
 ---
 
-Built with ❤️ by [Abdalrahman Kanawati](https://github.com/SaadShaya7)
+Built with love by [Abdalrahman Kanawati](https://github.com/abdo-ka)
