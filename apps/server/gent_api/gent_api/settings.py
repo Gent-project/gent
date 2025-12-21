@@ -138,6 +138,15 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# Media files configuration
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Repository settings
+REPO_MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+REPO_SMALL_FILE_THRESHOLD = 1024 * 1024  # 1MB (store in DB)
+REPO_MAX_REPO_SIZE = 1024 * 1024 * 1024  # 1GB
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
