@@ -19,7 +19,18 @@ module.exports = {
         REGISTER: '/api/auth/register/',
         LOGOUT: '/api/auth/logout/',
         REFRESH: '/api/auth/token/refresh/',
-        PROFILE: '/api/auth/profile/'
+        PROFILE: '/api/auth/profile/',
+
+        // Repository endpoints (used by push/pull/clone)
+        // Base: /api/repos/:id/
+        REPOS: '/api/repos/',
+        REPO_PUSH: '/push/',       // POST - upload commits + objects
+        REPO_PULL: '/pull/',       // GET  - download commits + objects since hash
+        REPO_CLONE: '/clone/',     // GET  - full repo download
+        REPO_REFS: '/refs/',       // GET  - list remote branch refs
+        REPO_TAGS: '/tags/',       // GET/POST/DELETE - tag management
+        REPO_MERGE: '/merge/',     // POST - server-side merge request
+        REPO_COMMITS: '/commits/', // GET  - commit history
     },
 
     // Default ignore patterns
