@@ -143,7 +143,7 @@ async function add(files, options) {
             for (const d of diffSummaries) {
                 const statusIcon = d.status === 'added' ? chalk.green('+ new')
                     : d.status === 'deleted' ? chalk.red('- del')
-                    : chalk.yellow('~ mod');
+                        : chalk.yellow('~ mod');
                 const statsStr = d.binary ? chalk.gray('(binary)')
                     : chalk.green(`+${d.stats.insertions}`) + ' ' + chalk.red(`-${d.stats.deletions}`);
                 console.log(`  ${statusIcon}  ${d.path}  ${statsStr}`);

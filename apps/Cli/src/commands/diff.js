@@ -245,7 +245,7 @@ function printDiffStat(fileSummaries, totalIns, totalDel) {
     for (const { file, stats } of fileSummaries) {
         const total = stats.insertions + stats.deletions;
         const bar = chalk.green('+'.repeat(Math.min(stats.insertions, 30))) +
-                    chalk.red('-'.repeat(Math.min(stats.deletions, 30)));
+            chalk.red('-'.repeat(Math.min(stats.deletions, 30)));
         console.log(` ${file.padEnd(maxLen)} | ${String(total).padStart(4)} ${bar}`);
     }
 

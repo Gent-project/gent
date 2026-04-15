@@ -134,7 +134,7 @@ function displayDetailedStatus(branch, stagedEntries, modified, untracked, delet
         for (const entry of stagedEntries) {
             const icon = entry.status === 'added' ? 'new file:  '
                 : entry.status === 'deleted' ? 'deleted:   '
-                : 'modified:  ';
+                    : 'modified:  ';
             console.log(chalk.green(`\t${icon}${entry.path}`));
         }
         console.log();
