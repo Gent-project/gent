@@ -23,6 +23,9 @@ urlpatterns = [
     path('repos/<int:owner_id>/<str:repo_name>/branches/create/', views.branch_create, name='branch-create'),
     path('repos/<int:owner_id>/<str:repo_name>/branches/<str:branch_name>/', views.branch_detail, name='branch-detail'),
 
+    # Push endpoint
+    path('repos/<int:owner_id>/<str:repo_name>/push/', views.push, name='push'),
+
     # Commit endpoints
     path('repos/<int:owner_id>/<str:repo_name>/commits/', views.commit_list, name='commit-list'),
     path('repos/<int:owner_id>/<str:repo_name>/commits/create/', views.commit_create, name='commit-create'),

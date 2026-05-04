@@ -1,0 +1,41 @@
+# Root .gitignore for Gent monorepo
+# Applies to all subdirectories
+
+# === OS files ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === Node.js (root-level tooling only) ===
+/node_modules/
+/package.json
+/package-lock.json
+
+# === Python (global fallback) ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+venv/
+env/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === Workspace / temporary ===
+/scripts/
+/prompts/
+*.tmp
+*.bak
+*.backup
