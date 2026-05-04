@@ -1,0 +1,56 @@
+{
+  "name": "gent-cli",
+  "version": "1.6.0",
+  "description": "A modern, Git-like version control CLI with built-in cloud authentication and global user identity management.",
+  "main": "src/index.js",
+  "bin": {
+    "gent": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "demo": "bash demo.sh",
+    "link": "npm link",
+    "unlink": "npm unlink",
+    "prepublishOnly": "echo 'Ready to publish gent-cli!'"
+  },
+  "keywords": [
+    "cli",
+    "version-control",
+    "git-like",
+    "gent",
+    "authentication",
+    "jwt",
+    "api",
+    "command-line",
+    "developer-tools"
+  ],
+  "author": "Abdalrahman Kanawati <kanawatiabdalrahman@gmail.com>",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SaadShaya7/gent.git"
+  },
+  "homepage": "https://github.com/SaadShaya7/gent#readme",
+  "bugs": {
+    "url": "https://github.com/SaadShaya7/gent/issues"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "boxen": "^5.1.2",
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "crypto-js": "^4.2.0",
+    "date-fns": "^2.30.0",
+    "inquirer": "^8.2.5",
+    "ora": "^5.4.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "QUICKSTART.md"
+  ]
+}
