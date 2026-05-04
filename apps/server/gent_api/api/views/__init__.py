@@ -4,6 +4,7 @@ from .branch import branch_list, branch_create, branch_detail
 from .commit import commit_list, commit_create, commit_detail
 from .object import tree_create, tree_detail, blob_create, blob_detail
 from .push import push
+from .tag import tag_list, tag_create, tag_delete
 
 __all__ = [
     'api_root',
@@ -28,4 +29,7 @@ __all__ = [
     'blob_create',
     'blob_detail',
     'push',
+    'tag_list',
+    'tag_create',
+    'tag_delete',
 ]

@@ -52,6 +52,7 @@ class PushPackSerializer(serializers.Serializer):
     """Serializer for the push request body."""
     pack = serializers.DictField(required=True)
     branch_updates = BranchUpdateSerializer(many=True, required=False, default=list)
+    tags = serializers.DictField(required=False, default=dict)
 
     def validate_pack(self, value):
         if 'commits' not in value:

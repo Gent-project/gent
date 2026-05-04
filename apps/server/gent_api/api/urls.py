@@ -26,6 +26,11 @@ urlpatterns = [
     # Push endpoint
     path('repos/<int:owner_id>/<str:repo_name>/push/', views.push, name='push'),
 
+    # Tag endpoints
+    path('repos/<int:owner_id>/<str:repo_name>/tags/', views.tag_list, name='tag-list'),
+    path('repos/<int:owner_id>/<str:repo_name>/tags/create/', views.tag_create, name='tag-create'),
+    path('repos/<int:owner_id>/<str:repo_name>/tags/<str:tag_name>/', views.tag_delete, name='tag-delete'),
+
     # Commit endpoints
     path('repos/<int:owner_id>/<str:repo_name>/commits/', views.commit_list, name='commit-list'),
     path('repos/<int:owner_id>/<str:repo_name>/commits/create/', views.commit_create, name='commit-create'),

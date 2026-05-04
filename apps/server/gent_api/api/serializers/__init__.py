@@ -7,6 +7,7 @@ from .branch import (
 )
 from .commit import CommitSerializer, CommitCreateSerializer
 from .object import TreeSerializer, TreeCreateSerializer, BlobSerializer, BlobCreateSerializer
+from .tag import TagSerializer, TagCreateSerializer
 from .push import (
     PushPackSerializer,
     PushCommitSerializer,
@@ -31,6 +32,8 @@ __all__ = [
     'TreeCreateSerializer',
     'BlobSerializer',
     'BlobCreateSerializer',
+    'TagSerializer',
+    'TagCreateSerializer',
     'PushPackSerializer',
     'PushCommitSerializer',
     'PushTreeSerializer',

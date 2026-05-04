@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
 from django.db import transaction
-from ..models import Commit, Tree, Blob, Branch
+from ..models import Commit, Tree, Blob, Branch, Tag
 from ..serializers import (
     PushPackSerializer,
     PushCommitSerializer,
@@ -41,6 +41,7 @@ def push(request, owner_id, repo_name):
 
     pack = serializer.validated_data['pack']
     branch_updates = serializer.validated_data.get('branch_updates', [])
+    tags = request.data.get('tags', {})
 
     commits_data = pack.get('commits', [])
     trees_data = pack.get('trees', [])
@@ -123,6 +124,19 @@ def push(request, owner_id, repo_name):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+    for tag_name, tag_data in tags.items():
+        tag_commit_sha = tag_data.get('hash')
+        if not tag_commit_sha:
+            return Response(
+                {'error': f"Tag '{tag_name}' missing commit hash."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if tag_commit_sha not in pack_commit_shas and not Commit.objects.filter(repository=repository, sha=tag_commit_sha).exists():
+            return Response(
+                {'error': f"Tag '{tag_name}' references missing commit {tag_commit_sha}."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
     with transaction.atomic():
         commits_created = 0
         trees_created = 0
@@ -182,13 +196,31 @@ def push(request, owner_id, repo_name):
                 branch.save()
             branches_updated += 1
 
+        tags_created = 0
+        for tag_name, tag_data in tags.items():
+            defaults = {
+                'commit_sha': tag_data.get('hash'),
+                'message': tag_data.get('message', ''),
+                'annotated': tag_data.get('annotated', False),
+                'tagger_name': tag_data.get('tagger', {}).get('name', ''),
+                'tagger_email': tag_data.get('tagger', {}).get('email', ''),
+            }
+            tag_obj, created = Tag.objects.update_or_create(
+                repository=repository,
+                name=tag_name,
+                defaults=defaults
+            )
+            if created:
+                tags_created += 1
+
     return Response(
         {
             'message': 'Push successful',
             'commits_created': commits_created,
             'trees_created': trees_created,
             'blobs_created': blobs_created,
-            'branches_updated': branches_updated
+            'branches_updated': branches_updated,
+            'tags_created': tags_created
         },
         status=status.HTTP_201_CREATED
     )

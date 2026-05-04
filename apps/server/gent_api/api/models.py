@@ -168,3 +168,24 @@ class Blob(models.Model):
 
     def __str__(self):
         return f"Blob {self.sha[:7]} ({self.size} bytes)"
+
+
+class Tag(models.Model):
+    """Git tag object."""
+    repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='tags')
+    name = models.CharField(max_length=255)
+    commit_sha = models.CharField(max_length=40)
+    message = models.TextField(blank=True)
+    annotated = models.BooleanField(default=False)
+    tagger_name = models.CharField(max_length=255, blank=True)
+    tagger_email = models.EmailField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['repository', 'name']
+        ordering = ['name']
+        verbose_name = 'tag'
+        verbose_name_plural = 'tags'
+
+    def __str__(self):
+        return f"{self.repository.owner.email}/{self.repository.name}:{self.name}"
