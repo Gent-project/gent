@@ -11,23 +11,13 @@
  *   gent pull                          → Pull from origin/current-branch
  *   gent pull <remote> <branch>        → Pull specific remote/branch
  *
- * ALGORITHM:
- *   1. GET /api/repos/:id/pull/?branch=<branch>&since=<lastKnownHash>
- *   2. Receive commits + blob objects
- *   3. Store blobs in local object store
- *   4. Append commits to local history
- *   5. If diverged: run 3-way merge (same as gent merge)
- *   6. If fast-forward: just advance pointer
- *
- * BACKEND EXPECTATIONS:
- *   GET /api/repos/:id/pull/?branch=main&since=abc1234
- *   Returns:
- *   {
- *     branch: "main",
- *     commits: [...],
- *     objects: [ { hash, type, data: "<base64>" } ],
- *     head: "<remoteHeadHash>"
- *   }
+ * ALGORITHM (client-side, no /pull/ endpoint):
+ *   1. GET .../branches/{branch}/ → get remote branch head SHA
+ *   2. GET .../commits/ → list all remote commits
+ *   3. Diff local vs remote commits, find new ones
+ *   4. For each new commit, fetch tree + blobs via individual endpoints
+ *   5. Store objects locally
+ *   6. If diverged: run 3-way merge. If fast-forward: advance pointer
  *
  * ============================================================================
  */
@@ -37,7 +27,7 @@ const path = require('path');
 const chalk = require('chalk');
 const ora = require('ora');
 const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
-const { COMMITS_FILE, CONFIG_FILE } = require('../utils/constants');
+const { COMMITS_FILE, CONFIG_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
 const { storeBlob, objectExists } = require('../utils/hash-engine');
@@ -72,52 +62,128 @@ async function pull(remoteName, branchName, options) {
             return;
         }
 
+        const repoInfo = parseRemoteUrl(remoteConfig.url);
+        if (!repoInfo) {
+            spinner.fail(chalk.red('Invalid remote URL format'));
+            console.log(chalk.yellow('Expected: /api/repos/{owner_id}/{repo_name}'));
+            return;
+        }
+
         const repository = await readJSON(path.join(gentPath, COMMITS_FILE));
         const branch = branchName || repository.currentBranch;
         const localHead = repository.branches[branch] || null;
 
-        // Fetch from remote
-        config.remoteRefs = config.remoteRefs || {};
-        const since = config.remoteRefs[`${remote}/${branch}`] || localHead || '';
+        // 1. Get remote branch info to find remote HEAD
+        spinner.text = `Fetching branch info for ${branch}...`;
+        let remoteHead;
+        try {
+            const branchInfo = await apiClient.get(
+                buildRepoUrl(API_ENDPOINTS.REPO_BRANCH_DETAIL, { ...repoInfo, branch_name: branch })
+            );
+            remoteHead = branchInfo.commit_sha;
+        } catch (error) {
+            if (error.response?.status === 404) {
+                spinner.succeed(chalk.green('Remote branch not found — nothing to pull'));
+                return;
+            }
+            throw error;
+        }
 
-        spinner.text = `Fetching from ${remote}/${branch}...`;
-
-        const response = await apiClient.get(
-            `${remoteConfig.url}/pull/`,
-            { params: { branch, since } }
-        );
-
-        const remoteCommits = response.commits || [];
-        const remoteObjects = response.objects || [];
-        const remoteHead = response.head;
-
-        if (remoteCommits.length === 0) {
+        if (!remoteHead || remoteHead === localHead) {
             spinner.succeed(chalk.green('Already up-to-date'));
             return;
         }
 
-        // Store received blob objects
-        spinner.text = `Storing ${remoteObjects.length} object(s)...`;
-        for (const obj of remoteObjects) {
-            if (obj.type === 'blob' && obj.data) {
-                const buf = Buffer.from(obj.data, 'base64');
-                await storeBlob(gentPath, buf);
-            }
+        // 2. Fetch all remote commits
+        spinner.text = `Fetching commits...`;
+        const remoteCommits = await apiClient.get(
+            buildRepoUrl(API_ENDPOINTS.REPO_COMMITS, repoInfo)
+        );
+
+        // 3. Find commits we don't have locally
+        const localCommitSet = new Set((repository.commits || []).map(c => c.hash || c.sha));
+        const newRemoteCommits = remoteCommits.filter(c => !localCommitSet.has(c.sha));
+
+        if (newRemoteCommits.length === 0) {
+            // We have all commits but pointer is different — update ref
+            config.remoteRefs = config.remoteRefs || {};
+            config.remoteRefs[`${remote}/${branch}`] = remoteHead;
+            await writeJSON(path.join(gentPath, CONFIG_FILE), config);
+            spinner.succeed(chalk.green('Already up-to-date'));
+            return;
         }
 
-        // Check if fast-forward is possible
-        const allCommits = [...(repository.commits || []), ...remoteCommits];
-        const commitSet = new Set((repository.commits || []).map(c => c.hash));
+        // 4. For each new commit, fetch tree and blobs
+        spinner.text = `Fetching ${newRemoteCommits.length} new commit(s) + objects...`;
 
-        // Add new commits (dedup)
+        const fetchedCommits = [];
+        for (const commit of newRemoteCommits) {
+            // Fetch tree for this commit
+            let treeEntries = [];
+            if (commit.tree_sha) {
+                try {
+                    const tree = await apiClient.get(
+                        buildRepoUrl(API_ENDPOINTS.REPO_TREE_DETAIL, { ...repoInfo, sha: commit.tree_sha })
+                    );
+                    treeEntries = tree.entries || [];
+                } catch {
+                    // Tree may not be available
+                }
+            }
+
+            // Fetch and store blobs
+            for (const entry of treeEntries) {
+                if (entry.type === 'blob' && entry.sha) {
+                    if (!(await objectExists(gentPath, entry.sha))) {
+                        try {
+                            const blob = await apiClient.get(
+                                buildRepoUrl(API_ENDPOINTS.REPO_BLOB_DETAIL, { ...repoInfo, sha: entry.sha })
+                            );
+                            if (blob.content) {
+                                const buf = Buffer.from(blob.content, 'base64');
+                                await storeBlob(gentPath, buf);
+                            }
+                        } catch {
+                            // Blob fetch failed, continue
+                        }
+                    }
+                }
+            }
+
+            // Convert remote commit format to local format
+            fetchedCommits.push({
+                hash: commit.sha,
+                message: commit.message,
+                author: { name: commit.author_name, email: commit.author_email },
+                timestamp: commit.committed_at,
+                parent: commit.parent_shas && commit.parent_shas[0] || null,
+                mergeParent: commit.parent_shas && commit.parent_shas[1] || null,
+                treeHash: commit.tree_sha,
+                tree: treeEntries.map(e => ({
+                    mode: e.mode || '100644',
+                    name: e.name,
+                    hash: e.sha,
+                    type: e.type || 'blob'
+                })),
+                files: treeEntries.map(e => ({ path: e.name, hash: e.sha })),
+                stats: {}
+            });
+        }
+
+        // 5. Add new commits to local store (dedup)
         let newCount = 0;
-        for (const commit of remoteCommits) {
+        const commitSet = new Set((repository.commits || []).map(c => c.hash));
+        for (const commit of fetchedCommits) {
             if (!commitSet.has(commit.hash)) {
+                repository.commits = repository.commits || [];
                 repository.commits.push(commit);
                 commitSet.add(commit.hash);
                 newCount++;
             }
         }
+
+        // 6. Merge strategy
+        config.remoteRefs = config.remoteRefs || {};
 
         if (!localHead || isAncestor(repository.commits, localHead, remoteHead)) {
             // Fast-forward
@@ -187,8 +253,8 @@ async function pull(remoteName, branchName, options) {
         spinner.fail(chalk.red('Pull failed'));
         if (error.response?.status === 401) {
             console.error(chalk.red('Authentication failed — run "gent login"'));
-        } else if (error.response?.data?.message) {
-            console.error(chalk.red(error.response.data.message));
+        } else if (error.response?.data) {
+            console.error(chalk.red(JSON.stringify(error.response.data)));
         } else {
             console.error(chalk.red('Error:'), error.message);
         }

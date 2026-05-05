@@ -11,25 +11,15 @@
  *   gent clone <url>                   → Clone into folder named after repo
  *   gent clone <url> <directory>       → Clone into specific directory
  *
- * ALGORITHM:
- *   1. GET <url>/clone/ → receives full repo (commits, objects, config)
- *   2. Create .gent/ directory structure
- *   3. Store all blob objects in local object store
- *   4. Write commits.json with full history
- *   5. Checkout HEAD (restore working tree from latest commit)
- *   6. Configure remote "origin" pointing to <url>
- *
- * BACKEND EXPECTATIONS:
- *   GET /api/repos/:id/clone/
- *   Returns:
- *   {
- *     name: "repo-name",
- *     commits: [...],
- *     objects: [ { hash, type, data: "<base64>" } ],
- *     branches: { "main": "<hash>", ... },
- *     currentBranch: "main",
- *     tags: { ... }
- *   }
+ * ALGORITHM (client-side, no /clone/ endpoint):
+ *   1. Parse URL to get owner_id + repo_name
+ *   2. GET repo details → name, description, default_branch
+ *   3. GET branches list → all branch names + SHAs
+ *   4. GET commits list → all commits
+ *   5. For each commit, fetch tree + blobs
+ *   6. Create .gent/ directory structure
+ *   7. Store all objects locally
+ *   8. Checkout HEAD (restore working tree from latest commit)
  *
  * ============================================================================
  */
@@ -39,13 +29,14 @@ const path = require('path');
 const chalk = require('chalk');
 const ora = require('ora');
 const { ensureDir, writeJSON, pathExists } = require('../utils/fileSystem');
-const { GENT_DIR, CONFIG_FILE, STAGING_FILE, COMMITS_FILE } = require('../utils/constants');
+const { GENT_DIR, CONFIG_FILE, STAGING_FILE, COMMITS_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
+const authStorage = require('../utils/auth-storage');
 const { storeBlob, readBlobAsString } = require('../utils/hash-engine');
 
 /**
  * Clone remote repository
- * @param {String} url - Remote repository URL
+ * @param {String} url - Remote repository URL (e.g. /api/repos/1/my-repo)
  * @param {String} directory - Optional target directory
  * @param {Object} options
  */
@@ -58,11 +49,30 @@ async function clone(url, directory, options) {
     const spinner = ora(`Cloning from ${url}...`).start();
 
     try {
-        // Fetch full repo from remote
-        spinner.text = 'Downloading repository data...';
-        const response = await apiClient.get(`${url}/clone/`);
+        // Check auth
+        const isAuth = await authStorage.isAuthenticated();
+        if (!isAuth) {
+            spinner.fail(chalk.red('Not authenticated'));
+            console.log(chalk.yellow('Run "gent login" first'));
+            return;
+        }
 
-        const repoName = response.name || 'gent-repo';
+        // Parse URL
+        const repoInfo = parseRemoteUrl(url);
+        if (!repoInfo) {
+            spinner.fail(chalk.red('Invalid repository URL'));
+            console.log(chalk.yellow('Expected format: /api/repos/{owner_id}/{repo_name}'));
+            return;
+        }
+
+        // 1. Get repo details
+        spinner.text = 'Fetching repository info...';
+        const repoDetail = await apiClient.get(
+            buildRepoUrl(API_ENDPOINTS.REPO_DETAIL, repoInfo)
+        );
+
+        const repoName = repoDetail.name || repoInfo.repo_name;
+        const defaultBranch = repoDetail.default_branch || 'main';
         const targetDir = directory || repoName;
         const targetPath = path.resolve(process.cwd(), targetDir);
 
@@ -74,6 +84,39 @@ async function clone(url, directory, options) {
             }
         }
 
+        // 2. Get branches
+        spinner.text = 'Fetching branches...';
+        let remoteBranches = [];
+        try {
+            remoteBranches = await apiClient.get(
+                buildRepoUrl(API_ENDPOINTS.REPO_BRANCHES, repoInfo)
+            );
+        } catch {
+            // No branches yet
+        }
+
+        // 3. Get all commits
+        spinner.text = 'Fetching commits...';
+        let remoteCommits = [];
+        try {
+            remoteCommits = await apiClient.get(
+                buildRepoUrl(API_ENDPOINTS.REPO_COMMITS, repoInfo)
+            );
+        } catch {
+            // No commits yet
+        }
+
+        // 4. Get tags
+        spinner.text = 'Fetching tags...';
+        let remoteTags = [];
+        try {
+            remoteTags = await apiClient.get(
+                buildRepoUrl(API_ENDPOINTS.REPO_TAGS, repoInfo)
+            );
+        } catch {
+            // No tags
+        }
+
         // Create directory structure
         spinner.text = 'Setting up repository...';
         const gentPath = path.join(targetPath, GENT_DIR);
@@ -82,23 +125,91 @@ async function clone(url, directory, options) {
         await ensureDir(path.join(gentPath, 'refs', 'heads'));
         await ensureDir(path.join(gentPath, 'refs', 'tags'));
 
-        // Store blob objects
-        const objects = response.objects || [];
-        spinner.text = `Storing ${objects.length} object(s)...`;
+        // 5. For each commit, fetch tree and blobs
+        const localCommits = [];
+        let objectCount = 0;
 
-        for (const obj of objects) {
-            if (obj.type === 'blob' && obj.data) {
-                const buf = Buffer.from(obj.data, 'base64');
-                await storeBlob(gentPath, buf);
+        for (let i = 0; i < remoteCommits.length; i++) {
+            const commit = remoteCommits[i];
+            spinner.text = `Fetching objects (${i + 1}/${remoteCommits.length})...`;
+
+            let treeEntries = [];
+            if (commit.tree_sha) {
+                try {
+                    const tree = await apiClient.get(
+                        buildRepoUrl(API_ENDPOINTS.REPO_TREE_DETAIL, { ...repoInfo, sha: commit.tree_sha })
+                    );
+                    treeEntries = tree.entries || [];
+                } catch {
+                    // Tree not available
+                }
             }
+
+            // Fetch and store blobs
+            for (const entry of treeEntries) {
+                if (entry.type === 'blob' && entry.sha) {
+                    try {
+                        const blob = await apiClient.get(
+                            buildRepoUrl(API_ENDPOINTS.REPO_BLOB_DETAIL, { ...repoInfo, sha: entry.sha })
+                        );
+                        if (blob.content) {
+                            const buf = Buffer.from(blob.content, 'base64');
+                            await storeBlob(gentPath, buf);
+                            objectCount++;
+                        }
+                    } catch {
+                        // Blob fetch failed
+                    }
+                }
+            }
+
+            // Convert to local commit format
+            localCommits.push({
+                hash: commit.sha,
+                message: commit.message,
+                author: { name: commit.author_name, email: commit.author_email },
+                timestamp: commit.committed_at,
+                parent: commit.parent_shas && commit.parent_shas[0] || null,
+                mergeParent: commit.parent_shas && commit.parent_shas[1] || null,
+                treeHash: commit.tree_sha,
+                tree: treeEntries.map(e => ({
+                    mode: e.mode || '100644',
+                    name: e.name,
+                    hash: e.sha,
+                    type: e.type || 'blob'
+                })),
+                files: treeEntries.map(e => ({ path: e.name, hash: e.sha })),
+                stats: {}
+            });
+        }
+
+        // Build branches map
+        const branches = {};
+        for (const b of remoteBranches) {
+            branches[b.name] = b.commit_sha;
+        }
+        if (!branches[defaultBranch]) {
+            branches[defaultBranch] = null;
+        }
+
+        // Build tags map
+        const tagsMap = {};
+        for (const t of remoteTags) {
+            tagsMap[t.name] = {
+                hash: t.commit_sha,
+                message: t.message || '',
+                annotated: t.annotated || false,
+                tagger: { name: t.tagger_name || '', email: t.tagger_email || '' },
+                timestamp: t.created_at
+            };
         }
 
         // Write commits.json
         const repoData = {
-            commits: response.commits || [],
-            branches: response.branches || { main: null },
-            currentBranch: response.currentBranch || 'main',
-            tags: response.tags || {}
+            commits: localCommits,
+            branches,
+            currentBranch: defaultBranch,
+            tags: tagsMap
         };
         await writeJSON(path.join(gentPath, COMMITS_FILE), repoData);
 
@@ -107,7 +218,7 @@ async function clone(url, directory, options) {
             user: { name: '', email: '' },
             repository: {
                 name: repoName,
-                description: response.description || '',
+                description: repoDetail.description || '',
                 created: new Date().toISOString()
             },
             remotes: {
@@ -116,10 +227,9 @@ async function clone(url, directory, options) {
             remoteRefs: {}
         };
 
-        // Set remote ref to head
-        const headHash = repoData.branches[repoData.currentBranch];
+        const headHash = branches[defaultBranch];
         if (headHash) {
-            config.remoteRefs[`origin/${repoData.currentBranch}`] = headHash;
+            config.remoteRefs[`origin/${defaultBranch}`] = headHash;
         }
 
         await writeJSON(path.join(gentPath, CONFIG_FILE), config);
@@ -130,7 +240,7 @@ async function clone(url, directory, options) {
         // Write HEAD file
         await fs.writeFile(
             path.join(gentPath, 'HEAD'),
-            `ref: refs/heads/${repoData.currentBranch}\n`
+            `ref: refs/heads/${defaultBranch}\n`
         );
 
         // Create .gentignore
@@ -139,11 +249,9 @@ async function clone(url, directory, options) {
 
         // Checkout working tree from HEAD commit
         if (headHash) {
-            const headCommit = repoData.commits.find(c => c.hash === headHash);
+            const headCommit = localCommits.find(c => c.hash === headHash);
             if (headCommit) {
-                const tree = headCommit.tree || (headCommit.files || []).map(f => ({
-                    name: f.path || f.name, hash: f.hash
-                }));
+                const tree = headCommit.tree || [];
 
                 spinner.text = 'Checking out files...';
                 let fileCount = 0;
@@ -160,7 +268,7 @@ async function clone(url, directory, options) {
                 }
 
                 spinner.succeed(chalk.green(`Cloned into '${targetDir}'`));
-                console.log(chalk.gray(`  ${repoData.commits.length} commit(s), ${objects.length} object(s), ${fileCount} file(s)`));
+                console.log(chalk.gray(`  ${localCommits.length} commit(s), ${objectCount} object(s), ${fileCount} file(s)`));
             } else {
                 spinner.succeed(chalk.green(`Cloned into '${targetDir}' (empty)`));
             }
@@ -172,8 +280,10 @@ async function clone(url, directory, options) {
         spinner.fail(chalk.red('Clone failed'));
         if (error.response?.status === 404) {
             console.error(chalk.red('Repository not found'));
-        } else if (error.response?.data?.message) {
-            console.error(chalk.red(error.response.data.message));
+        } else if (error.response?.status === 401) {
+            console.error(chalk.red('Authentication failed — run "gent login"'));
+        } else if (error.response?.data) {
+            console.error(chalk.red(JSON.stringify(error.response.data)));
         } else {
             console.error(chalk.red('Error:'), error.message);
         }

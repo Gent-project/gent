@@ -170,10 +170,23 @@ async function del(url, config = {}) {
     return response.data;
 }
 
+/**
+ * Make PATCH request
+ * @param {string} url - Endpoint URL
+ * @param {Object} data - Request payload
+ * @param {Object} config - Axios config
+ * @returns {Promise} Response data
+ */
+async function patch(url, data = {}, config = {}) {
+    const response = await apiClient.patch(url, data, config);
+    return response.data;
+}
+
 module.exports = {
     get,
     post,
     put,
     delete: del,
+    patch,
     apiClient // Export raw client if needed
 };

@@ -1,12 +1,15 @@
 /**
  * Branch Command - List, create, or delete branches
- * Manages repository branches
+ * Manages repository branches locally and syncs to remote API
  */
 
 const path = require('path');
 const chalk = require('chalk');
+const ora = require('ora');
 const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
-const { COMMITS_FILE } = require('../utils/constants');
+const { COMMITS_FILE, CONFIG_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
+const apiClient = require('../utils/api-client');
+const authStorage = require('../utils/auth-storage');
 
 /**
  * Manage branches
@@ -85,6 +88,9 @@ async function createBranch(name, repository, gentPath) {
 
     console.log(chalk.green(`✓ Created branch '${name}'`));
     console.log(chalk.gray(`Based on: ${repository.currentBranch}`));
+
+    // Sync to remote if authenticated and remote configured
+    await syncBranchCreate(name, currentCommit, gentPath);
 }
 
 /**
@@ -110,6 +116,64 @@ async function deleteBranch(name, repository, gentPath) {
     await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
 
     console.log(chalk.green(`✓ Deleted branch '${name}'`));
+
+    // Sync deletion to remote
+    await syncBranchDelete(name, gentPath);
+}
+
+/**
+ * Sync branch creation to remote API
+ */
+async function syncBranchCreate(name, commitSha, gentPath) {
+    try {
+        const isAuth = await authStorage.isAuthenticated();
+        if (!isAuth) return;
+
+        const config = await readJSON(path.join(gentPath, CONFIG_FILE));
+        const remoteConfig = config.remotes && config.remotes.origin;
+        if (!remoteConfig) return;
+
+        const repoInfo = parseRemoteUrl(remoteConfig.url);
+        if (!repoInfo) return;
+
+        if (!commitSha) return; // No commit to point to
+
+        const url = buildRepoUrl(API_ENDPOINTS.REPO_BRANCHES_CREATE, repoInfo);
+        await apiClient.post(url, { name, commit_sha: commitSha });
+        console.log(chalk.gray(`  ↑ Synced to remote`));
+    } catch (error) {
+        // Non-fatal: branch created locally even if remote sync fails
+        if (error.response?.status === 400) {
+            console.log(chalk.gray(`  ⚠ Remote sync skipped (branch may already exist remotely)`));
+        }
+    }
+}
+
+/**
+ * Sync branch deletion to remote API
+ */
+async function syncBranchDelete(name, gentPath) {
+    try {
+        const isAuth = await authStorage.isAuthenticated();
+        if (!isAuth) return;
+
+        const config = await readJSON(path.join(gentPath, CONFIG_FILE));
+        const remoteConfig = config.remotes && config.remotes.origin;
+        if (!remoteConfig) return;
+
+        const repoInfo = parseRemoteUrl(remoteConfig.url);
+        if (!repoInfo) return;
+
+        const url = buildRepoUrl(API_ENDPOINTS.REPO_BRANCH_DETAIL, { ...repoInfo, branch_name: name });
+        await apiClient.delete(url);
+        console.log(chalk.gray(`  ↑ Deleted from remote`));
+    } catch (error) {
+        if (error.response?.status === 400) {
+            console.log(chalk.gray(`  ⚠ Cannot delete default branch on remote`));
+        } else if (error.response?.status === 404) {
+            // Branch didn't exist remotely, that's fine
+        }
+    }
 }
 
 module.exports = branch;

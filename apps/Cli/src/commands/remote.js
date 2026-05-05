@@ -29,7 +29,7 @@
 const path = require('path');
 const chalk = require('chalk');
 const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
-const { CONFIG_FILE } = require('../utils/constants');
+const { CONFIG_FILE, parseRemoteUrl } = require('../utils/constants');
 
 /**
  * Manage remotes
@@ -53,6 +53,13 @@ async function remote(subcommand, args, options) {
                 }
                 if (config.remotes[name]) {
                     console.error(chalk.red(`Remote '${name}' already exists`));
+                    return;
+                }
+                // Validate URL format
+                if (!parseRemoteUrl(url)) {
+                    console.error(chalk.red('Invalid remote URL format'));
+                    console.log(chalk.yellow('Expected: /api/repos/{owner_id}/{repo_name}'));
+                    console.log(chalk.yellow('Example:  /api/repos/1/my-project'));
                     return;
                 }
                 config.remotes[name] = { url };
@@ -83,6 +90,12 @@ async function remote(subcommand, args, options) {
                 }
                 if (!config.remotes[name]) {
                     console.error(chalk.red(`Remote '${name}' not found`));
+                    return;
+                }
+                // Validate URL format
+                if (!parseRemoteUrl(url)) {
+                    console.error(chalk.red('Invalid remote URL format'));
+                    console.log(chalk.yellow('Expected: /api/repos/{owner_id}/{repo_name}'));
                     return;
                 }
                 config.remotes[name].url = url;

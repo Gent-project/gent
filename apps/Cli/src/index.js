@@ -41,6 +41,7 @@ const stashCommand = require('./commands/stash');
 const remoteCommand = require('./commands/remote');
 const pushCommand = require('./commands/push');
 const pullCommand = require('./commands/pull');
+const reposCommand = require('./commands/repos');
 
 // Import auth commands
 const registerCommand = require('./commands/register');
@@ -60,6 +61,7 @@ program
     .command('init')
     .description('Initialize a new gent repository')
     .option('-y, --yes', 'Skip prompts and use defaults')
+    .option('--remote [name]', 'Create a remote repository on the backend')
     .action(initCommand);
 
 program
@@ -167,6 +169,15 @@ program
     .description('Manage remote connections (add|remove|set-url)')
     .option('-v, --verbose', 'Show remote URLs')
     .action(remoteCommand);
+
+program
+    .command('repos')
+    .description('List or create remote repositories')
+    .option('--create <name>', 'Create a new remote repository')
+    .option('--description <text>', 'Repository description (with --create)')
+    .option('--private', 'Make repository private (with --create)')
+    .option('--default-branch <name>', 'Default branch name (with --create)')
+    .action(reposCommand);
 
 program
     .command('push [remote] [branch]')
