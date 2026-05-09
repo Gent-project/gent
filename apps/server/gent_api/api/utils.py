@@ -33,13 +33,18 @@ def save_blob_content(repository, sha, content, encoding='utf-8'):
     """Save blob content to filesystem or database."""
     if encoding == 'base64':
         content_bytes = base64.b64decode(content)
+        try:
+            decoded_content = content_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            decoded_content = None
     else:
         content_bytes = content.encode('utf-8')
+        decoded_content = content
 
     size = len(content_bytes)
 
-    if size <= settings.REPO_SMALL_FILE_THRESHOLD:
-        return {'content': content, 'file_path': '', 'size': size}
+    if size <= settings.REPO_SMALL_FILE_THRESHOLD and decoded_content is not None:
+        return {'content': decoded_content, 'file_path': '', 'size': size}
     else:
         storage_path = repository.get_storage_path() / 'objects' / 'blobs' / sha[:2]
         storage_path.mkdir(parents=True, exist_ok=True)

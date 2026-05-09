@@ -10,6 +10,7 @@ from .object import TreeSerializer, TreeCreateSerializer, BlobSerializer, BlobCr
 from .tag import TagSerializer, TagCreateSerializer
 from .push import (
     PushPackSerializer,
+    PushRequestSerializer,
     PushCommitSerializer,
     PushTreeSerializer,
     PushBlobSerializer,
@@ -35,6 +36,7 @@ __all__ = [
     'TagSerializer',
     'TagCreateSerializer',
     'PushPackSerializer',
+    'PushRequestSerializer',
     'PushCommitSerializer',
     'PushTreeSerializer',
     'PushBlobSerializer',

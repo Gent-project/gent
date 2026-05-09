@@ -42,6 +42,15 @@ class PushAPITestCase(TestCase):
             'branch_updates': branch_updates or []
         }
 
+    def _build_cli_payload(self, objects=None, commits=None, branch='main', force=False, tags=None):
+        return {
+            'branch': branch,
+            'force': force,
+            'commits': commits or [],
+            'objects': objects or [],
+            'tags': tags or {}
+        }
+
     def test_push_success(self):
         blobs = [{'sha': 'blob123', 'size': 13, 'content': 'Hello, World!', 'encoding': 'utf-8'}]
         trees = [{
@@ -223,3 +232,103 @@ class PushAPITestCase(TestCase):
         with open(blob.file_path, 'rb') as f:
             stored_content = f.read()
         self.assertEqual(stored_content, large_content)
+
+    def test_push_accepts_cli_payload_shape(self):
+        blob_content = b'Hello, World!'
+        objects = [{
+            'hash': 'blob123',
+            'type': 'blob',
+            'data': base64.b64encode(blob_content).decode('utf-8')
+        }]
+        commits = [{
+            'hash': 'commit123',
+            'message': 'Initial commit',
+            'author': {'name': 'Test User', 'email': 'user@example.com'},
+            'timestamp': '2024-01-15T10:30:00Z',
+            'parent': None,
+            'mergeParent': None,
+            'treeHash': 'tree123',
+            'tree': [
+                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'hash': 'blob123'}
+            ],
+            'files': [
+                {'path': 'README.md', 'hash': 'blob123'}
+            ],
+            'stats': {'filesChanged': 1, 'insertions': 1, 'deletions': 0}
+        }]
+        data = self._build_cli_payload(objects=objects, commits=commits)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.post(self.push_url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['commits_created'], 1)
+        self.assertEqual(response.data['trees_created'], 1)
+        self.assertEqual(response.data['blobs_created'], 1)
+        self.assertEqual(response.data['branches_updated'], 1)
+
+        branch = Branch.objects.get(repository=self.repo, name='main')
+        self.assertEqual(branch.commit_sha, 'commit123')
+
+        commit = Commit.objects.get(repository=self.repo, sha='commit123')
+        self.assertEqual(commit.tree_sha, 'tree123')
+        self.assertEqual(commit.parent_shas, [])
+        self.assertEqual(commit.author_name, 'Test User')
+        self.assertEqual(commit.author_email, 'user@example.com')
+
+        tree = Tree.objects.get(repository=self.repo, sha='tree123')
+        self.assertEqual(tree.entries, [
+            {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': 'blob123'}
+        ])
+
+        blob = Blob.objects.get(repository=self.repo, sha='blob123')
+        self.assertEqual(blob.content, blob_content.decode('utf-8'))
+        self.assertEqual(blob.size, len(blob_content))
+
+    def test_push_accepts_cli_parent_shape(self):
+        blob_content = b'hello'
+        objects = [{
+            'hash': 'blob123',
+            'type': 'blob',
+            'data': base64.b64encode(blob_content).decode('utf-8')
+        }]
+        commits = [
+            {
+                'hash': 'commit-base',
+                'message': 'Base commit',
+                'author': {'name': 'Test User', 'email': 'user@example.com'},
+                'timestamp': '2024-01-15T10:30:00Z',
+                'parent': None,
+                'mergeParent': None,
+                'treeHash': 'tree123',
+                'tree': [
+                    {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'hash': 'blob123'}
+                ],
+                'files': [{'path': 'README.md', 'hash': 'blob123'}],
+                'stats': {}
+            },
+            {
+                'hash': 'commit-child',
+                'message': 'Child commit',
+                'author': {'name': 'Test User', 'email': 'user@example.com'},
+                'timestamp': '2024-01-16T10:30:00Z',
+                'parent': 'commit-base',
+                'mergeParent': None,
+                'treeHash': 'tree123',
+                'tree': [
+                    {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'hash': 'blob123'}
+                ],
+                'files': [{'path': 'README.md', 'hash': 'blob123'}],
+                'stats': {}
+            }
+        ]
+        data = self._build_cli_payload(objects=objects, commits=commits)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.post(self.push_url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            Commit.objects.get(repository=self.repo, sha='commit-child').parent_shas,
+            ['commit-base']
+        )

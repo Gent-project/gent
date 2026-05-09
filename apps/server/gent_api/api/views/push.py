@@ -6,7 +6,7 @@ from drf_spectacular.types import OpenApiTypes
 from django.db import transaction
 from api.models import Commit, Tree, Blob, Branch, Tag
 from api.serializers import (
-    PushPackSerializer,
+    PushRequestSerializer,
     PushCommitSerializer,
     PushTreeSerializer,
     PushBlobSerializer,
@@ -18,7 +18,7 @@ from api.permissions import IsRepositoryOwnerByParams
 
 
 @extend_schema(
-    request=PushPackSerializer,
+    request=PushRequestSerializer,
     responses={201: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT},
     summary='Push pack',
     description='Receive a pack of commits, trees, and blobs, update branches atomically.'
@@ -35,13 +35,13 @@ def push(request, owner_id, repo_name):
             status=status.HTTP_403_FORBIDDEN
         )
 
-    serializer = PushPackSerializer(data=request.data)
+    serializer = PushRequestSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     pack = serializer.validated_data['pack']
     branch_updates = serializer.validated_data.get('branch_updates', [])
-    tags = request.data.get('tags', {})
+    tags = serializer.validated_data.get('tags', {})
 
     commits_data = pack.get('commits', [])
     trees_data = pack.get('trees', [])
