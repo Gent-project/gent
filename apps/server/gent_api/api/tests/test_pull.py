@@ -155,6 +155,8 @@ class PullAPITestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_pull_unauthorized(self):
+        self.repo.is_private = True
+        self.repo.save(update_fields=['is_private'])
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.other_token}')
         response = self.client.get(self.pull_url, {'branch': 'main'})
         # private repo, other user -> 403 from get_repository_or_404
@@ -202,3 +204,122 @@ class PullAPITestCase(TestCase):
         obj = response.data['objects'][0]
         self.assertEqual(obj['hash'], blob_sha)
         self.assertEqual(obj['data'], base64.b64encode(large_content).decode('ascii'))
+
+    def test_pull_flattens_nested_trees_for_cli(self):
+        Blob.objects.create(
+            repository=self.repo,
+            sha='blob123',
+            size=20,
+            content='console.log("hi");'
+        )
+        Tree.objects.create(
+            repository=self.repo,
+            sha='subtree123',
+            entries=[
+                {'type': 'blob', 'mode': '100644', 'name': 'app.js', 'sha': 'blob123'}
+            ]
+        )
+        Tree.objects.create(
+            repository=self.repo,
+            sha='roottree123',
+            entries=[
+                {'type': 'tree', 'mode': '040000', 'name': 'src', 'sha': 'subtree123'}
+            ]
+        )
+        Commit.objects.create(
+            repository=self.repo,
+            sha='commit123',
+            author=self.user,
+            message='Add nested file',
+            tree_sha='roottree123',
+            parent_shas=[],
+            author_name='Test User',
+            author_email='user@example.com',
+            committed_at='2024-01-15T10:30:00Z'
+        )
+        branch = Branch.objects.get(repository=self.repo, name='main')
+        branch.commit_sha = 'commit123'
+        branch.save()
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.get(self.pull_url, {'branch': 'main'})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        commit = response.data['commits'][0]
+        self.assertEqual(commit['tree'], [
+            {'mode': '100644', 'name': 'src/app.js', 'hash': 'blob123', 'type': 'blob'}
+        ])
+        self.assertEqual(commit['files'], [
+            {'path': 'src/app.js', 'hash': 'blob123'}
+        ])
+        self.assertEqual(response.data['objects'], [
+            {
+                'hash': 'blob123',
+                'type': 'blob',
+                'data': base64.b64encode(b'console.log("hi");').decode('ascii')
+            }
+        ])
+
+    def test_pull_includes_merge_parent_history(self):
+        Tree.objects.create(repository=self.repo, sha='tree-base', entries=[])
+        Tree.objects.create(repository=self.repo, sha='tree-main', entries=[])
+        Tree.objects.create(repository=self.repo, sha='tree-side', entries=[])
+        Tree.objects.create(repository=self.repo, sha='tree-merge', entries=[])
+
+        Commit.objects.create(
+            repository=self.repo,
+            sha='base-commit',
+            author=self.user,
+            message='Base commit',
+            tree_sha='tree-base',
+            parent_shas=[],
+            author_name='Test User',
+            author_email='user@example.com',
+            committed_at='2024-01-10T00:00:00Z'
+        )
+        Commit.objects.create(
+            repository=self.repo,
+            sha='main-commit',
+            author=self.user,
+            message='Main branch commit',
+            tree_sha='tree-main',
+            parent_shas=['base-commit'],
+            author_name='Test User',
+            author_email='user@example.com',
+            committed_at='2024-01-11T00:00:00Z'
+        )
+        Commit.objects.create(
+            repository=self.repo,
+            sha='side-commit',
+            author=self.user,
+            message='Side branch commit',
+            tree_sha='tree-side',
+            parent_shas=['base-commit'],
+            author_name='Test User',
+            author_email='user@example.com',
+            committed_at='2024-01-12T00:00:00Z'
+        )
+        Commit.objects.create(
+            repository=self.repo,
+            sha='merge-commit',
+            author=self.user,
+            message='Merge branch',
+            tree_sha='tree-merge',
+            parent_shas=['main-commit', 'side-commit'],
+            author_name='Test User',
+            author_email='user@example.com',
+            committed_at='2024-01-13T00:00:00Z'
+        )
+        branch = Branch.objects.get(repository=self.repo, name='main')
+        branch.commit_sha = 'merge-commit'
+        branch.save()
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.get(self.pull_url, {'branch': 'main', 'since': 'base-commit'})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [commit['hash'] for commit in response.data['commits']],
+            ['main-commit', 'side-commit', 'merge-commit']
+        )
+        self.assertEqual(response.data['commits'][-1]['mergeParent'], 'side-commit')

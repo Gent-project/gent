@@ -9,6 +9,69 @@ from api.models import Commit, Tree, Blob, Branch
 from api.utils import get_repository_or_404
 
 
+def _collect_commits_since(repository, head_sha, since_sha):
+    commit_map = {
+        commit.sha: commit
+        for commit in Commit.objects.filter(repository=repository)
+    }
+    ordered_commits = []
+    visited = set()
+
+    def visit(commit_sha):
+        if not commit_sha or commit_sha == since_sha or commit_sha in visited:
+            return
+
+        visited.add(commit_sha)
+        commit = commit_map.get(commit_sha)
+        if not commit:
+            return
+
+        for parent_sha in commit.parent_shas or []:
+            visit(parent_sha)
+
+        ordered_commits.append(commit)
+
+    visit(head_sha)
+    return ordered_commits
+
+
+def _flatten_tree_entries(tree_entries_map, root_tree_sha):
+    flattened_entries = []
+    blob_hashes = []
+    seen_blob_hashes = set()
+
+    def walk(tree_sha, prefix, ancestors):
+        for entry in tree_entries_map.get(tree_sha, []):
+            entry_name = entry.get('name')
+            entry_sha = entry.get('sha')
+            entry_type = entry.get('type')
+            if not entry_name or not entry_sha or not entry_type:
+                continue
+
+            full_name = '/'.join(part for part in [prefix, entry_name] if part)
+
+            if entry_type == 'tree':
+                if entry_sha in ancestors:
+                    continue
+                walk(entry_sha, full_name, ancestors | {entry_sha})
+                continue
+
+            flattened_entries.append({
+                'mode': entry.get('mode'),
+                'name': full_name,
+                'hash': entry_sha,
+                'type': entry_type,
+            })
+            if entry_type == 'blob' and entry_sha not in seen_blob_hashes:
+                blob_hashes.append(entry_sha)
+                seen_blob_hashes.add(entry_sha)
+
+    if root_tree_sha:
+        walk(root_tree_sha, '', {root_tree_sha})
+
+    return flattened_entries, blob_hashes
+
+
 @extend_schema(
     responses={200: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT},
     summary='Pull commits and objects',
@@ -40,54 +103,33 @@ def pull(request, owner_id, repo_name):
 
     since = request.query_params.get('since', '')
 
-    commits_newest_first = []
-    visited = set()
-    current_sha = commit_sha
-    while current_sha and current_sha not in visited:
-        if current_sha == since:
-            break
-        try:
-            commit = Commit.objects.get(repository=repository, sha=current_sha)
-        except Commit.DoesNotExist:
-            break
-        commits_newest_first.append(commit)
-        visited.add(current_sha)
-        parents = commit.parent_shas or []
-        current_sha = parents[0] if parents else None
-
-    commits_oldest_first = list(reversed(commits_newest_first))
+    commits_oldest_first = _collect_commits_since(repository, commit_sha, since)
+    tree_entries_map = {
+        tree.sha: tree.entries or []
+        for tree in Tree.objects.filter(repository=repository)
+    }
 
     result_commits = []
-    blob_hashes = set()
+    blob_hashes = []
+    seen_blob_hashes = set()
 
     for commit in commits_oldest_first:
         parents = commit.parent_shas or []
         parent = parents[0] if len(parents) > 0 else None
         merge_parent = parents[1] if len(parents) > 1 else None
 
-        try:
-            tree = Tree.objects.get(repository=repository, sha=commit.tree_sha)
-            raw_entries = tree.entries or []
-        except Tree.DoesNotExist:
-            raw_entries = []
-
-        tree_entries = []
-        for entry in raw_entries:
-            tree_entries.append({
-                'mode': entry.get('mode'),
-                'name': entry.get('name'),
-                'hash': entry.get('sha'),
-                'type': entry.get('type'),
-            })
-            if entry.get('type') == 'blob' and entry.get('sha'):
-                blob_hashes.add(entry['sha'])
+        tree_entries, commit_blob_hashes = _flatten_tree_entries(tree_entries_map, commit.tree_sha)
+        for blob_sha in commit_blob_hashes:
+            if blob_sha not in seen_blob_hashes:
+                blob_hashes.append(blob_sha)
+                seen_blob_hashes.add(blob_sha)
 
         files = []
-        for entry in raw_entries:
-            if entry.get('sha'):
+        for entry in tree_entries:
+            if entry.get('type') == 'blob' and entry.get('hash'):
                 files.append({
                     'path': entry.get('name'),
-                    'hash': entry.get('sha'),
+                    'hash': entry.get('hash'),
                 })
 
         result_commits.append({
@@ -116,7 +158,7 @@ def pull(request, owner_id, repo_name):
         blob = blobs.get(h)
         if not blob:
             continue
-        if blob.content:
+        if blob.content is not None:
             data = base64.b64encode(blob.content.encode('utf-8')).decode('ascii')
         elif blob.file_path:
             try:
