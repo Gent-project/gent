@@ -26,7 +26,9 @@ class CommitAPITestCase(TestCase):
     def test_create_commit(self):
         url = reverse('commit-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        commit_sha = 'a' * 64
         data = {
+            'sha': commit_sha,
             'message': 'Initial commit',
             'tree_sha': 'tree123',
             'parent_shas': [],
@@ -34,7 +36,53 @@ class CommitAPITestCase(TestCase):
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(Commit.objects.filter(repository=self.repo).exists())
+        self.assertTrue(Commit.objects.filter(repository=self.repo, sha=commit_sha).exists())
+        self.assertEqual(response.data['commit']['sha'], commit_sha)
+        self.branch.refresh_from_db()
+        self.assertEqual(self.branch.commit_sha, commit_sha)
+
+    def test_create_commit_rejects_invalid_sha(self):
+        url = reverse('commit-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        data = {
+            'sha': 'not-a-valid-sha',
+            'message': 'Initial commit',
+            'tree_sha': 'tree123',
+            'parent_shas': [],
+            'branch': 'main'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data['error'],
+            'Commit SHA must be a valid 64-character hexadecimal string.'
+        )
+
+    def test_create_commit_rejects_duplicate_sha(self):
+        commit_sha = 'b' * 64
+        Commit.objects.create(
+            repository=self.repo,
+            sha=commit_sha,
+            author=self.user,
+            message='Existing commit',
+            tree_sha='tree123',
+            author_name='Test User',
+            author_email='user@example.com',
+            committed_at='2024-01-01T00:00:00Z'
+        )
+
+        url = reverse('commit-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        data = {
+            'sha': commit_sha,
+            'message': 'Duplicate commit',
+            'tree_sha': 'tree123',
+            'parent_shas': [],
+            'branch': 'main'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error'], 'Commit with this SHA already exists.')
 
     def test_list_commits(self):
         Commit.objects.create(

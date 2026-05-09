@@ -19,6 +19,7 @@ class CommitSerializer(serializers.ModelSerializer):
 
 class CommitCreateSerializer(serializers.Serializer):
     """Serializer for creating a commit."""
+    sha = serializers.CharField(max_length=64, required=True)
     message = serializers.CharField(required=True)
     tree_sha = serializers.CharField(max_length=64, required=True)
     parent_shas = serializers.ListField(

@@ -1,3 +1,5 @@
+import re
+
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, permissions
@@ -7,7 +9,7 @@ from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
 from api.models import Commit, Tree, Branch
 from api.serializers import CommitSerializer, CommitCreateSerializer
-from api.utils import calculate_sha256, get_repository_or_404
+from api.utils import get_repository_or_404
 from api.permissions import IsRepositoryOwnerByParams
 
 
@@ -47,25 +49,23 @@ def commit_create(request, owner_id, repo_name):
     serializer = CommitCreateSerializer(data=request.data)
 
     if serializer.is_valid():
-        tree_sha = serializer.validated_data['tree_sha']
-        if not Tree.objects.filter(repository=repository, sha=tree_sha).exists():
+        sha = serializer.validated_data['sha']
+        if not re.fullmatch(r'[0-9a-fA-F]{64}', sha):
             return Response(
-                {'error': f'Tree {tree_sha} does not exist.'},
+                {'error': 'Commit SHA must be a valid 64-character hexadecimal string.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        commit_content = f"tree {tree_sha}\n"
-        for parent_sha in serializer.validated_data.get('parent_shas', []):
-            commit_content += f"parent {parent_sha}\n"
-
-        commit_content += f"author {serializer.validated_data.get('author_name', request.user.get_full_name())}\n"
-        commit_content += f"{serializer.validated_data['message']}\n"
-
-        sha = calculate_sha256(commit_content)
 
         if Commit.objects.filter(sha=sha).exists():
             return Response(
                 {'error': 'Commit with this SHA already exists.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        tree_sha = serializer.validated_data['tree_sha']
+        if not Tree.objects.filter(repository=repository, sha=tree_sha).exists():
+            return Response(
+                {'error': f'Tree {tree_sha} does not exist.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
