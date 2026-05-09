@@ -20,7 +20,7 @@ class CommitAPITestCase(TestCase):
         refresh = RefreshToken.for_user(self.user)
         self.token = str(refresh.access_token)
         self.repo = Repository.objects.create(owner=self.user, name='test-repo')
-        self.branch = Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 40)
+        self.branch = Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 64)
         self.tree = Tree.objects.create(repository=self.repo, sha='tree123', entries=[])
 
     def test_create_commit(self):

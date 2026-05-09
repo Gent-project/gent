@@ -29,7 +29,7 @@ class PushAPITestCase(TestCase):
         self.other_token = str(refresh_other.access_token)
 
         self.repo = Repository.objects.create(owner=self.user, name='test-repo')
-        Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 40)
+        Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 64)
         self.push_url = reverse('push', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
 
     def _build_pack(self, blobs=None, trees=None, commits=None, branch_updates=None):

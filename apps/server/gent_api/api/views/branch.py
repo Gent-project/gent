@@ -4,10 +4,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
-from ..models import Branch, Commit
-from ..serializers import BranchSerializer, BranchCreateSerializer, BranchPatchSerializer
-from ..utils import get_repository_or_404
-from ..permissions import IsRepositoryOwnerByParams
+from api.models import Branch, Commit
+from api.serializers import BranchSerializer, BranchCreateSerializer, BranchPatchSerializer
+from api.utils import get_repository_or_404
+from api.permissions import IsRepositoryOwnerByParams
 
 
 @extend_schema(

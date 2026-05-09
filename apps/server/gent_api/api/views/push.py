@@ -4,8 +4,8 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
 from django.db import transaction
-from ..models import Commit, Tree, Blob, Branch, Tag
-from ..serializers import (
+from api.models import Commit, Tree, Blob, Branch, Tag
+from api.serializers import (
     PushPackSerializer,
     PushCommitSerializer,
     PushTreeSerializer,
@@ -13,8 +13,8 @@ from ..serializers import (
     BranchUpdateSerializer,
     BranchSerializer,
 )
-from ..utils import save_blob_content, get_repository_or_404
-from ..permissions import IsRepositoryOwnerByParams
+from api.utils import save_blob_content, get_repository_or_404
+from api.permissions import IsRepositoryOwnerByParams
 
 
 @extend_schema(

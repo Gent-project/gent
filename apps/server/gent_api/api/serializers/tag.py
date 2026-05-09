@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ..models import Tag
+from api.models import Tag
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -26,7 +26,7 @@ class TagSerializer(serializers.ModelSerializer):
 class TagCreateSerializer(serializers.Serializer):
     """Serializer for creating a tag."""
     name = serializers.CharField(max_length=255, required=True)
-    commit_sha = serializers.CharField(max_length=40, required=True)
+    commit_sha = serializers.CharField(max_length=64, required=True)
     message = serializers.CharField(required=False, allow_blank=True)
     annotated = serializers.BooleanField(required=False, default=False)
     tagger_name = serializers.CharField(required=False, allow_blank=True)

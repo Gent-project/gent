@@ -27,12 +27,12 @@ class BranchAPITestCase(TestCase):
         self.user2_token = str(refresh2.access_token)
 
         self.repo = Repository.objects.create(owner=self.user, name='test-repo')
-        self.branch = Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 40)
+        self.branch = Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 64)
 
         self.tree = Tree.objects.create(repository=self.repo, sha='tree123abc', entries=[])
         self.commit = Commit.objects.create(
             repository=self.repo,
-            sha='abc123def456789012345678901234567890abcd',
+            sha='abc123def456789012345678901234567890abcdef0123456789012345678901',
             author=self.user,
             message='Test commit',
             tree_sha='tree123abc',
@@ -52,7 +52,7 @@ class BranchAPITestCase(TestCase):
     def test_create_branch(self):
         url = reverse('branch-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
-        data = {'name': 'develop', 'commit_sha': 'a' * 40}
+        data = {'name': 'develop', 'commit_sha': 'a' * 64}
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(Branch.objects.filter(repository=self.repo, name='develop').exists())
@@ -89,7 +89,7 @@ class BranchAPITestCase(TestCase):
             'branch_name': 'main'
         })
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
-        data = {'commit_sha': 'deadbeef123456789012345678901234567890ab'}
+        data = {'commit_sha': 'deadbeef00000000000000000000000000000000000000000000000000000000'}
         response = self.client.patch(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('error', response.data)
@@ -117,7 +117,7 @@ class BranchAPITestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_branch_success(self):
-        branch = Branch.objects.create(repository=self.repo, name='feature', commit_sha='0' * 40)
+        branch = Branch.objects.create(repository=self.repo, name='feature', commit_sha='0' * 64)
         url = reverse('branch-detail', kwargs={
             'owner_id': self.user.id,
             'repo_name': 'test-repo',
@@ -141,7 +141,7 @@ class BranchAPITestCase(TestCase):
         self.assertIn('error', response.data)
 
     def test_delete_branch_non_owner(self):
-        branch = Branch.objects.create(repository=self.repo, name='feature', commit_sha='0' * 40)
+        branch = Branch.objects.create(repository=self.repo, name='feature', commit_sha='0' * 64)
         url = reverse('branch-detail', kwargs={
             'owner_id': self.user.id,
             'repo_name': 'test-repo',

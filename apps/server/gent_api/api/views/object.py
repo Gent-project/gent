@@ -4,10 +4,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
-from ..models import Tree, Blob
-from ..serializers import TreeSerializer, TreeCreateSerializer, BlobSerializer, BlobCreateSerializer
-from ..utils import calculate_sha1, save_blob_content, get_repository_or_404
-from ..permissions import IsRepositoryOwnerByParams
+from api.models import Tree, Blob
+from api.serializers import TreeSerializer, TreeCreateSerializer, BlobSerializer, BlobCreateSerializer
+from api.utils import calculate_sha256, save_blob_content, get_repository_or_404
+from api.permissions import IsRepositoryOwnerByParams
 
 
 @extend_schema(
@@ -37,7 +37,7 @@ def tree_create(request, owner_id, repo_name):
         for entry in entries:
             tree_content += f"{entry['mode']} {entry['type']} {entry['sha']}\t{entry['name']}\n"
 
-        sha = calculate_sha1(tree_content)
+        sha = calculate_sha256(tree_content)
 
         tree, created = Tree.objects.get_or_create(
             repository=repository,
@@ -95,7 +95,7 @@ def blob_create(request, owner_id, repo_name):
         content = serializer.validated_data['content']
         encoding = serializer.validated_data.get('encoding', 'utf-8')
 
-        sha = calculate_sha1(content)
+        sha = calculate_sha256(content)
 
         blob_data = save_blob_content(repository, sha, content, encoding)
 

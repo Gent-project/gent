@@ -5,10 +5,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
-from ..models import Commit, Tree, Branch
-from ..serializers import CommitSerializer, CommitCreateSerializer
-from ..utils import calculate_sha1, get_repository_or_404
-from ..permissions import IsRepositoryOwnerByParams
+from api.models import Commit, Tree, Branch
+from api.serializers import CommitSerializer, CommitCreateSerializer
+from api.utils import calculate_sha256, get_repository_or_404
+from api.permissions import IsRepositoryOwnerByParams
 
 
 @extend_schema(
@@ -61,7 +61,7 @@ def commit_create(request, owner_id, repo_name):
         commit_content += f"author {serializer.validated_data.get('author_name', request.user.get_full_name())}\n"
         commit_content += f"{serializer.validated_data['message']}\n"
 
-        sha = calculate_sha1(commit_content)
+        sha = calculate_sha256(commit_content)
 
         if Commit.objects.filter(sha=sha).exists():
             return Response(

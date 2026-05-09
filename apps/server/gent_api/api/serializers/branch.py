@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ..models import Branch
+from api.models import Branch
 
 
 class BranchSerializer(serializers.ModelSerializer):
@@ -15,12 +15,12 @@ class BranchSerializer(serializers.ModelSerializer):
 class BranchCreateSerializer(serializers.Serializer):
     """Serializer for creating a branch."""
     name = serializers.CharField(max_length=255, required=True)
-    commit_sha = serializers.CharField(max_length=40, required=True)
+    commit_sha = serializers.CharField(max_length=64, required=True)
 
 
 class BranchPatchSerializer(serializers.Serializer):
     """Serializer for updating a branch pointer."""
-    commit_sha = serializers.CharField(max_length=40, required=True)
+    commit_sha = serializers.CharField(max_length=64, required=True)
 
 
 

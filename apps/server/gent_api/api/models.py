@@ -90,7 +90,7 @@ class Branch(models.Model):
     """Repository branch."""
     repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='branches')
     name = models.CharField(max_length=255)
-    commit_sha = models.CharField(max_length=40)
+    commit_sha = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -107,10 +107,10 @@ class Branch(models.Model):
 class Commit(models.Model):
     """Git commit object."""
     repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='commits')
-    sha = models.CharField(max_length=40, unique=True, db_index=True)
+    sha = models.CharField(max_length=64, unique=True, db_index=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='commits')
     message = models.TextField()
-    tree_sha = models.CharField(max_length=40)
+    tree_sha = models.CharField(max_length=64)
     parent_shas = models.JSONField(default=list)
     author_name = models.CharField(max_length=255)
     author_email = models.EmailField()
@@ -133,7 +133,7 @@ class Commit(models.Model):
 class Tree(models.Model):
     """Git tree object (directory structure)."""
     repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='trees')
-    sha = models.CharField(max_length=40, db_index=True)
+    sha = models.CharField(max_length=64, db_index=True)
     entries = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -152,7 +152,7 @@ class Tree(models.Model):
 class Blob(models.Model):
     """Git blob object (file content)."""
     repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='blobs')
-    sha = models.CharField(max_length=40, db_index=True)
+    sha = models.CharField(max_length=64, db_index=True)
     size = models.IntegerField()
     content = models.TextField(blank=True, null=True)
     file_path = models.CharField(max_length=500, blank=True)
@@ -174,7 +174,7 @@ class Tag(models.Model):
     """Git tag object."""
     repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='tags')
     name = models.CharField(max_length=255)
-    commit_sha = models.CharField(max_length=40)
+    commit_sha = models.CharField(max_length=64)
     message = models.TextField(blank=True)
     annotated = models.BooleanField(default=False)
     tagger_name = models.CharField(max_length=255, blank=True)

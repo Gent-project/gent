@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ..models import Tree, Blob
+from api.models import Tree, Blob
 
 
 class TreeSerializer(serializers.ModelSerializer):

@@ -4,10 +4,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
-from ..models import Repository, Branch
-from ..serializers import RepositorySerializer, RepositoryCreateSerializer
-from ..utils import get_repository_or_404
-from ..permissions import IsRepositoryOwnerByParams
+from api.models import Repository, Branch
+from api.serializers import RepositorySerializer, RepositoryCreateSerializer
+from api.utils import get_repository_or_404
+from api.permissions import IsRepositoryOwnerByParams
 
 
 @extend_schema(
@@ -54,7 +54,7 @@ def repository_create(request):
         Branch.objects.create(
             repository=repository,
             name=repository.default_branch,
-            commit_sha='0' * 40
+            commit_sha='0' * 64
         )
 
         return Response(

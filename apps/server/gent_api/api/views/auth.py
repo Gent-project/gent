@@ -5,7 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from django.contrib.auth import authenticate
-from ..serializers import (
+from api.serializers import (
     UserRegistrationSerializer,
     UserSerializer,
     UserProfileUpdateSerializer,

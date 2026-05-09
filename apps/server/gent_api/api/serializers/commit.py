@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ..models import Commit
+from api.models import Commit
 
 
 class CommitSerializer(serializers.ModelSerializer):
@@ -20,9 +20,9 @@ class CommitSerializer(serializers.ModelSerializer):
 class CommitCreateSerializer(serializers.Serializer):
     """Serializer for creating a commit."""
     message = serializers.CharField(required=True)
-    tree_sha = serializers.CharField(max_length=40, required=True)
+    tree_sha = serializers.CharField(max_length=64, required=True)
     parent_shas = serializers.ListField(
-        child=serializers.CharField(max_length=40),
+        child=serializers.CharField(max_length=64),
         required=False,
         default=list
     )

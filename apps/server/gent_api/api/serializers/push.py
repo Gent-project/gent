@@ -4,7 +4,7 @@ from .branch import BranchCreateSerializer
 
 class PushBlobSerializer(serializers.Serializer):
     """Serializer for a blob in a push pack."""
-    sha = serializers.CharField(max_length=40, required=True)
+    sha = serializers.CharField(max_length=64, required=True)
     size = serializers.IntegerField(required=True)
     content = serializers.CharField(required=True)
     encoding = serializers.ChoiceField(
@@ -18,22 +18,22 @@ class PushTreeEntrySerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=['blob', 'tree'])
     mode = serializers.CharField(required=True)
     name = serializers.CharField(required=True)
-    sha = serializers.CharField(max_length=40, required=True)
+    sha = serializers.CharField(max_length=64, required=True)
 
 
 class PushTreeSerializer(serializers.Serializer):
     """Serializer for a tree in a push pack."""
-    sha = serializers.CharField(max_length=40, required=True)
+    sha = serializers.CharField(max_length=64, required=True)
     entries = PushTreeEntrySerializer(many=True, required=True)
 
 
 class PushCommitSerializer(serializers.Serializer):
     """Serializer for a commit in a push pack."""
-    sha = serializers.CharField(max_length=40, required=True)
+    sha = serializers.CharField(max_length=64, required=True)
     message = serializers.CharField(required=True)
-    tree_sha = serializers.CharField(max_length=40, required=True)
+    tree_sha = serializers.CharField(max_length=64, required=True)
     parent_shas = serializers.ListField(
-        child=serializers.CharField(max_length=40),
+        child=serializers.CharField(max_length=64),
         required=False,
         default=list
     )
@@ -45,7 +45,7 @@ class PushCommitSerializer(serializers.Serializer):
 class BranchUpdateSerializer(serializers.Serializer):
     """Serializer for a branch update in a push request."""
     name = serializers.CharField(max_length=255, required=True)
-    commit_sha = serializers.CharField(max_length=40, required=True)
+    commit_sha = serializers.CharField(max_length=64, required=True)
 
 
 class PushPackSerializer(serializers.Serializer):

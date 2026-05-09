@@ -26,6 +26,9 @@ urlpatterns = [
     # Push endpoint
     path('repos/<int:owner_id>/<str:repo_name>/push/', views.push, name='push'),
 
+    # Pull endpoint
+    path('repos/<int:owner_id>/<str:repo_name>/pull/', views.pull, name='pull'),
+
     # Tag endpoints
     path('repos/<int:owner_id>/<str:repo_name>/tags/', views.tag_list, name='tag-list'),
     path('repos/<int:owner_id>/<str:repo_name>/tags/create/', views.tag_create, name='tag-create'),

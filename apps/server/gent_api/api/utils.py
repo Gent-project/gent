@@ -4,11 +4,11 @@ from pathlib import Path
 from django.conf import settings
 
 
-def calculate_sha1(content):
-    """Calculate SHA-1 hash of content."""
+def calculate_sha256(content):
+    """Calculate SHA-256 hash of content."""
     if isinstance(content, str):
         content = content.encode('utf-8')
-    return hashlib.sha1(content).hexdigest()
+    return hashlib.sha256(content).hexdigest()
 
 
 def get_repository_or_404(owner_id, repo_name, user):

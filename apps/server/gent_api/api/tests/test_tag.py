@@ -29,7 +29,7 @@ class TagAPITestCase(TestCase):
         self.tree = Tree.objects.create(repository=self.repo, sha='tree123abc', entries=[])
         self.commit = Commit.objects.create(
             repository=self.repo,
-            sha='abc123def456789012345678901234567890abcd',
+            sha='abc123def456789012345678901234567890abcdef0123456789012345678901',
             author=self.user,
             message='Test commit',
             tree_sha='tree123abc',
@@ -75,7 +75,7 @@ class TagAPITestCase(TestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {
             'name': 'v1.0',
-            'commit_sha': 'deadbeef123456789012345678901234567890ab'
+            'commit_sha': 'deadbeef00000000000000000000000000000000000000000000000000000000'
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
