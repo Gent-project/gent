@@ -1,306 +1,641 @@
 # Gent CLI
 
-![npm](https://img.shields.io/npm/v/gent-cli)
-![downloads](https://img.shields.io/npm/dw/gent-cli)
+Gent is a Git-like version control CLI with cloud authentication and remote sync.
 
-> A modern, Git-like version control CLI with built-in cloud authentication and global user identity management.
+Global API URL:
 
-Gent is a lightweight version control system that feels like Git but handles user identity automatically through the cloud. No more configuring `user.name` and `user.email` for every repository.
+```text
+https://gent-api.onrender.com
+```
 
-## Highlights
-
-- **Cloud Authentication** — Login once, work everywhere. JWT-based auth with automatic token refresh.
-- **Git-like Experience** — Familiar commands: `init`, `add`, `commit`, `status`, `log`, `branch`, `checkout`, `merge`, `push`, `pull`, `clone`, and more.
-- **Zero Configuration** — `gent init` auto-detects your authenticated user profile.
-- **Global Identity** — Commits are automatically authored with your cloud profile.
-- **Content-Addressable Storage** — SHA-256 object store with zlib compression and deduplication.
-- **Smart Diff & Merge** — Line-level LCS diff, three-way merge with conflict detection.
-- **Remote Sync** — Push, pull, and clone repositories from the cloud backend.
-- **Secure** — Tokens stored with AES encryption in `~/.gent/auth.json`.
-
-## Table of Contents
-
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Quickstart](#quickstart)
-- [Authentication](#authentication)
-- [Commands](#commands)
-  - [Repository Setup](#repository-setup)
-  - [Staging & Working Tree](#staging--working-tree)
-  - [History](#history)
-  - [Branching & Merging](#branching--merging)
-  - [Remote & Sync](#remote--sync)
-  - [Authentication Commands](#authentication-commands)
-- [Usage Examples](#usage-examples)
-- [Repository Structure](#repository-structure)
-- [Configuration](#configuration)
-- [Docs](#docs)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+The CLI is configured in `src/utils/constants.js` to use that deployed API. Do not use a local API URL for normal CLI work.
 
 ## Requirements
 
-- Node.js >= 14
+- Node.js 14 or newer
+- Internet access to `https://gent-api.onrender.com`
+- A Gent account, created with `gent register`
 
-## Installation
+## Install
+
+From npm:
 
 ```bash
 npm install -g gent-cli
+gent --help
 ```
 
-Run locally without installing:
+From this repository:
 
 ```bash
 cd apps/Cli
 npm install
+npm link
+gent --help
+```
+
+Run without linking:
+
+```bash
 node src/index.js --help
 ```
 
-## Quickstart
+## Full Step-by-Step Workflow
 
-```bash
-# 1) Authenticate
-gent login
+### 1. Create an account
 
-# 2) Initialize a repo
-gent init
-
-# 3) Make a first commit
-gent add .
-gent commit -m "Initial commit"
-```
-
-## Authentication
-
-Gent uses a global authentication system. You only need to log in once.
-
-### Register a New Account
+Interactive:
 
 ```bash
 gent register
 ```
 
-### Login
+Non-interactive:
+
+```bash
+gent register \
+  -e user@example.com \
+  -p StrongPass123! \
+  --password-confirm StrongPass123! \
+  --first-name YourFirstName \
+  --last-name YourLastName
+```
+
+After registration, the CLI stores your encrypted auth tokens in:
+
+```text
+~/.gent/auth.json
+```
+
+### 2. Log in
+
+Interactive:
 
 ```bash
 gent login
-# or with flags
-gent login -e user@example.com -p YourPassword
 ```
 
-### Check Current User
+Non-interactive:
+
+```bash
+gent login -e user@example.com -p StrongPass123!
+```
+
+### 3. Confirm the logged-in user
 
 ```bash
 gent whoami
 ```
 
-### Logout
+Expected result: your email, name, account ID, joined date, and active status.
+
+### 4. Create a project folder
+
+```bash
+mkdir my-project
+cd my-project
+```
+
+### 5. Initialize a Gent repository
+
+```bash
+gent init
+```
+
+This creates:
+
+```text
+.gent/
+.gentignore
+```
+
+The `.gent` directory stores local commits, objects, branches, tags, staging data, and config.
+
+### 6. Create a remote repository
+
+```bash
+gent repos --create my-project --description "My first Gent repository"
+```
+
+Expected output includes a remote path like:
+
+```text
+/api/repos/2/my-project
+```
+
+Keep this path. It is not a local URL. The CLI combines it with the global API URL:
+
+```text
+https://gent-api.onrender.com/api/repos/2/my-project
+```
+
+### 7. Link the local repo to the remote repo
+
+Use the `/api/repos/<owner_id>/<repo_name>` path from the previous command:
+
+```bash
+gent remote add origin /api/repos/2/my-project
+```
+
+If the current folder is not initialized yet, `gent remote add` initializes `.gent` first, then adds the remote. You can still run `gent init` yourself before this step if you prefer the explicit flow.
+
+Check it:
+
+```bash
+gent remote -v
+```
+
+Expected output:
+
+```text
+origin -> /api/repos/2/my-project
+```
+
+### 8. Create files
+
+```bash
+echo "Hello Gent" > README.md
+mkdir src
+echo "console.log('hello')" > src/index.js
+```
+
+### 9. Check status
+
+```bash
+gent status
+```
+
+Expected result: untracked files.
+
+### 10. Stage files
+
+Stage specific files:
+
+```bash
+gent add README.md src/index.js
+```
+
+Or stage everything:
+
+```bash
+gent add .
+```
+
+### 11. Review staged changes
+
+```bash
+gent diff --staged
+```
+
+Short summary:
+
+```bash
+gent diff --staged --stat
+```
+
+### 12. Commit
+
+```bash
+gent commit -m "Initial commit"
+```
+
+Expected result: a commit hash, author, date, tree hash, and file stats.
+
+### 13. View history
+
+```bash
+gent log
+gent log --oneline
+gent show --no-patch
+```
+
+### 14. Push to the remote API
+
+```bash
+gent push
+```
+
+Expected result:
+
+```text
+Pushed 1 commit(s) to origin/main
+```
+
+Run it again to confirm nothing else needs syncing:
+
+```bash
+gent push
+```
+
+Expected result:
+
+```text
+Everything up-to-date
+```
+
+### 15. Clone from the remote API
+
+Go outside your current project:
+
+```bash
+cd ..
+gent clone /api/repos/2/my-project my-project-clone
+cd my-project-clone
+```
+
+Check the cloned files:
+
+```bash
+cat README.md
+gent status
+gent log --oneline
+```
+
+### 16. Make another change in the original repo
+
+```bash
+cd ../my-project
+echo "Second line" >> README.md
+gent add README.md
+gent commit -m "Update README"
+gent push
+```
+
+### 17. Pull the change into the clone
+
+```bash
+cd ../my-project-clone
+gent pull
+cat README.md
+gent status
+```
+
+Expected result: the clone fast-forwards, `README.md` includes the new line, and status shows no staged changes.
+
+### 18. Create and sync a branch
+
+From a repository with at least one commit and an `origin` remote:
+
+```bash
+gent branch feature-login
+gent branch
+```
+
+Switch to the branch:
+
+```bash
+gent checkout feature-login
+```
+
+Make a change:
+
+```bash
+echo "feature work" > feature.txt
+gent add feature.txt
+gent commit -m "Add feature work"
+gent push origin feature-login
+```
+
+Switch back to main:
+
+```bash
+gent checkout main
+```
+
+### 19. Merge a branch
+
+```bash
+gent merge feature-login
+gent push
+```
+
+If there are conflicts, resolve the files, then:
+
+```bash
+gent add .
+gent commit -m "Resolve merge"
+gent push
+```
+
+### 20. Create and sync a tag
+
+Create a lightweight tag:
+
+```bash
+gent tag v1.0.0
+```
+
+Create an annotated tag:
+
+```bash
+gent tag v1.0.1 -m "Release v1.0.1"
+```
+
+List tags:
+
+```bash
+gent tag
+```
+
+Delete a tag:
+
+```bash
+gent tag -d v1.0.0
+```
+
+### 21. Use stash when needed
+
+Save local work:
+
+```bash
+gent stash
+```
+
+List stashes:
+
+```bash
+gent stash list
+```
+
+Apply latest stash:
+
+```bash
+gent stash pop
+```
+
+### 22. Log out
 
 ```bash
 gent logout
 ```
 
-## Commands
+Confirm:
+
+```bash
+gent whoami
+```
+
+Expected result: not logged in.
+
+## One-Command Remote Repo Setup
+
+You can initialize a local repo and create the remote repo in one command:
+
+```bash
+mkdir another-project
+cd another-project
+gent init --remote another-project
+gent remote -v
+```
+
+This creates the remote repository on `https://gent-api.onrender.com` and configures `origin` automatically.
+
+## Command Reference
+
+### Authentication
+
+```bash
+gent register
+gent register -e user@example.com -p StrongPass123! --password-confirm StrongPass123!
+gent login
+gent login -e user@example.com -p StrongPass123!
+gent whoami
+gent logout
+```
 
 ### Repository Setup
 
-| Command | Description |
-|---|---|
-| `gent init [-y]` | Initialize a new Gent repository in the current directory. Use `-y` to skip prompts. |
-| `gent clone <url> [directory]` | Clone a remote repository from the cloud backend. |
+```bash
+gent init
+gent init --remote my-repo
+gent clone /api/repos/<owner_id>/<repo_name> [directory]
+```
 
-### Staging & Working Tree
+### Staging and Working Tree
 
-| Command | Description |
-|---|---|
-| `gent status [-s]` | Show the working tree status. Use `-s` for short format. |
-| `gent add <files...> [-A]` | Add files to the staging area. Use `-A` or `--all` to add all files. |
-| `gent rm <files...> [--cached]` | Remove files from the working tree and staging area. Use `--cached` to keep the file on disk. |
-| `gent reset [files...] [--hard <hash> \| --soft <hash>]` | Unstage files or reset HEAD to a specific commit. |
-| `gent diff [files...] [--staged] [--stat]` | Show changes between working tree, staging area, and commits. |
+```bash
+gent status
+gent status -s
+gent add <files...>
+gent add .
+gent rm <files...>
+gent rm <files...> --cached
+gent reset [files...]
+gent reset --soft <commit_hash>
+gent reset --hard <commit_hash>
+gent diff
+gent diff --staged
+gent diff --stat
+```
 
 ### History
 
-| Command | Description |
-|---|---|
-| `gent commit [-m <message>] [-a]` | Record changes to the repository. Use `-a` to auto-stage all modified files. |
-| `gent log [-n <count>] [--oneline] [--stat]` | Show commit history. Default limit is 10 commits. |
-| `gent show [ref] [--no-patch]` | Show commit details and diff. |
-| `gent tag [name] [-m <message>] [-d <name>]` | Create, list, or delete tags. |
-
-### Branching & Merging
-
-| Command | Description |
-|---|---|
-| `gent branch [name] [-d <name>] [-a]` | List, create, or delete branches. |
-| `gent checkout <branch> [-b]` | Switch branches. Use `-b` to create and switch to a new branch. |
-| `gent merge <branch> [-m <message>]` | Merge a branch into the current branch using a three-way smart merge. |
-| `gent stash [pop \| list \| drop \| apply] [-m <message>] [-i <index>]` | Stash working tree changes. |
-
-### Remote & Sync
-
-| Command | Description |
-|---|---|
-| `gent remote [add \| remove \| set-url] [args...] [-v]` | Manage remote connections. |
-| `gent push [remote] [branch] [-f]` | Push local commits to the remote. Use `-f` to force push. |
-| `gent pull [remote] [branch]` | Pull and merge remote commits into the current branch. |
-
-### Authentication Commands
-
-| Command | Description |
-|---|---|
-| `gent register` | Create a new user account interactively. |
-| `gent login [-e <email>] [-p <password>]` | Log in to your account. |
-| `gent logout` | Log out and clear stored tokens. |
-| `gent whoami` | Display the currently logged-in user. |
-
-## Usage Examples
-
-### Initialize a Repository
-
 ```bash
-gent init
-# Output: Initialized empty Gent repository in /path/to/project
-```
-
-### Stage and Commit
-
-```bash
-gent add .
-gent commit -m "Initial commit"
-```
-
-### Work with Branches
-
-```bash
-# Create and switch to a new branch
-gent checkout -b feature-login
-
-# List branches
-gent branch
-
-# Switch back to main
-gent checkout main
-
-# Delete a branch
-gent branch -d feature-login
-```
-
-### View History
-
-```bash
+gent commit -m "Message"
 gent log
 gent log --oneline
 gent log -n 5
+gent show
+gent show <commit_hash>
+gent show --no-patch
 ```
 
-### Remote Workflow
+### Branching and Merging
 
 ```bash
-# Add a remote
-gent remote add origin https://gent-api.onrender.com/api/repos/123/
+gent branch
+gent branch <name>
+gent branch -d <name>
+gent checkout <branch>
+gent checkout -b <branch>
+gent merge <branch>
+gent merge <branch> -m "Merge message"
+```
 
-# Push to remote
+### Tags
+
+```bash
+gent tag
+gent tag <name>
+gent tag <name> -m "Message"
+gent tag -d <name>
+```
+
+### Remotes and Sync
+
+```bash
+gent repos
+gent repos --create <name>
+gent repos --create <name> --description "Description"
+gent repos --create <name> --private
+gent remote
+gent remote -v
+gent remote add origin /api/repos/<owner_id>/<repo_name>
+gent remote set-url origin /api/repos/<owner_id>/<repo_name>
+gent remote remove origin
+gent push
 gent push origin main
-
-# Pull from remote
+gent pull
 gent pull origin main
-
-# Clone a repository
-gent clone https://gent-api.onrender.com/api/repos/123/ my-project
 ```
 
-## Repository Structure
+## Remote URL Rules
 
-Gent creates a `.gent` directory in your project root:
+The global API base is fixed:
 
+```text
+https://gent-api.onrender.com
 ```
+
+Remote repository paths should be stored like this:
+
+```text
+/api/repos/<owner_id>/<repo_name>
+```
+
+Example:
+
+```bash
+gent remote add origin /api/repos/2/my-project
+```
+
+Do not use:
+
+```text
+http://localhost:8000
+http://127.0.0.1:8000
+```
+
+## Files Created by Gent
+
+Inside each repo:
+
+```text
 .gent/
-├── config.json       # Project configuration, remotes, user info
-├── commits.json      # Full commit history, branches, and tags
-├── staging.json      # Current staging area
-├── stash.json        # Stashed changes (created on first stash)
-├── HEAD              # Current branch reference
-├── objects/          # Content-addressable blob and tree store
-│   ├── ab/           # First 2 characters of SHA-256 hash
-│   │   └── cdef...   # zlib-compressed object
-│   └── ...
+├── config.json
+├── commits.json
+├── staging.json
+├── HEAD
+├── objects/
 └── refs/
-    ├── heads/        # Branch references (reserved for future use)
-    └── tags/         # Tag references (reserved for future use)
+
+.gentignore
 ```
 
-Your authentication tokens are stored globally in `~/.gent/auth.json`.
+Global auth:
 
-## Configuration
-
-### Ignore Files
-
-Create a `.gentignore` file in your repository root to exclude files from tracking:
-
+```text
+~/.gent/auth.json
 ```
+
+## Ignore Rules
+
+Gent creates a `.gentignore` file by default:
+
+```text
 node_modules/
-dist/
-.env
+.DS_Store
 *.log
+.env
+.gent/
 ```
 
-Default ignored patterns include: `.gent`, `node_modules`, `.git`, `.DS_Store`, `.env`, `dist`, `build`, `coverage`, `.vscode`, `.idea`, and `*.log`.
+Add project-specific ignored files there.
 
-### Remotes
+## Test the Full Remote Flow
 
-Remotes are stored in `.gent/config.json`:
+This repository includes a remote-only E2E test. It uses only:
 
-```json
-{
-  "remotes": {
-    "origin": {
-      "url": "https://gent-api.onrender.com/api/repos/123/"
-    }
-  }
-}
+```text
+https://gent-api.onrender.com
 ```
+
+Run syntax checks:
+
+```bash
+npm test
+```
+
+Run the full remote scenario:
+
+```bash
+npm run test:remote:e2e
+```
+
+The test covers:
+
+- API health check
+- Register, login, whoami, logout
+- Create and list remote repositories
+- Init, remote add, status, add, diff, commit
+- Push and up-to-date push
+- Branch sync
+- Tag sync
+- Clone from remote
+- Second commit and push
+- Pull into clone and verify working tree content
+- `init --remote`
+- Unauthenticated guard
+- Version flag
 
 ## Troubleshooting
 
-**Command not found?**
+### Command not found
 
-Make sure the CLI is linked globally:
+Install or link the CLI:
+
 ```bash
+npm install -g gent-cli
+```
+
+or:
+
+```bash
+cd apps/Cli
 npm link
 ```
 
-Or run it directly:
+### Not authenticated
+
+Log in again:
+
 ```bash
-node src/index.js <command>
+gent login
 ```
 
-**Not a Gent repository?**
+### Not a Gent repository
 
-Run `gent init` in your project directory first.
+Run commands inside a folder initialized with:
 
-**No changes to commit?**
+```bash
+gent init
+```
 
-Stage files with `gent add <files>` before committing.
+### Remote not found
 
-**Authentication errors?**
+Add an origin remote:
 
-Run `gent login` to refresh your session. Tokens expire automatically and should refresh; if not, log in again.
+```bash
+gent remote add origin /api/repos/<owner_id>/<repo_name>
+```
 
-## Docs
+### Push says everything up-to-date
 
-- [QUICKSTART.md](QUICKSTART.md)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+That means the local branch has no new commits compared to the last pushed remote ref.
 
-## Contributing
+### Render cold start
 
-Contributions are welcome! Please fork the repository and submit a Pull Request.
+The deployed API may take several seconds to respond after inactivity. Retry the command if the first request times out.
+
+## Version
+
+Show the CLI version:
+
+```bash
+gent -V
+gent --version
+```
 
 ## License
 
 ISC
-
----
-
-Built with love by [Abdalrahman Kanawati](https://github.com/abdo-ka)

@@ -1,6 +1,6 @@
 {
   "name": "gent-cli",
-  "version": "5.0.4",
+  "version": "6.0.1",
   "description": "A modern, Git-like version control CLI with built-in cloud authentication and global user identity management.",
   "main": "src/index.js",
   "bin": {
@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --check src/index.js && node --check tests/remote-e2e.js",
+    "test:remote:e2e": "node tests/remote-e2e.js",
     "demo": "bash demo.sh",
     "link": "npm link",
     "unlink": "npm unlink",

@@ -30,6 +30,7 @@ const path = require('path');
 const chalk = require('chalk');
 const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
 const { CONFIG_FILE, parseRemoteUrl } = require('../utils/constants');
+const initCommand = require('./init');
 
 /**
  * Manage remotes
@@ -39,7 +40,19 @@ const { CONFIG_FILE, parseRemoteUrl } = require('../utils/constants');
  */
 async function remote(subcommand, args, options) {
     try {
-        const gentPath = await getGentPath();
+        let gentPath;
+        try {
+            gentPath = await getGentPath();
+        } catch (error) {
+            if (subcommand !== 'add' || error.code !== 'ENOENT') {
+                throw error;
+            }
+
+            console.log(chalk.yellow('Not a Gent repository yet. Initializing first...'));
+            await initCommand({});
+            gentPath = await getGentPath();
+        }
+
         const configPath = path.join(gentPath, CONFIG_FILE);
         const config = await readJSON(configPath);
         config.remotes = config.remotes || {};
@@ -120,6 +133,7 @@ async function remote(subcommand, args, options) {
     } catch (error) {
         if (error.code === 'ENOENT' && error.message.includes('.gent')) {
             console.error(chalk.red('Error: Not a gent repository'));
+            console.log(chalk.yellow('Run "gent init" first, then retry this command'));
         } else {
             console.error(chalk.red('Error:'), error.message);
         }

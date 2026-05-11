@@ -144,15 +144,16 @@ async function createRemoteRepo(cwd, gentPath, config, options) {
         };
 
         const data = await apiClient.post(API_ENDPOINTS.REPOS_CREATE, payload);
+        const repo = data.repository || data;
 
         // Update local config with remote
         const configPath = path.join(gentPath, CONFIG_FILE);
         const localConfig = await require('../utils/fileSystem').readJSON(configPath);
         localConfig.remotes = localConfig.remotes || {};
-        localConfig.remotes.origin = { url: `/api/repos/${data.owner_id}/${data.name}` };
+        localConfig.remotes.origin = { url: `/api/repos/${repo.owner_id}/${repo.name}` };
         await writeJSON(configPath, localConfig);
 
-        console.log(chalk.green(`✓ Remote repository created: /api/repos/${data.owner_id}/${data.name}`));
+        console.log(chalk.green(`✓ Remote repository created: /api/repos/${repo.owner_id}/${repo.name}`));
         console.log(chalk.gray(`  Remote 'origin' configured automatically`));
 
     } catch (error) {

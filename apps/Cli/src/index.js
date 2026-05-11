@@ -53,7 +53,7 @@ const whoamiCommand = require('./commands/whoami');
 program
     .name('gent')
     .description(chalk.cyan('Gent - A Git-like version control CLI with cloud backend'))
-    .version(packageJson.version, '-v, --version', 'Output the current version');
+    .version(packageJson.version, '-V, --version', 'Output the current version');
 
 // ─── Repository Setup ───────────────────────────────────
 
@@ -195,6 +195,11 @@ program
 program
     .command('register')
     .description('Create a new user account')
+    .option('-e, --email <email>', 'Email address')
+    .option('-p, --password <password>', 'Password')
+    .option('--password-confirm <password>', 'Password confirmation')
+    .option('--first-name <name>', 'First name')
+    .option('--last-name <name>', 'Last name')
     .action(registerCommand);
 
 program
@@ -237,7 +242,7 @@ try {
         program.outputHelp();
     }
 } catch (err) {
-    if (err.code !== 'commander.help' && err.code !== 'commander.helpDisplayed') {
+    if (err.code !== 'commander.help' && err.code !== 'commander.helpDisplayed' && err.code !== 'commander.version') {
         console.error(chalk.red('Error:'), err.message);
         process.exit(1);
     }

@@ -93,10 +93,11 @@ async function createRepo(options) {
     }
 
     const data = await apiClient.post(API_ENDPOINTS.REPOS_CREATE, payload);
+    const repo = data.repository || data;
 
-    spinner.succeed(chalk.green(`Created repository '${data.name}'`));
-    console.log(chalk.gray(`  URL: /api/repos/${data.owner_id}/${data.name}`));
-    console.log(chalk.gray(`  Use "gent remote add origin /api/repos/${data.owner_id}/${data.name}" to link`));
+    spinner.succeed(chalk.green(`Created repository '${repo.name}'`));
+    console.log(chalk.gray(`  URL: /api/repos/${repo.owner_id}/${repo.name}`));
+    console.log(chalk.gray(`  Use "gent remote add origin /api/repos/${repo.owner_id}/${repo.name}" to link`));
 }
 
 module.exports = repos;

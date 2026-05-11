@@ -32,7 +32,7 @@ const { ensureDir, writeJSON, pathExists } = require('../utils/fileSystem');
 const { GENT_DIR, CONFIG_FILE, STAGING_FILE, COMMITS_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
-const { storeBlob, readBlobAsString } = require('../utils/hash-engine');
+const { storeBlob, readBlobAsString, decodeRemoteBlobContent } = require('../utils/hash-engine');
 
 /**
  * Clone remote repository
@@ -153,7 +153,7 @@ async function clone(url, directory, options) {
                             buildRepoUrl(API_ENDPOINTS.REPO_BLOB_DETAIL, { ...repoInfo, sha: entry.sha })
                         );
                         if (blob.content) {
-                            const buf = Buffer.from(blob.content, 'base64');
+                            const buf = decodeRemoteBlobContent(blob.content, entry.sha);
                             await storeBlob(gentPath, buf);
                             objectCount++;
                         }

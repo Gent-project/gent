@@ -30,7 +30,7 @@ const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
 const { COMMITS_FILE, CONFIG_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
-const { storeBlob, objectExists } = require('../utils/hash-engine');
+const { storeBlob, objectExists, readBlobAsString, decodeRemoteBlobContent } = require('../utils/hash-engine');
 const { findMergeBase, mergeTreeEntries } = require('../utils/merge-engine');
 const { generateCommitHash } = require('../utils/helpers');
 
@@ -140,7 +140,7 @@ async function pull(remoteName, branchName, options) {
                                 buildRepoUrl(API_ENDPOINTS.REPO_BLOB_DETAIL, { ...repoInfo, sha: entry.sha })
                             );
                             if (blob.content) {
-                                const buf = Buffer.from(blob.content, 'base64');
+                                const buf = decodeRemoteBlobContent(blob.content, entry.sha);
                                 await storeBlob(gentPath, buf);
                             }
                         } catch {
@@ -187,8 +187,11 @@ async function pull(remoteName, branchName, options) {
 
         if (!localHead || isAncestor(repository.commits, localHead, remoteHead)) {
             // Fast-forward
+            const previousTree = localHead ? getCommitTree(repository.commits, localHead) : [];
+            const nextTree = getCommitTree(repository.commits, remoteHead);
             repository.branches[branch] = remoteHead;
             await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
+            await checkoutTree(gentPath, process.cwd(), previousTree, nextTree);
 
             config.remoteRefs[`${remote}/${branch}`] = remoteHead;
             await writeJSON(path.join(gentPath, CONFIG_FILE), config);
@@ -234,6 +237,9 @@ async function pull(remoteName, branchName, options) {
             repository.commits.push(mergeCommit);
             repository.branches[branch] = mergeCommit.hash;
             await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
+            if (!mergeResult.hasConflicts) {
+                await checkoutTree(gentPath, process.cwd(), oursTree, mergeResult.mergedEntries);
+            }
 
             config.remoteRefs[`${remote}/${branch}`] = remoteHead;
             await writeJSON(path.join(gentPath, CONFIG_FILE), config);
@@ -274,6 +280,42 @@ function isAncestor(commits, hashA, hashB) {
         cur = c ? c.parent : null;
     }
     return false;
+}
+
+function getCommitTree(commits, hash) {
+    const commit = commits.find(c => c.hash === hash);
+    if (!commit) return [];
+    return commit.tree || (commit.files || []).map(f => ({
+        mode: '100644',
+        name: f.path || f.name,
+        hash: f.hash,
+        type: 'blob'
+    }));
+}
+
+async function checkoutTree(gentPath, cwd, previousTree, nextTree) {
+    const nextPaths = new Set(nextTree.map(e => e.name || e.path));
+
+    for (const entry of previousTree) {
+        const relPath = entry.name || entry.path;
+        if (!relPath || nextPaths.has(relPath)) continue;
+        try {
+            await fs.unlink(path.join(cwd, relPath));
+        } catch {
+            // File already absent.
+        }
+    }
+
+    for (const entry of nextTree) {
+        if (entry.type && entry.type !== 'blob') continue;
+        const relPath = entry.name || entry.path;
+        if (!relPath || !entry.hash) continue;
+
+        const content = await readBlobAsString(gentPath, entry.hash);
+        const fullPath = path.join(cwd, relPath);
+        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+        await fs.writeFile(fullPath, content, 'utf-8');
+    }
 }
 
 module.exports = pull;
