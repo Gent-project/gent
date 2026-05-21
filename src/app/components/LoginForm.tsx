@@ -24,13 +24,13 @@ export default function LoginForm() {
 
   const handleLogin = async () => {
     setError(""); // Reset error message
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setError("Please enter a valid email address");
       return;
     }
-    
+
     if (!password) {
       setError("Please enter your password");
       return;
@@ -43,25 +43,27 @@ export default function LoginForm() {
     }
 
     setError("");
-    
+
     login.mutate(
       { email, password },
       {
         onSuccess: (data) => {
-          if (typeof window !== 'undefined') {
+          if (typeof window !== "undefined") {
             // Token is saved in useLogin
-            dispatch(setAuth({ 
-              token: data.token, 
-              user: data.user,
-              refreshToken: data.refreshToken 
-            }));
-            window.location.href = '/';
+            dispatch(
+              setAuth({
+                token: data.token,
+                user: data.user,
+                refreshToken: data.refreshToken,
+              }),
+            );
+            window.location.href = "/";
           }
         },
         onError: (error) => {
-          console.error('Login failed:', error);
-        }
-      }
+          console.error("Login failed:", error);
+        },
+      },
     );
   };
 
@@ -91,7 +93,9 @@ export default function LoginForm() {
     >
       {/* Email Field */}
       <motion.div className="flex flex-col" variants={itemVariants}>
-        <label className="text-sm font-sans font-bold text-gray-400 mb-1">Email Address</label>
+        <label className="text-sm font-sans font-bold text-gray-400 mb-1">
+          Email Address
+        </label>
         <InputField
           placeholder="Enter your email"
           value={email}
@@ -102,7 +106,9 @@ export default function LoginForm() {
 
       {/* Password Field */}
       <motion.div className="flex flex-col relative" variants={itemVariants}>
-        <label className="text-sm font-sans font-bold text-gray-400 mb-1">Password</label>
+        <label className="text-sm font-sans font-bold text-gray-400 mb-1">
+          Password
+        </label>
         <InputField
           type={showPassword ? "text" : "password"}
           placeholder="Enter your password"
@@ -144,8 +150,8 @@ export default function LoginForm() {
           />
           Remind me
         </label>
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={() => setShowForgotPassword(true)}
           className="hover:underline text-[#5A7863] font-medium cursor-pointer"
         >
@@ -157,10 +163,10 @@ export default function LoginForm() {
       <motion.div variants={itemVariants}>
         <LoginButton onClick={handleLogin} />
       </motion.div>
-      
-      <ForgotPasswordModal 
-        isOpen={showForgotPassword} 
-        onClose={() => setShowForgotPassword(false)} 
+
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
       />
     </motion.div>
   );

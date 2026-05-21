@@ -49,9 +49,9 @@ export default function LoginPage() {
             <LoginForm />
 
             <div className="mt-4 text-center text-sm sm:text-base text-gray-600">
-              Don&apos;t have an account?{' '}
-              <a 
-                href={AUTH_PATH.SIGNIN} 
+              Don&apos;t have an account?{" "}
+              <a
+                href={AUTH_PATH.SIGNIN}
                 className="font-medium text-[#5A7863] hover:underline"
               >
                 Register
