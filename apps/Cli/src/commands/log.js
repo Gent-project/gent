@@ -60,7 +60,9 @@ async function log(options) {
             cur = c.parent;
         }
 
-        if (options.oneline) {
+        if (options.graph) {
+            displayGraphLog(commits, headHash, repository.branches || {}, limit);
+        } else if (options.oneline) {
             displayOnelineLog(ordered, headHash);
         } else {
             displayDetailedLog(ordered, headHash, currentBranch, options);
@@ -116,6 +118,54 @@ function displayDetailedLog(commits, currentCommitHash, currentBranch, options) 
         }
         console.log();
     });
+}
+
+/**
+ * Display a commit graph reachable from HEAD (parent + mergeParent edges),
+ * ordered newest-first, with branch/HEAD decorations and merge annotations.
+ * A simplified single-rail graph: merges are annotated rather than drawn as
+ * separate lanes, which keeps the output readable in a terminal.
+ */
+function displayGraphLog(allCommits, headHash, branches, limit) {
+    const map = new Map(allCommits.map(c => [c.hash, c]));
+
+    // Reachable set from HEAD via both edges.
+    const reachable = [];
+    const seen = new Set();
+    const stack = [headHash];
+    while (stack.length) {
+        const h = stack.pop();
+        if (!h || seen.has(h)) continue;
+        const c = map.get(h);
+        if (!c) continue;
+        seen.add(h);
+        reachable.push(c);
+        if (c.parent) stack.push(c.parent);
+        if (c.mergeParent) stack.push(c.mergeParent);
+    }
+    reachable.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const limited = reachable.slice(0, limit);
+
+    // Branch labels by commit hash.
+    const refs = new Map();
+    for (const [name, hash] of Object.entries(branches)) {
+        if (!hash) continue;
+        if (!refs.has(hash)) refs.set(hash, []);
+        refs.get(hash).push(name);
+    }
+
+    console.log(chalk.bold.cyan('\nCommit graph:\n'));
+    limited.forEach((c, i) => {
+        const headLabel = c.hash === headHash ? chalk.yellow.bold(' (HEAD)') : '';
+        const refLabel = refs.has(c.hash) ? chalk.green(` (${refs.get(c.hash).join(', ')})`) : '';
+        const time = chalk.gray(`(${formatDistanceToNow(new Date(c.timestamp), { addSuffix: true })})`);
+        console.log(`${chalk.yellow('*')} ${chalk.yellow(c.hash.substring(0, 7))}${headLabel}${refLabel} ${c.message} ${time}`);
+        if (c.mergeParent) {
+            console.log(chalk.gray(`|\\  merge: ${(c.parent || '').substring(0, 7)} + ${c.mergeParent.substring(0, 7)}`));
+        }
+        if (i < limited.length - 1) console.log(chalk.gray('|'));
+    });
+    console.log();
 }
 
 /**

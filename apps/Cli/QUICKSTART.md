@@ -1,198 +1,229 @@
-# Quick Start Guide - Gent CLI
+# Gent CLI — Quick Start Guide
 
-## Installation & Setup
+## Requirements
+
+- Node.js **18 or newer**
+- npm
+
+## Installation
 
 ```bash
-# Navigate to the CLI directory
 cd apps/Cli
-
-# Install dependencies
 npm install
-
-# Test the CLI
 node src/index.js --help
 ```
 
-## Make it Globally Available (Optional)
+Make `gent` available globally:
 
 ```bash
-# Link the CLI globally
 npm link
-
-# Now you can use 'gent' from anywhere
 gent --help
 ```
+
+---
 
 ## Your First Repository
 
 ### 1. Initialize
+
 ```bash
-# Create a new directory
 mkdir my-project
 cd my-project
-
-# Initialize gent repository
 gent init
 ```
 
-You'll be prompted for:
-- Your name
-- Your email
-- Repository name
-- Repository description
+Skip the interactive prompts:
 
-Or skip prompts with `-y`:
 ```bash
 gent init -y
 ```
 
 ### 2. Add Files
+
 ```bash
-# Create some files
 echo "console.log('Hello');" > index.js
-
-# Add to staging area
 gent add index.js
-
-# Or add all files
+# or add everything
 gent add .
 ```
 
 ### 3. Check Status
+
 ```bash
 gent status
+gent status -s   # short format
 ```
 
-### 4. Commit Changes
-```bash
-# With message flag
-gent commit -m "Initial commit"
+### 4. Commit
 
-# Or interactive
-gent commit
+```bash
+gent commit -m "Initial commit"
+```
+
+Let AI suggest a message from your staged diff (requires `ANTHROPIC_API_KEY`):
+
+```bash
+gent commit --ai
 ```
 
 ### 5. View History
+
 ```bash
-# See all commits
 gent log
-
-# Compact view
 gent log --oneline
-
-# Limit commits shown
 gent log -n 5
+gent log --graph   # ASCII commit graph with branches and merges
 ```
+
+---
 
 ## Working with Branches
 
-### Create a Branch
 ```bash
-gent branch feature-name
+gent branch feature-name       # create
+gent checkout feature-name     # switch
+gent checkout -b new-feature   # create and switch
+gent branch                    # list all
+gent branch -d old-feature     # delete (undoable)
 ```
 
-### Switch to Branch
+---
+
+## Merging
+
 ```bash
-gent checkout feature-name
+gent checkout main
+gent merge feature-login
 ```
 
-### Create and Switch
+If the merge is clean it commits automatically. If there are conflicts:
+
 ```bash
-gent checkout -b new-feature
+gent resolve        # walk each conflict hunk interactively → Ours / Theirs / Both / Edit / Ask AI
+gent push
 ```
 
-### List Branches
+Or resolve markers by hand then:
+
 ```bash
-gent branch
+gent add .
+gent commit -m "Resolve merge"
 ```
 
-### Delete Branch
-```bash
-gent branch -d old-feature
-```
+---
 
 ## Common Workflows
 
-### Feature Development
+### Feature development
+
 ```bash
-# Start a new feature
 gent checkout -b feature-login
 
-# Make changes
 echo "// Login code" > login.js
 gent add login.js
 gent commit -m "Add login feature"
 
-# View your work
-gent log
-
-# Switch back to main
 gent checkout main
+gent merge feature-login
+gent log --graph
 ```
 
-### Quick Commit All
+### Made a mistake? Undo it.
+
 ```bash
-# Stage and commit all changes
-gent add .
-gent commit -m "Update all files"
+gent undo              # reverse the last commit / merge / reset / checkout
+gent undo --list       # see what can be undone
+gent redo              # re-apply the last undone operation
 ```
 
-### Check What Changed
+Undo never deletes your working files. For hard-reset / fast-forward merges it
+also restores file content from the object store.
+
+### Understand what changed
+
 ```bash
-# See status
-gent status
-
-# Short format
-gent status -s
+gent explain                  # explain the latest commit in plain language
+gent explain <commit_hash>    # explain a specific commit
+gent explain --staged         # explain what is currently staged
 ```
+
+### Repository health
+
+```bash
+gent summary                  # branch counts, contributors, most-changed files, store size
+gent summary --ai             # + a short AI-written health narrative
+```
+
+---
+
+## Optional AI Features
+
+All AI features are off by default and have a non-AI fallback.
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+export GENT_AI_MODEL=claude-haiku-4-5   # optional; default is claude-opus-4-8
+
+gent commit --ai       # AI-suggested commit message
+gent explain           # plain-language diff summary
+gent resolve           # adds "Ask AI" option per conflict hunk
+gent summary --ai      # health narrative
+```
+
+---
 
 ## Tips & Tricks
 
-1. **Use .gentignore** - Exclude files like `node_modules/`
-2. **Commit Often** - Small commits are easier to track
-3. **Descriptive Messages** - Write clear commit messages
-4. **Branch for Features** - Keep main branch stable
-5. **Check Status** - Always review before committing
+1. **Undo freely** — `gent undo` reverses history-changing commands without deleting files.
+2. **Use `gent resolve` for conflicts** — faster than editing conflict markers by hand.
+3. **Run `gent summary`** after a sprint to see who changed what and how big the repo has grown.
+4. **`gent log --graph`** gives you a visual picture of your branch and merge history.
+5. **Commit often** — small commits are easier to track and undo individually.
+6. **Use `.gentignore`** — exclude `node_modules/`, `.env`, build artifacts.
+7. **Descriptive messages** — `gent commit --ai` can help when you are stuck.
+8. **Branch for features** — keep `main` stable.
 
-## Running the Demo
-
-See the CLI in action:
-
-```bash
-chmod +x demo.sh
-./demo.sh
-```
+---
 
 ## Troubleshooting
 
-**Not a gent repository error?**
+**Not a gent repository?**
 ```bash
-# Make sure you initialized
 gent init
 ```
 
-**No changes to commit?**
+**Nothing to commit?**
 ```bash
-# Add files first
 gent add <files>
+gent status
 ```
 
 **Command not found?**
 ```bash
-# Use node directly
+# Run without linking
 node src/index.js <command>
-
 # Or link globally
 npm link
 ```
 
-## Next Steps
+**Merge left conflict markers?**
+```bash
+gent resolve       # interactive resolver
+# or edit files, then:
+gent add .
+gent commit -m "Resolve conflicts"
+```
 
-- Read the full [README.md](README.md)
-- Explore the [source code](src/)
-- Try the [demo script](demo.sh)
-- Build your own commands!
+**Undo went too far?**
+```bash
+gent redo
+```
 
 ---
 
-**Happy coding with Gent! 🚀**
+## Next Steps
+
+- Full command reference: [docs/COMMANDS.md](docs/COMMANDS.md)
+- How the algorithms work: [docs/ALGORITHMS.md](docs/ALGORITHMS.md)
+- Architecture overview: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- Full workflow with remote sync: [README.md](README.md)

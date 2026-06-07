@@ -9,13 +9,15 @@
  * COMMANDS:
  *   Repository:  init, clone
  *   Staging:     add, rm, reset, status, diff
- *   History:     commit, log, show, tag
- *   Branching:   branch, checkout, merge, stash
+ *   History:     commit, log, show, tag, explain
+ *   Branching:   branch, checkout, merge, resolve, stash
+ *   Safety:      undo, redo
+ *   Insight:     summary
  *   Remote:      remote, push, pull
  *   Auth:        register, login, logout, whoami
  *
  * @author Abdalrahman Kanawati
- * @version 2.0.0
+ * @version 7.0.0
  */
 
 const { program } = require('commander');
@@ -42,6 +44,10 @@ const remoteCommand = require('./commands/remote');
 const pushCommand = require('./commands/push');
 const pullCommand = require('./commands/pull');
 const reposCommand = require('./commands/repos');
+const undoCommand = require('./commands/undo');
+const resolveCommand = require('./commands/resolve');
+const summaryCommand = require('./commands/summary');
+const explainCommand = require('./commands/explain');
 
 // Import auth commands
 const registerCommand = require('./commands/register');
@@ -110,6 +116,7 @@ program
     .description('Record changes to the repository')
     .option('-m, --message <message>', 'Commit message')
     .option('-a, --all', 'Automatically stage all modified files')
+    .option('--ai', 'Suggest a commit message with AI (needs ANTHROPIC_API_KEY)')
     .action(commitCommand);
 
 program
@@ -117,6 +124,7 @@ program
     .description('Show commit logs')
     .option('-n, --number <count>', 'Limit the number of commits to show', '10')
     .option('--oneline', 'Show each commit on a single line')
+    .option('--graph', 'Show an ASCII commit graph with branches and merges')
     .option('--stat', 'Show file change statistics')
     .action(logCommand);
 
@@ -132,6 +140,18 @@ program
     .option('-m, --message <message>', 'Create annotated tag with message')
     .option('-d, --delete <name>', 'Delete a tag')
     .action(tagCommand);
+
+program
+    .command('explain [ref]')
+    .description('Explain a commit or staged changes in plain language')
+    .option('--staged', 'Explain staged changes instead of a commit')
+    .action(explainCommand);
+
+program
+    .command('summary')
+    .description('Show a repository health & statistics dashboard')
+    .option('--ai', 'Add an AI-written health narrative (needs ANTHROPIC_API_KEY)')
+    .action(summaryCommand);
 
 // ─── Branching & Merging ────────────────────────────────
 
@@ -156,11 +176,27 @@ program
     .action(mergeCommand);
 
 program
+    .command('resolve')
+    .description('Interactively resolve merge conflicts left by "gent merge"')
+    .action(resolveCommand);
+
+program
     .command('stash [subcommand]')
     .description('Stash working tree changes (pop|list|drop|apply)')
     .option('-m, --message <message>', 'Stash message')
     .option('-i, --index <index>', 'Stash index for pop/apply/drop')
     .action(stashCommand);
+
+program
+    .command('undo')
+    .description('Reverse the last history-changing operation (safety net)')
+    .option('-l, --list', 'Show the operation history')
+    .action(undoCommand);
+
+program
+    .command('redo')
+    .description('Re-apply the last undone operation')
+    .action(undoCommand.redo);
 
 // ─── Remote & Sync ──────────────────────────────────────
 

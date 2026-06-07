@@ -11,7 +11,10 @@ const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
 const authStorage = require('../utils/auth-storage');
 const { STAGING_FILE, COMMITS_FILE, CONFIG_FILE } = require('../utils/constants');
 const { generateCommitHash } = require('../utils/helpers');
-const { storeTree, snapshotFile } = require('../utils/hash-engine');
+const { storeTree, snapshotFile, readBlobAsString } = require('../utils/hash-engine');
+const { formatUnifiedDiff } = require('../utils/diff-engine');
+const journal = require('../utils/journal');
+const ai = require('../utils/ai-service');
 
 /**
  * Create a new commit
@@ -35,6 +38,25 @@ async function commit(options) {
 
         // Get commit message
         let message = options.message;
+
+        // Optional: AI-suggested commit message (`gent commit --ai`)
+        if (!message && options.ai) {
+            if (!ai.isEnabled()) {
+                console.log(chalk.yellow(ai.disabledHint()));
+            } else {
+                const suggested = await suggestMessage(gentPath, stagedEntries);
+                if (suggested) {
+                    const answer = await inquirer.prompt([{
+                        type: 'input',
+                        name: 'message',
+                        message: 'Commit message (AI-suggested, edit as needed):',
+                        default: suggested.split('\n')[0],
+                        validate: (input) => input.length > 0 || 'Commit message cannot be empty'
+                    }]);
+                    message = answer.message;
+                }
+            }
+        }
 
         if (!message) {
             const answer = await inquirer.prompt([
@@ -148,7 +170,9 @@ async function commit(options) {
             }
         };
 
-        // Save commit
+        // Save commit (journal pre-state first so "gent undo" can reverse it)
+        await journal.recordOp(gentPath, 'commit', `${message} [${repository.currentBranch}]`);
+
         repository.commits = repository.commits || [];
         repository.commits.push(commitObj);
         repository.branches[repository.currentBranch] = commitObj.hash;
@@ -178,6 +202,45 @@ async function commit(options) {
             console.error(chalk.red('Error:'), error.message);
         }
         process.exit(1);
+    }
+}
+
+/**
+ * Build a compact staged-diff summary and ask the AI for a commit message.
+ * Returns null on any failure (caller falls back to a manual prompt).
+ * @param {String} gentPath
+ * @param {Array} stagedEntries
+ * @returns {Promise<String|null>}
+ */
+async function suggestMessage(gentPath, stagedEntries) {
+    try {
+        const repository = await readJSON(path.join(gentPath, COMMITS_FILE));
+        const headHash = repository.branches[repository.currentBranch];
+        const headCommit = headHash ? (repository.commits || []).find(c => c.hash === headHash) : null;
+        const headMap = new Map(
+            ((headCommit && headCommit.tree) ? headCommit.tree : (headCommit ? headCommit.files : []) || [])
+                .map(f => [f.path || f.name, f.hash])
+        );
+
+        const parts = [];
+        for (const e of stagedEntries) {
+            if (e.status === 'deleted') { parts.push(`deleted: ${e.path}`); continue; }
+            let oldText = '';
+            const prev = headMap.get(e.path);
+            try { if (prev) oldText = await readBlobAsString(gentPath, prev); } catch { /* binary */ }
+            let newText = '';
+            try { newText = await readBlobAsString(gentPath, e.hash); } catch { /* binary */ }
+            const d = formatUnifiedDiff(e.path, oldText, newText);
+            parts.push(d || `${e.status}: ${e.path}`);
+        }
+
+        const summary = parts.join('\n\n').slice(0, 12000);
+        const spinner = ora(`Asking ${ai.getModel()} for a commit message...`).start();
+        const msg = await ai.suggestCommitMessage(summary);
+        spinner.stop();
+        return msg || null;
+    } catch {
+        return null;
     }
 }
 

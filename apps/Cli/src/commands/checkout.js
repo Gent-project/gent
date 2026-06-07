@@ -7,6 +7,7 @@ const path = require('path');
 const chalk = require('chalk');
 const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
 const { COMMITS_FILE } = require('../utils/constants');
+const journal = require('../utils/journal');
 
 /**
  * Switch to a different branch
@@ -28,6 +29,8 @@ async function checkout(branch, options) {
             }
 
             // Create and switch to new branch
+            await journal.recordOp(gentPath, 'checkout', `create branch '${branch}'`);
+
             const currentCommit = branches[repository.currentBranch] || null;
             branches[branch] = currentCommit;
             repository.branches = branches;
@@ -51,6 +54,8 @@ async function checkout(branch, options) {
             console.log(chalk.yellow(`Already on branch '${branch}'`));
             return;
         }
+
+        await journal.recordOp(gentPath, 'checkout', `switch to branch '${branch}'`);
 
         repository.currentBranch = branch;
         await writeJSON(path.join(gentPath, COMMITS_FILE), repository);

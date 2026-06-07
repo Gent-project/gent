@@ -12,9 +12,22 @@ The CLI is configured in `src/utils/constants.js` to use that deployed API. Do n
 
 ## Requirements
 
-- Node.js 14 or newer
-- Internet access to `https://gent-api.onrender.com`
+- Node.js 18 or newer
+- Internet access to `https://gent-api.onrender.com` (only for remote/auth commands; local commands work offline)
 - A Gent account, created with `gent register`
+
+## What makes Gent "smart"
+
+Beyond a faithful git-like workflow, Gent adds:
+
+- **diff3 three-way merge** with language-aware auto-resolution (JSON key merge, import unioning) that resolves more conflicts correctly and never merges unsafely.
+- **`gent undo` / `gent redo`** — a one-command safety net over an operation journal (friendlier than `git reflog`).
+- **`gent resolve`** — an interactive conflict resolver (ours / theirs / both / edit / AI).
+- **`gent summary`** — a repository health dashboard, plus **`gent log --graph`**.
+- **Optional AI** (`gent commit --ai`, `gent explain`, `gent summary --ai`, AI option in `gent resolve`) — off by default, enabled with `ANTHROPIC_API_KEY`.
+
+See [docs/COMMANDS.md](docs/COMMANDS.md) for the full reference and
+[docs/ALGORITHMS.md](docs/ALGORITHMS.md) for how the engines work.
 
 ## Install
 
@@ -309,7 +322,14 @@ gent merge feature-login
 gent push
 ```
 
-If there are conflicts, resolve the files, then:
+If there are conflicts, resolve them interactively (recommended):
+
+```bash
+gent resolve        # walk each conflict; it can finalize the merge commit for you
+gent push
+```
+
+Or resolve the markers by hand, then:
 
 ```bash
 gent add .
@@ -450,6 +470,42 @@ gent checkout <branch>
 gent checkout -b <branch>
 gent merge <branch>
 gent merge <branch> -m "Merge message"
+gent resolve                      # interactively resolve merge conflicts
+```
+
+### Safety Net (undo / redo)
+
+```bash
+gent undo                         # reverse the last commit/merge/reset/checkout
+gent undo --list                  # show the operation history
+gent redo                         # re-apply the last undone operation
+```
+
+Undo never deletes your working files; for content-discarding operations
+(`reset --hard`, fast-forward merge, pull) it restores them from the object store.
+
+### Insight
+
+```bash
+gent summary                      # repository health & statistics dashboard
+gent summary --ai                 # + a short AI-written assessment (needs a key)
+gent log --graph                  # ASCII commit graph with branches and merges
+gent explain                      # explain the latest commit in plain language
+gent explain <commit>             # explain a specific commit
+gent explain --staged             # explain currently staged changes
+```
+
+### Optional AI features
+
+AI is off by default and every feature has a non-AI fallback. Enable it with:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+export GENT_AI_MODEL=claude-haiku-4-5   # optional; default is claude-opus-4-8
+
+gent commit --ai                  # suggest a commit message from the staged diff
+gent explain                      # narrate a diff instead of just printing it
+gent resolve                      # adds an "Ask AI" choice per conflict hunk
 ```
 
 ### Tags
@@ -515,6 +571,7 @@ Inside each repo:
 ├── config.json
 ├── commits.json
 ├── staging.json
+├── journal.json   # operation journal for undo/redo (created on first op)
 ├── HEAD
 ├── objects/
 └── refs/

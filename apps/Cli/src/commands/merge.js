@@ -13,6 +13,7 @@ const { generateCommitHash } = require('../utils/helpers');
 const authStorage = require('../utils/auth-storage');
 const { findMergeBase, mergeTreeEntries, autoMerge } = require('../utils/merge-engine');
 const { storeTree, readBlobAsString, storeBlob } = require('../utils/hash-engine');
+const journal = require('../utils/journal');
 
 /**
  * Merge a branch into the current branch
@@ -66,6 +67,7 @@ async function merge(sourceBranch, options) {
         // Fast-forward: current branch is merge base → just move pointer
         if (baseHash === oursHash) {
             spinner.text = 'Fast-forward merge...';
+            await journal.recordOp(gentPath, 'merge', `fast-forward '${sourceBranch}' into ${currentBranch}`, { restoreTree: true });
             repository.branches[currentBranch] = theirsHash;
             await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
 
@@ -164,6 +166,8 @@ async function merge(sourceBranch, options) {
                     deletions: 0
                 }
             };
+
+            await journal.recordOp(gentPath, 'merge', `merge '${sourceBranch}' into ${currentBranch}`);
 
             repository.commits.push(mergeCommit);
             repository.branches[currentBranch] = mergeCommit.hash;

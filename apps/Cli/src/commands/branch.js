@@ -10,6 +10,7 @@ const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
 const { COMMITS_FILE, CONFIG_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
+const journal = require('../utils/journal');
 
 /**
  * Manage branches
@@ -109,6 +110,8 @@ async function deleteBranch(name, repository, gentPath) {
         console.log(chalk.yellow('Switch to another branch first using "gent checkout <branch>"'));
         process.exit(1);
     }
+
+    await journal.recordOp(gentPath, 'branch-delete', `delete branch '${name}'`);
 
     delete branches[name];
     repository.branches = branches;

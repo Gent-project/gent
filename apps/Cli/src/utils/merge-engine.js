@@ -1,38 +1,46 @@
 /**
  * ============================================================================
- * Merge Engine - Three-Way Smart Merge with Auto-Resolution
+ * Merge Engine - Three-Way Smart Merge (diff3) with Auto-Resolution
  * ============================================================================
  *
  * PURPOSE:
  *   Merge two diverged branches using their common ancestor as reference.
- *   Minimizes manual conflict resolution through aggressive auto-resolution.
+ *   Minimizes manual conflict resolution through aggressive auto-resolution
+ *   while NEVER silently producing an incorrect merge — when in doubt, it
+ *   emits conflict markers for a human (or `gent resolve`) to decide.
  *
- * THREE-WAY MERGE ALGORITHM:
+ * THREE-WAY MERGE ALGORITHM (diff3):
  *   Given: BASE (common ancestor), OURS (current branch), THEIRS (incoming)
  *
- *   1. Compute diff: BASE → OURS  (what we changed)
- *   2. Compute diff: BASE → THEIRS (what they changed)
- *   3. Build "change regions" from each diff (contiguous modified areas)
- *   4. Walk base line-by-line, apply resolution rules:
+ *   1. Match BASE↔OURS and BASE↔THEIRS line-for-line via LCS. A base line is a
+ *      "stable anchor" when it survives unchanged in BOTH sides — at an anchor
+ *      all three files are synchronized.
+ *   2. Walk anchors in order. Between two consecutive anchors lies one
+ *      "unstable region": baseSeg / oursSeg / theirsSeg (each possibly empty).
+ *   3. Classify each region with the rules below, then emit the anchor line.
  *
- *   AUTO-RESOLUTION RULES (in priority order):
- *   ┌─────────────────────────────────────────────────────────────────┐
- *   │ Scenario                          │ Result                     │
- *   ├─────────────────────────────────────────────────────────────────┤
- *   │ Only OURS modified region         │ Take OURS                  │
- *   │ Only THEIRS modified region       │ Take THEIRS                │
- *   │ Both modified identically         │ Take either (same)         │
- *   │ Both modified, same-length,       │                            │
- *   │   non-overlapping line changes    │ Line-by-line merge         │
- *   │ Whitespace-only difference        │ Take OURS                  │
- *   │ Modify/delete conflict            │ Keep modified (smart)      │
- *   │ True overlapping conflict         │ Insert conflict markers    │
- *   └─────────────────────────────────────────────────────────────────┘
+ *   AUTO-RESOLUTION RULES (per unstable region):
+ *   ┌────────────────────────────────────────────┬──────────────────────────┐
+ *   │ Scenario                                    │ Result                   │
+ *   ├────────────────────────────────────────────┼──────────────────────────┤
+ *   │ Neither side changed the region             │ Keep base                │
+ *   │ Only OURS changed                           │ Take OURS                │
+ *   │ Only THEIRS changed                         │ Take THEIRS              │
+ *   │ Both changed identically                    │ Take either              │
+ *   │ Both changed, same length, disjoint lines   │ Line-by-line sub-merge   │
+ *   │ Whitespace-only difference                  │ Take OURS                │
+ *   │ True overlapping conflict                   │ Insert conflict markers  │
+ *   └────────────────────────────────────────────┴──────────────────────────┘
  *
- * MERGE BASE FINDER:
- *   Walks parent chain from both branch tips.
- *   Collects all ancestors of branch A, then walks B until first hit.
- *   Returns the most recent common ancestor. O(n) where n = total commits.
+ *   Why diff3 (vs. the previous region-walk): anchoring whole unstable regions
+ *   between synchronized lines correctly handles one-sided pure insertions
+ *   (zero base lines consumed) and overlapping edits on both sides — the two
+ *   cases that crashed / dropped data before.
+ *
+ * MERGE BASE FINDER (DAG-aware):
+ *   Walks BOTH `parent` and `mergeParent` edges so the lowest common ancestor
+ *   is found correctly even after merge commits exist. BFS from one tip,
+ *   nearest-first, returns the first ancestor shared with the other tip.
  *
  * TREE-LEVEL MERGE:
  *   Compares file presence/absence + blob hashes across base/ours/theirs trees.
@@ -59,127 +67,164 @@ const { splitLines } = require('./hash-engine');
 const { buildLineOperations } = require('./diff-engine');
 const { readBlobAsString, treeToMap, storeBlob } = require('./hash-engine');
 
-// ─── Line-Level 3-Way Merge ─────────────────────────────
+// ─── Helpers ────────────────────────────────────────────
 
 /**
- * Three-way merge of line arrays.
+ * Shallow array equality (line arrays).
+ * @param {String[]} a
+ * @param {String[]} b
+ * @returns {Boolean}
+ */
+function linesEqual(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false;
+    }
+    return true;
+}
+
+// Matches dependency/import declarations across common languages:
+// JS/TS import/require, Python import/from, Go/Rust/C# use/using, C #include.
+const IMPORT_LINE = /^\s*(import\s|from\s.+\simport\s|(const|let|var)\s+.+=\s*require\(|require\(|#include\s|using\s|use\s|@import\s)/;
+
+/** True when a region is non-empty and every non-blank line is an import/require. */
+function isImportRegion(lines) {
+    const nonBlank = lines.filter(l => l.trim() !== '');
+    if (nonBlank.length === 0) return false;
+    return nonBlank.every(l => IMPORT_LINE.test(l));
+}
+
+/** Union of two line lists: all of `a`, then lines of `b` not already present. */
+function unionLines(a, b) {
+    const seen = new Set(a);
+    const out = [...a];
+    for (const line of b) {
+        if (!seen.has(line)) { out.push(line); seen.add(line); }
+    }
+    return out;
+}
+
+/**
+ * Map each base line index to the matching line index in `other` (via LCS),
+ * or -1 when that base line does not survive unchanged in `other`.
+ * @param {String[]} baseLines
+ * @param {String[]} otherLines
+ * @returns {Int32Array} length === baseLines.length
+ */
+function matchBaseToOther(baseLines, otherLines) {
+    const map = new Int32Array(baseLines.length).fill(-1);
+    const ops = buildLineOperations(baseLines, otherLines);
+    for (const op of ops) {
+        if (op.type === 'equal') {
+            // op.oldLine / op.newLine are 1-based positions
+            map[op.oldLine - 1] = op.newLine - 1;
+        }
+    }
+    return map;
+}
+
+// ─── Line-Level 3-Way Merge (diff3) ─────────────────────
+
+/**
+ * Three-way merge of line arrays using the diff3 algorithm.
  * @param {String[]} baseLines
  * @param {String[]} oursLines
  * @param {String[]} theirsLines
  * @returns {{merged: String[], conflicts: Array, hasConflicts: Boolean}}
  */
 function threeWayMerge(baseLines, oursLines, theirsLines) {
-    const ourOps = buildLineOperations(baseLines, oursLines);
-    const theirOps = buildLineOperations(baseLines, theirsLines);
+    const oMatch = matchBaseToOther(baseLines, oursLines);
+    const tMatch = matchBaseToOther(baseLines, theirsLines);
 
-    const ourRegions = buildChangeRegions(ourOps);
-    const theirRegions = buildChangeRegions(theirOps);
+    // Stable anchors: base lines present unchanged in BOTH sides.
+    // oMatch/tMatch are individually monotonic (LCS), so the shared subset is
+    // simultaneously monotonic in base/ours/theirs indices.
+    const anchors = [];
+    for (let bi = 0; bi < baseLines.length; bi++) {
+        if (oMatch[bi] !== -1 && tMatch[bi] !== -1) {
+            anchors.push({ b: bi, o: oMatch[bi], t: tMatch[bi] });
+        }
+    }
+    // Sentinel anchor at the end so the trailing region is processed.
+    anchors.push({ b: baseLines.length, o: oursLines.length, t: theirsLines.length });
 
-    const ourMap = mapRegionsByBase(ourRegions);
-    const theirMap = mapRegionsByBase(theirRegions);
-
-    const allStarts = new Set([...ourMap.keys(), ...theirMap.keys()]);
     const merged = [];
     const conflicts = [];
-    let baseIdx = 0;
+    let prevB = 0, prevO = 0, prevT = 0;
 
-    while (baseIdx <= baseLines.length) {
-        if (allStarts.has(baseIdx)) {
-            const ourR = ourMap.get(baseIdx);
-            const theirR = theirMap.get(baseIdx);
+    for (const a of anchors) {
+        const baseSeg = baseLines.slice(prevB, a.b);
+        const oursSeg = oursLines.slice(prevO, a.o);
+        const theirsSeg = theirsLines.slice(prevT, a.t);
 
-            if (ourR && theirR) {
-                const ourText = ourR.newLines.join('\n');
-                const theirText = theirR.newLines.join('\n');
+        resolveRegion(baseSeg, oursSeg, theirsSeg, merged, conflicts);
 
-                if (ourText === theirText) {
-                    merged.push(...ourR.newLines);
-                } else {
-                    const sub = subMergeRegion(ourR.oldLines, ourR.newLines, theirR.newLines);
-                    if (sub.hasConflicts) {
-                        conflicts.push({
-                            baseLine: baseIdx,
-                            baseContent: ourR.oldLines,
-                            oursContent: ourR.newLines,
-                            theirsContent: theirR.newLines
-                        });
-                        merged.push('<<<<<<< ours');
-                        merged.push(...ourR.newLines);
-                        merged.push('=======');
-                        merged.push(...theirR.newLines);
-                        merged.push('>>>>>>> theirs');
-                    } else {
-                        merged.push(...sub.lines);
-                    }
-                }
-                const skip = Math.max(ourR.oldLines.length, theirR.oldLines.length);
-                baseIdx += skip;
-                continue;
-            } else if (ourR) {
-                merged.push(...ourR.newLines);
-                baseIdx += ourR.oldLines.length;
-                continue;
-            } else if (theirR) {
-                merged.push(...theirR.newLines);
-                baseIdx += theirR.oldLines.length;
-                continue;
-            }
+        // Emit the synchronized anchor line (skip the end sentinel).
+        if (a.b < baseLines.length) {
+            merged.push(baseLines[a.b]);
         }
 
-        if (baseIdx < baseLines.length) {
-            merged.push(baseLines[baseIdx]);
-        }
-        baseIdx++;
+        prevB = a.b + 1;
+        prevO = a.o + 1;
+        prevT = a.t + 1;
     }
 
     return { merged, conflicts, hasConflicts: conflicts.length > 0 };
 }
 
-// ─── Region Building ────────────────────────────────────
-
 /**
- * Extract contiguous change regions from diff ops, anchored to base line indices.
- * @param {Array} ops
- * @returns {Array<{baseStart, oldLines, newLines}>}
+ * Classify and resolve a single unstable region, appending to `merged`
+ * (and `conflicts` when unresolved).
+ * @param {String[]} baseSeg
+ * @param {String[]} oursSeg
+ * @param {String[]} theirsSeg
+ * @param {String[]} merged - output accumulator (mutated)
+ * @param {Array} conflicts - output accumulator (mutated)
  */
-function buildChangeRegions(ops) {
-    const regions = [];
-    let current = null;
-    let baseIdx = 0;
-
-    for (const op of ops) {
-        if (op.type === 'equal') {
-            if (current) { regions.push(current); current = null; }
-            baseIdx++;
-        } else if (op.type === 'delete') {
-            if (!current) current = { baseStart: baseIdx, oldLines: [], newLines: [] };
-            current.oldLines.push(op.content);
-            baseIdx++;
-        } else if (op.type === 'insert') {
-            if (!current) current = { baseStart: baseIdx, oldLines: [], newLines: [] };
-            current.newLines.push(op.content);
-        }
+function resolveRegion(baseSeg, oursSeg, theirsSeg, merged, conflicts) {
+    if (baseSeg.length === 0 && oursSeg.length === 0 && theirsSeg.length === 0) {
+        return;
     }
-    if (current) regions.push(current);
-    return regions;
-}
 
-/**
- * Map regions by baseStart index.
- * @param {Array} regions
- * @returns {Map}
- */
-function mapRegionsByBase(regions) {
-    const map = new Map();
-    for (const r of regions) map.set(r.baseStart, r);
-    return map;
+    const oursChanged = !linesEqual(baseSeg, oursSeg);
+    const theirsChanged = !linesEqual(baseSeg, theirsSeg);
+
+    if (!oursChanged && !theirsChanged) { merged.push(...baseSeg); return; }
+    if (!oursChanged) { merged.push(...theirsSeg); return; }       // only theirs changed
+    if (!theirsChanged) { merged.push(...oursSeg); return; }       // only ours changed
+    if (linesEqual(oursSeg, theirsSeg)) { merged.push(...oursSeg); return; } // same change
+
+    // Language-aware rule: when both sides ADD import/require lines at the same
+    // spot (no base lines involved), union them instead of conflicting. This is
+    // the classic "both branches added an import" false conflict, and unioning
+    // additions is safe. Anything with base content falls through to a conflict.
+    if (baseSeg.length === 0 && isImportRegion(oursSeg) && isImportRegion(theirsSeg)) {
+        merged.push(...unionLines(oursSeg, theirsSeg));
+        return;
+    }
+
+    // Both changed differently — attempt fine-grained line-by-line merge.
+    const sub = subMergeRegion(baseSeg, oursSeg, theirsSeg);
+    if (!sub.hasConflicts) { merged.push(...sub.lines); return; }
+
+    // Unresolved — emit conflict markers.
+    conflicts.push({
+        baseContent: baseSeg,
+        oursContent: oursSeg,
+        theirsContent: theirsSeg
+    });
+    merged.push('<<<<<<< ours');
+    merged.push(...oursSeg);
+    merged.push('=======');
+    merged.push(...theirsSeg);
+    merged.push('>>>>>>> theirs');
 }
 
 // ─── Sub-Merge (fine-grained) ───────────────────────────
 
 /**
- * Attempt line-by-line merge within a region.
- * Catches non-overlapping edits inside same region.
+ * Attempt line-by-line merge within a region where both sides changed.
+ * Catches non-overlapping edits inside the same region.
  * @param {String[]} baseLines
  * @param {String[]} oursLines
  * @param {String[]} theirsLines
@@ -210,16 +255,149 @@ function subMergeRegion(baseLines, oursLines, theirsLines) {
     return { lines: [], hasConflicts: true };
 }
 
+// ─── JSON-Aware Merge ───────────────────────────────────
+
+function isPlainObject(v) {
+    return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/** Structural deep equality (objects, arrays, primitives). */
+function deepEqual(a, b) {
+    if (a === b) return true;
+    if (typeof a !== typeof b) return false;
+    if (Array.isArray(a) || Array.isArray(b)) {
+        if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+        return a.every((x, i) => deepEqual(x, b[i]));
+    }
+    if (isPlainObject(a) && isPlainObject(b)) {
+        const ka = Object.keys(a), kb = Object.keys(b);
+        if (ka.length !== kb.length) return false;
+        return ka.every(k => Object.prototype.hasOwnProperty.call(b, k) && deepEqual(a[k], b[k]));
+    }
+    return false;
+}
+
+/** Decide the merged value for a single key across base/ours/theirs. */
+function decideJsonKey(base, ours, theirs, key) {
+    const hasB = Object.prototype.hasOwnProperty.call(base, key);
+    const hasO = Object.prototype.hasOwnProperty.call(ours, key);
+    const hasT = Object.prototype.hasOwnProperty.call(theirs, key);
+    const bv = base[key], ov = ours[key], tv = theirs[key];
+
+    const oChanged = hasO !== hasB || !deepEqual(ov, bv);
+    const tChanged = hasT !== hasB || !deepEqual(tv, bv);
+
+    if (!oChanged && !tChanged) return hasB ? { action: 'set', value: bv } : { action: 'delete' };
+    if (!oChanged) return hasT ? { action: 'set', value: tv } : { action: 'delete' }; // only theirs
+    if (!tChanged) return hasO ? { action: 'set', value: ov } : { action: 'delete' }; // only ours
+    if (hasO && hasT && deepEqual(ov, tv)) return { action: 'set', value: ov };        // same change
+    if (hasO && hasT && isPlainObject(ov) && isPlainObject(tv)) {                      // recurse
+        const sub = mergeJsonObjects(isPlainObject(bv) ? bv : {}, ov, tv);
+        return sub.hasConflicts ? { action: 'conflict' } : { action: 'set', value: sub.merged };
+    }
+    return { action: 'conflict' };
+}
+
+/** Key-level 3-way merge of two objects. Returns merged object + conflict flag. */
+function mergeJsonObjects(base, ours, theirs) {
+    const keys = [];
+    const seen = new Set();
+    for (const k of [...Object.keys(ours), ...Object.keys(theirs), ...Object.keys(base)]) {
+        if (!seen.has(k)) { keys.push(k); seen.add(k); }
+    }
+
+    const merged = {};
+    let hasConflicts = false;
+    for (const k of keys) {
+        const d = decideJsonKey(base, ours, theirs, k);
+        if (d.action === 'set') merged[k] = d.value;
+        else if (d.action === 'conflict') hasConflicts = true;
+        // 'delete' → omit
+    }
+    return { merged, hasConflicts };
+}
+
+/**
+ * Attempt a JSON-aware merge. Returns a clean result only when the structures
+ * parse as objects AND every key auto-resolves; otherwise returns null so the
+ * caller can fall back to line-based merge (which can emit conflict markers).
+ * @returns {{content: String, hasConflicts: Boolean, conflicts: Array}|null}
+ */
+function mergeJsonContent(baseContent, oursContent, theirsContent) {
+    let base, ours, theirs;
+    try {
+        base = baseContent && baseContent.trim() ? JSON.parse(baseContent) : {};
+        ours = JSON.parse(oursContent);
+        theirs = JSON.parse(theirsContent);
+    } catch {
+        return null; // not valid JSON → fall back
+    }
+    if (!isPlainObject(base) || !isPlainObject(ours) || !isPlainObject(theirs)) {
+        return null; // non-object roots (e.g. arrays) → fall back
+    }
+
+    const { merged, hasConflicts } = mergeJsonObjects(base, ours, theirs);
+    if (hasConflicts) return null; // let the line merge surface markers
+    return { content: JSON.stringify(merged, null, 2) + '\n', hasConflicts: false, conflicts: [] };
+}
+
+// ─── Conflict Marker Parsing ────────────────────────────
+
+/** True if the text contains a conflict start marker. */
+function hasConflictMarkers(content) {
+    return /^<<<<<<</m.test(content || '');
+}
+
+/**
+ * Parse conflict-marked text into ordered segments.
+ * @param {String} content
+ * @returns {Array<{type:'text', lines:String[]} | {type:'conflict', ours:String[], theirs:String[]}>}
+ */
+function parseConflictMarkers(content) {
+    const lines = (content || '').split('\n');
+    const segments = [];
+    let textBuf = [];
+    const flush = () => { if (textBuf.length) { segments.push({ type: 'text', lines: textBuf }); textBuf = []; } };
+
+    let i = 0;
+    while (i < lines.length) {
+        if (lines[i].startsWith('<<<<<<<')) {
+            flush();
+            i++;
+            const ours = [];
+            while (i < lines.length && !lines[i].startsWith('=======')) ours.push(lines[i++]);
+            i++; // skip '======='
+            const theirs = [];
+            while (i < lines.length && !lines[i].startsWith('>>>>>>>')) theirs.push(lines[i++]);
+            i++; // skip '>>>>>>>'
+            segments.push({ type: 'conflict', ours, theirs });
+        } else {
+            textBuf.push(lines[i++]);
+        }
+    }
+    flush();
+    return segments;
+}
+
 // ─── File-Level Merge ───────────────────────────────────
 
 /**
- * Merge single file content strings.
+ * Merge single file content strings. When `fileName` indicates a structured
+ * format (currently .json) a language-aware strategy is tried first; it falls
+ * back to the line-based diff3 merge if the structured merge cannot fully and
+ * safely resolve the change.
  * @param {String} baseContent
  * @param {String} oursContent
  * @param {String} theirsContent
+ * @param {String} [fileName] - used to pick a language-aware strategy
  * @returns {{content: String, hasConflicts: Boolean, conflicts: Array}}
  */
-function mergeFileContent(baseContent, oursContent, theirsContent) {
+function mergeFileContent(baseContent, oursContent, theirsContent, fileName) {
+    if (fileName && /\.json$/i.test(fileName)) {
+        const jsonResult = mergeJsonContent(baseContent || '', oursContent || '', theirsContent || '');
+        if (jsonResult) return jsonResult;
+    }
+
     const base = splitLines(baseContent || '');
     const ours = splitLines(oursContent || '');
     const theirs = splitLines(theirsContent || '');
@@ -236,9 +414,9 @@ function mergeFileContent(baseContent, oursContent, theirsContent) {
  */
 function autoMerge(baseText, oursText, theirsText) {
     // Fast paths
-    if (oursText === theirsText) return { mergedText: oursText, hasConflicts: false, conflicts: [], algorithm: 'three-way-line-v2', confidence: 1 };
-    if (oursText === baseText) return { mergedText: theirsText, hasConflicts: false, conflicts: [], algorithm: 'three-way-line-v2', confidence: 1 };
-    if (theirsText === baseText) return { mergedText: oursText, hasConflicts: false, conflicts: [], algorithm: 'three-way-line-v2', confidence: 1 };
+    if (oursText === theirsText) return { mergedText: oursText, hasConflicts: false, conflicts: [], algorithm: 'diff3-line-v3', confidence: 1 };
+    if (oursText === baseText) return { mergedText: theirsText, hasConflicts: false, conflicts: [], algorithm: 'diff3-line-v3', confidence: 1 };
+    if (theirsText === baseText) return { mergedText: oursText, hasConflicts: false, conflicts: [], algorithm: 'diff3-line-v3', confidence: 1 };
 
     const result = mergeFileContent(baseText, oursText, theirsText);
     const maxLen = Math.max(splitLines(baseText).length, 1);
@@ -248,7 +426,7 @@ function autoMerge(baseText, oursText, theirsText) {
         mergedText: result.content,
         hasConflicts: result.hasConflicts,
         conflicts: result.conflicts,
-        algorithm: 'three-way-line-v2',
+        algorithm: 'diff3-line-v3',
         confidence
     };
 }
@@ -301,7 +479,7 @@ async function mergeTreeEntries(gentPath, baseEntries, oursEntries, theirsEntrie
                 readBlobAsString(gentPath, oH),
                 readBlobAsString(gentPath, tH)
             ]);
-            const result = mergeFileContent(baseC, oursC, theirsC);
+            const result = mergeFileContent(baseC, oursC, theirsC, filePath);
             const mergedHash = await storeBlob(gentPath, result.content);
             mergedEntries.push({ mode: '100644', name: filePath, hash: mergedHash, type: 'blob' });
             if (result.hasConflicts) conflicts.push({ file: filePath, type: 'content', details: result.conflicts });
@@ -326,7 +504,7 @@ async function mergeTreeEntries(gentPath, baseEntries, oursEntries, theirsEntrie
                 readBlobAsString(gentPath, oH),
                 readBlobAsString(gentPath, tH)
             ]);
-            const result = mergeFileContent('', oursC, theirsC);
+            const result = mergeFileContent('', oursC, theirsC, filePath);
             const mergedHash = await storeBlob(gentPath, result.content);
             mergedEntries.push({ mode: '100644', name: filePath, hash: mergedHash, type: 'blob' });
             if (result.hasConflicts) conflicts.push({ file: filePath, type: 'add-add', details: result.conflicts });
@@ -336,11 +514,12 @@ async function mergeTreeEntries(gentPath, baseEntries, oursEntries, theirsEntrie
     return { mergedEntries, conflicts, hasConflicts: conflicts.length > 0 };
 }
 
-// ─── Merge Base Finder ──────────────────────────────────
+// ─── Merge Base Finder (DAG-aware) ──────────────────────
 
 /**
- * Find common ancestor of two branch tips by walking parents.
- * @param {Array} commits
+ * Find the lowest common ancestor of two commits by walking BOTH `parent` and
+ * `mergeParent` edges. Correct even after merge commits exist.
+ * @param {Array} commits - all commit objects
  * @param {String} hashA
  * @param {String} hashB
  * @returns {String|null}
@@ -349,21 +528,35 @@ function findMergeBase(commits, hashA, hashB) {
     const commitMap = new Map();
     for (const c of commits) commitMap.set(c.hash, c);
 
-    // Collect all ancestors of A
+    const parentsOf = (hash) => {
+        const c = commitMap.get(hash);
+        if (!c) return [];
+        const out = [];
+        if (c.parent) out.push(c.parent);
+        if (c.mergeParent) out.push(c.mergeParent);
+        return out;
+    };
+
+    // Collect every ancestor of A (including A) across both edges.
     const ancestorsA = new Set();
-    let cur = hashA;
-    while (cur) {
+    const stack = [hashA];
+    while (stack.length) {
+        const cur = stack.pop();
+        if (!cur || ancestorsA.has(cur)) continue;
         ancestorsA.add(cur);
-        const c = commitMap.get(cur);
-        cur = c ? c.parent : null;
+        for (const p of parentsOf(cur)) stack.push(p);
     }
 
-    // Walk B ancestors → first hit in A's set = merge base
-    cur = hashB;
-    while (cur) {
+    // BFS from B (nearest-first) → first node also in A's ancestor set is the
+    // most-recent common ancestor.
+    const seen = new Set();
+    const queue = [hashB];
+    while (queue.length) {
+        const cur = queue.shift();
+        if (!cur || seen.has(cur)) continue;
+        seen.add(cur);
         if (ancestorsA.has(cur)) return cur;
-        const c = commitMap.get(cur);
-        cur = c ? c.parent : null;
+        for (const p of parentsOf(cur)) queue.push(p);
     }
     return null;
 }
@@ -371,9 +564,16 @@ function findMergeBase(commits, hashA, hashB) {
 module.exports = {
     threeWayMerge,
     mergeFileContent,
+    mergeJsonContent,
+    mergeJsonObjects,
     autoMerge,
     mergeTreeEntries,
     findMergeBase,
-    buildChangeRegions,
-    subMergeRegion
+    subMergeRegion,
+    resolveRegion,
+    isImportRegion,
+    unionLines,
+    linesEqual,
+    hasConflictMarkers,
+    parseConflictMarkers
 };
