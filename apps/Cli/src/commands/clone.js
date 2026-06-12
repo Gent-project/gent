@@ -32,7 +32,7 @@ const { ensureDir, writeJSON, pathExists } = require('../utils/fileSystem');
 const { GENT_DIR, CONFIG_FILE, STAGING_FILE, COMMITS_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
-const { storeBlob, readBlobAsString, decodeRemoteBlobContent } = require('../utils/hash-engine');
+const { storeBlob, readBlob, decodeRemoteBlobContent } = require('../utils/hash-engine');
 
 /**
  * Clone remote repository
@@ -257,10 +257,13 @@ async function clone(url, directory, options) {
                 let fileCount = 0;
                 for (const entry of tree) {
                     try {
-                        const content = await readBlobAsString(gentPath, entry.hash);
+                        // Write the raw Buffer — not a UTF-8 string. Decoding a
+                        // binary blob (PNG, PDF, etc.) as UTF-8 would replace
+                        // non-utf-8 bytes with U+FFFD, silently corrupting it.
+                        const buf = await readBlob(gentPath, entry.hash);
                         const fullPath = path.join(targetPath, entry.name || entry.path);
                         await fs.mkdir(path.dirname(fullPath), { recursive: true });
-                        await fs.writeFile(fullPath, content, 'utf-8');
+                        await fs.writeFile(fullPath, buf);
                         fileCount++;
                     } catch {
                         // Blob missing

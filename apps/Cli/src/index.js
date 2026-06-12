@@ -104,10 +104,16 @@ program
     .action(statusCommand);
 
 program
-    .command('add <files...>')
-    .description('Add file contents to the staging area')
+    .command('add [files...]')
+    .description('Add file contents to the staging area (use -A/--all to add everything)')
     .option('-A, --all', 'Add all files')
-    .action(addCommand);
+    .action((files, options) => {
+        if ((!files || files.length === 0) && !options.all) {
+            console.error('error: specify files to add, or use -A to add all');
+            process.exit(1);
+        }
+        return addCommand(files || [], options);
+    });
 
 program
     .command('rm <files...>')

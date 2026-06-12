@@ -30,7 +30,7 @@ const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
 const { COMMITS_FILE, CONFIG_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
-const { storeBlob, objectExists, readBlobAsString, decodeRemoteBlobContent } = require('../utils/hash-engine');
+const { storeBlob, objectExists, readBlob, readBlobAsString, decodeRemoteBlobContent } = require('../utils/hash-engine');
 const { findMergeBase, mergeTreeEntries } = require('../utils/merge-engine');
 const { generateCommitHash } = require('../utils/helpers');
 
@@ -311,10 +311,11 @@ async function checkoutTree(gentPath, cwd, previousTree, nextTree) {
         const relPath = entry.name || entry.path;
         if (!relPath || !entry.hash) continue;
 
-        const content = await readBlobAsString(gentPath, entry.hash);
+        // Write the raw Buffer so binary blobs round-trip byte-exact.
+        const buf = await readBlob(gentPath, entry.hash);
         const fullPath = path.join(cwd, relPath);
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
-        await fs.writeFile(fullPath, content, 'utf-8');
+        await fs.writeFile(fullPath, buf);
     }
 }
 
