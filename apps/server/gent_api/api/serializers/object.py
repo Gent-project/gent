@@ -25,10 +25,19 @@ class TreeCreateSerializer(serializers.Serializer):
 
 
 class BlobSerializer(serializers.ModelSerializer):
-    """Serializer for blob model."""
+    """Serializer for blob model.
+
+    `encoding` tells the client how to interpret `content`:
+        - "utf-8": content is a plain string (text blobs)
+        - "base64": content is base64-encoded raw bytes (binary blobs)
+    Populated by the view; defaults to "utf-8" when the blob is in-DB and
+    already decoded.
+    """
+    encoding = serializers.CharField(required=False, default='utf-8')
+
     class Meta:
         model = Blob
-        fields = ['id', 'sha', 'size', 'content', 'created_at']
+        fields = ['id', 'sha', 'size', 'content', 'encoding', 'created_at']
         read_only_fields = ['id', 'sha', 'size', 'created_at']
 
 
