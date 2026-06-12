@@ -1,3 +1,5 @@
+import base64
+
 from django.shortcuts import get_object_or_404
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
@@ -124,14 +126,35 @@ def blob_create(request, owner_id, repo_name):
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def blob_detail(request, owner_id, repo_name, sha):
-    """Get blob details."""
+    """Get blob details.
+
+    Returns the blob's content as a string plus an `encoding` hint:
+      - `utf-8` for text (in-DB blob, or on-disk file that decodes cleanly)
+      - `base64` for binary (on-disk file whose bytes are not valid utf-8)
+
+    The previous implementation hard-decoded all on-disk content as utf-8 with
+    `errors='replace'`, which silently corrupted binary blobs (images, PDFs,
+    etc.) on pull. The CLI side already accepts either encoding.
+    """
     repository = get_repository_or_404(owner_id, repo_name, request.user)
     blob = get_object_or_404(Blob, repository=repository, sha=sha)
 
-    if blob.file_path and not blob.content:
-        with open(blob.file_path, 'rb') as f:
-            content = f.read().decode('utf-8', errors='replace')
-            blob.content = content
+    payload = BlobSerializer(blob).data
+    encoding = 'utf-8'
+    content = blob.content
 
-    serializer = BlobSerializer(blob)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    if not content and blob.file_path:
+        try:
+            with open(blob.file_path, 'rb') as f:
+                raw = f.read()
+            try:
+                content = raw.decode('utf-8')
+            except UnicodeDecodeError:
+                content = base64.b64encode(raw).decode('ascii')
+                encoding = 'base64'
+        except (FileNotFoundError, OSError):
+            content = ''
+
+    payload['content'] = content or ''
+    payload['encoding'] = encoding
+    return Response(payload, status=status.HTTP_200_OK)

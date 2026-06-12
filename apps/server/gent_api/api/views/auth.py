@@ -47,11 +47,20 @@ def api_root(request):
                 'create': '/api/repos/{owner_id}/{repo_name}/commits/create/',
                 'detail': '/api/repos/{owner_id}/{repo_name}/commits/{sha}/',
             },
+            'tags': {
+                'list': '/api/repos/{owner_id}/{repo_name}/tags/',
+                'create': '/api/repos/{owner_id}/{repo_name}/tags/create/',
+                'delete': '/api/repos/{owner_id}/{repo_name}/tags/{tag_name}/',
+            },
             'objects': {
                 'tree_create': '/api/repos/{owner_id}/{repo_name}/tree/create/',
                 'tree': '/api/repos/{owner_id}/{repo_name}/tree/{sha}/',
                 'blob_create': '/api/repos/{owner_id}/{repo_name}/blob/create/',
                 'blob': '/api/repos/{owner_id}/{repo_name}/blob/{sha}/',
+            },
+            'sync': {
+                'push': '/api/repos/{owner_id}/{repo_name}/push/',
+                'pull': '/api/repos/{owner_id}/{repo_name}/pull/?branch={name}&since={sha}',
             },
             'documentation': {
                 'swagger': '/api/docs/',
