@@ -12,7 +12,9 @@ module.exports = {
     HEAD_FILE: 'HEAD',
     AUTH_FILE: 'auth.json',
 
-    // API Configuration
+    // API Configuration — default used when no env/config override.
+    // Use getResolvedApiBaseUrl() in code that runs after process boot
+    // to respect GENT_API_URL env or user config (~/.gent/cli-config.json).
     API_BASE_URL: 'https://gent-api.onrender.com',
     API_ENDPOINTS: {
         // Auth

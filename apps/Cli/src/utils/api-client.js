@@ -5,11 +5,26 @@
 
 const axios = require('axios');
 const { API_BASE_URL } = require('./constants');
+const userConfig = require('./user-config');
 const authStorage = require('./auth-storage');
 
-// Create axios instance with base configuration
+// Resolved once per process so commands see a stable URL. CLI runs are short,
+// so we don't bother with cache invalidation — the next invocation re-reads.
+let _resolvedBaseUrl = null;
+async function resolveBaseUrl() {
+    if (_resolvedBaseUrl) return _resolvedBaseUrl;
+    try {
+        const { value } = await userConfig.getResolved('api.base_url');
+        _resolvedBaseUrl = value || API_BASE_URL;
+    } catch {
+        _resolvedBaseUrl = API_BASE_URL;
+    }
+    return _resolvedBaseUrl;
+}
+
+// Create axios instance with base configuration. baseURL is set per-request
+// by the interceptor below so config/env changes take effect immediately.
 const apiClient = axios.create({
-    baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json'
     },
@@ -37,9 +52,13 @@ function processQueue(error, token = null) {
     failedRequestsQueue = [];
 }
 
-// Request interceptor - Add JWT token to headers
+// Request interceptor - Resolve base URL + add JWT token to headers
 apiClient.interceptors.request.use(
     async (config) => {
+        if (!config.baseURL) {
+            config.baseURL = await resolveBaseUrl();
+        }
+
         const token = await authStorage.getAccessToken();
 
         if (token) {
@@ -89,9 +108,11 @@ apiClient.interceptors.response.use(
                     throw new Error('Session expired. Please login again.');
                 }
 
-                // Call refresh endpoint
+                // Call refresh endpoint (raw axios — bypasses our interceptor
+                // intentionally so a 401 here doesn't loop back into refresh).
+                const baseUrl = await resolveBaseUrl();
                 const response = await axios.post(
-                    `${API_BASE_URL}/api/auth/token/refresh/`,
+                    `${baseUrl}/api/auth/token/refresh/`,
                     { refresh: refreshToken }
                 );
 
@@ -188,5 +209,6 @@ module.exports = {
     put,
     delete: del,
     patch,
-    apiClient // Export raw client if needed
+    apiClient, // Export raw client if needed
+    resolveBaseUrl,
 };

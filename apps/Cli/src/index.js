@@ -7,18 +7,24 @@
  * ============================================================================
  *
  * COMMANDS:
+ *   Setup:       setup, config, doctor
  *   Repository:  init, clone
  *   Staging:     add, rm, reset, status, diff
  *   History:     commit, log, show, tag, explain
  *   Branching:   branch, checkout, merge, resolve, stash
  *   Safety:      undo, redo
- *   Insight:     summary
- *   Remote:      remote, push, pull
+ *   Insight:     summary, ask, review, docs, changelog
+ *   Remote:      remote, repos, push, pull, search, web, share
  *   Auth:        register, login, logout, whoami
+ *   AI:          ai (status|test|models)
+ *   Templates:   template (list|use)
  *
  * @author Abdalrahman Kanawati
  * @version 7.0.0
  */
+
+// Boot: load env files BEFORE anything else reads process.env.
+require('./utils/env-loader').load();
 
 const { program } = require('commander');
 const chalk = require('chalk');
@@ -54,6 +60,20 @@ const registerCommand = require('./commands/register');
 const loginCommand = require('./commands/login');
 const logoutCommand = require('./commands/logout');
 const whoamiCommand = require('./commands/whoami');
+
+// Import new gent-platform commands
+const configCommand = require('./commands/config');
+const doctorCommand = require('./commands/doctor');
+const setupCommand = require('./commands/setup');
+const aiCommand = require('./commands/ai');
+const askCommand = require('./commands/ask');
+const reviewCommand = require('./commands/review');
+const docsCommand = require('./commands/docs');
+const changelogCommand = require('./commands/changelog');
+const webCommand = require('./commands/web');
+const shareCommand = require('./commands/share');
+const searchCommand = require('./commands/search');
+const templateCommand = require('./commands/template');
 
 // Configure CLI
 program
@@ -226,6 +246,83 @@ program
     .description('Pull and merge remote commits')
     .action(pullCommand);
 
+// ─── Setup, Config & Diagnostics ────────────────────────
+
+program
+    .command('setup')
+    .description('Interactive first-run wizard (backend URL, login, AI key, identity)')
+    .action(setupCommand);
+
+program
+    .command('config [subcommand] [args...]')
+    .description('Manage CLI settings (list|get|set|unset|path) — e.g. gent config set ai.api_key <key>')
+    .action(configCommand);
+
+program
+    .command('doctor')
+    .description('Run a health check across node, repo, auth, backend, and AI key')
+    .option('--ai', 'Also live-test the AI key with a tiny request')
+    .action(doctorCommand);
+
+program
+    .command('ai [subcommand]')
+    .description('Inspect AI integration (status|test|models)')
+    .action(aiCommand);
+
+// ─── Platform-special (AI-powered) ──────────────────────
+
+program
+    .command('ask <question>')
+    .description('Ask Claude a question about this repo (needs AI key)')
+    .action(askCommand);
+
+program
+    .command('review [ref]')
+    .description('AI code review on staged changes (default), HEAD, or a specific commit')
+    .option('--staged', 'Force review of staged changes')
+    .option('--head', 'Force review of HEAD commit')
+    .action(reviewCommand);
+
+program
+    .command('docs')
+    .description('Generate a README.md draft for this repo using AI')
+    .option('--write', 'Write the draft to README.md instead of stdout')
+    .option('--section <name>', 'Only generate a single named section')
+    .action(docsCommand);
+
+program
+    .command('changelog [range]')
+    .description('Print a changelog. range = <from>..<to> or <from> (default: since last tag)')
+    .option('--plain', 'Skip AI grouping — flat commit list')
+    .action(changelogCommand);
+
+program
+    .command('web')
+    .description('Open the current repo (or a branch/commit) on the gent web app')
+    .option('--branch <name>', 'Open a specific branch')
+    .option('--commit <hash>', 'Open a specific commit')
+    .option('--print', 'Print the URL instead of launching a browser')
+    .action(webCommand);
+
+program
+    .command('share')
+    .description('Print a shareable link to current branch tip (or --branch/--commit)')
+    .option('--branch <name>', 'Link to a specific branch')
+    .option('--commit <hash>', 'Link to a specific commit')
+    .action(shareCommand);
+
+program
+    .command('search [query]')
+    .description('Search your repositories on the gent backend')
+    .option('--mine', 'Only repos you own')
+    .option('--json', 'Output as JSON')
+    .action(searchCommand);
+
+program
+    .command('template [subcommand] [args...]')
+    .description('Quick-start from a baked-in template (list|use <name> [directory])')
+    .action(templateCommand);
+
 // ─── Authentication ─────────────────────────────────────
 
 program
@@ -267,19 +364,57 @@ program
         }
     });
 
+// Friendlier global error mapping. Per-command handlers still own their own
+// errors; this catches anything that bubbles up (e.g. unknown command).
+function explainError(err) {
+    if (!err) return '';
+    if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+        return `Cannot reach the gent backend. Check the URL with \`gent config get api.base_url\` and try \`gent doctor\`.`;
+    }
+    if (err.code === 'commander.unknownCommand') {
+        return `${err.message}\n\nRun \`gent\` (no args) to see the command list, or \`gent help <command>\` for details.`;
+    }
+    return err.message;
+}
+
+function showQuickstart() {
+    console.log();
+    console.log(chalk.bold.cyan('Gent CLI ') + chalk.gray(`v${packageJson.version}`));
+    console.log(chalk.gray('A Git-like VCS with cloud sync + AI superpowers.\n'));
+    console.log(chalk.bold('First time? Try:'));
+    console.log(`  ${chalk.cyan('gent setup')}              ${chalk.gray('interactive walkthrough (login + AI key + remote)')}`);
+    console.log(`  ${chalk.cyan('gent doctor')}             ${chalk.gray('check everything is wired up')}`);
+    console.log(`  ${chalk.cyan('gent template list')}      ${chalk.gray('scaffold a starter project')}`);
+    console.log();
+    console.log(chalk.bold('Everyday flow:'));
+    console.log(`  ${chalk.cyan('gent init && gent add -A && gent commit -m "init"')}`);
+    console.log(`  ${chalk.cyan('gent push')} / ${chalk.cyan('gent pull')} / ${chalk.cyan('gent merge <branch>')}`);
+    console.log();
+    console.log(chalk.bold('AI features (need an Anthropic key):'));
+    console.log(`  ${chalk.cyan('gent ask "what does this repo do?"')}`);
+    console.log(`  ${chalk.cyan('gent review')}             ${chalk.gray('review staged changes')}`);
+    console.log(`  ${chalk.cyan('gent docs --write')}       ${chalk.gray('generate README.md')}`);
+    console.log(`  ${chalk.cyan('gent changelog')}          ${chalk.gray('grouped release notes')}`);
+    console.log();
+    console.log(chalk.gray('Full command list: ') + chalk.cyan('gent --help'));
+    console.log();
+}
+
 // Error handling
 program.exitOverride();
 
 try {
+    // Show quickstart if no command provided (instead of raw help).
+    if (!process.argv.slice(2).length) {
+        showQuickstart();
+        process.exit(0);
+    }
+
     program.parse(process.argv);
 
-    // Show help if no command provided
-    if (!process.argv.slice(2).length) {
-        program.outputHelp();
-    }
 } catch (err) {
     if (err.code !== 'commander.help' && err.code !== 'commander.helpDisplayed' && err.code !== 'commander.version') {
-        console.error(chalk.red('Error:'), err.message);
+        console.error(chalk.red('Error:'), explainError(err));
         process.exit(1);
     }
 }

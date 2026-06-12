@@ -11,9 +11,11 @@
  *   is absent or the request fails.
  *
  * ENABLEMENT:
- *   Set ANTHROPIC_API_KEY in the environment to enable. Optionally set
- *   GENT_AI_MODEL to pick a model (default: claude-opus-4-8). For a cheaper /
- *   faster option set GENT_AI_MODEL=claude-haiku-4-5.
+ *   Either set ANTHROPIC_API_KEY in the environment, OR save it once with
+ *   `gent config set ai.api_key <key>` (stored in ~/.gent/cli-config.json).
+ *   Optionally pick a model with GENT_AI_MODEL or `gent config set ai.model`.
+ *   Default model: claude-opus-4-7. For a cheaper / faster option try
+ *   claude-haiku-4-5 or claude-sonnet-4-6.
  *
  * IMPLEMENTATION NOTE:
  *   Calls the Anthropic Messages API (POST /v1/messages) directly over the
@@ -26,39 +28,63 @@
  */
 
 const axios = require('axios');
+const userConfig = require('./user-config');
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const API_VERSION = '2023-06-01';
-const DEFAULT_MODEL = 'claude-opus-4-8';
+const DEFAULT_MODEL = 'claude-opus-4-7';
+
+// Per-process cache so repeated AI calls don't keep hitting disk.
+let _resolvedKey;
+let _resolvedKeySource;
+let _resolvedModel;
+
+async function resolveKey() {
+    if (_resolvedKey !== undefined) {
+        return { value: _resolvedKey, source: _resolvedKeySource };
+    }
+    const r = await userConfig.getResolved('ai.api_key');
+    _resolvedKey = r.value || null;
+    _resolvedKeySource = r.source;
+    return { value: _resolvedKey, source: _resolvedKeySource };
+}
+
+async function resolveModel() {
+    if (_resolvedModel) return _resolvedModel;
+    const r = await userConfig.getResolved('ai.model');
+    _resolvedModel = r.value || DEFAULT_MODEL;
+    return _resolvedModel;
+}
 
 /**
- * Resolve the API key (env only — keeps secrets out of the repo).
- * @returns {String|null}
+ * Synchronous getter used in hot paths. Returns whatever was last resolved,
+ * or falls back to env-only (the original behavior) on cold start.
  */
 function getApiKey() {
+    if (_resolvedKey !== undefined) return _resolvedKey;
     return process.env.ANTHROPIC_API_KEY || null;
 }
 
-/**
- * @returns {Boolean} whether AI features are enabled.
- */
-function isEnabled() {
-    return !!getApiKey();
-}
-
-/**
- * @returns {String} the model id to use.
- */
 function getModel() {
+    if (_resolvedModel) return _resolvedModel;
     return process.env.GENT_AI_MODEL || DEFAULT_MODEL;
 }
 
 /**
- * One-line hint shown by commands when AI is requested but no key is set.
- * @returns {String}
+ * Async pre-flight resolver — call once from a command before doing AI work
+ * so isEnabled()/getModel() see the user-config values even if env is empty.
  */
+async function prime() {
+    await resolveKey();
+    await resolveModel();
+}
+
+function isEnabled() {
+    return !!getApiKey();
+}
+
 function disabledHint() {
-    return 'AI features are off — set ANTHROPIC_API_KEY to enable (optional: GENT_AI_MODEL).';
+    return 'AI features are off — save a key with `gent config set ai.api_key <key>` or set ANTHROPIC_API_KEY in your env.';
 }
 
 /**
@@ -69,7 +95,11 @@ function disabledHint() {
  * @param {Number} [opts.maxTokens]
  * @returns {Promise<String>}
  */
-async function complete({ prompt, system, maxTokens = 1024 }) {
+async function complete({ prompt, system, maxTokens = 1024, thinking = false }) {
+    // Make sure env/config-stored values are resolved even if the caller
+    // didn't prime() first.
+    await prime();
+
     const apiKey = getApiKey();
     if (!apiKey) throw new Error('AI not enabled');
 
@@ -79,22 +109,50 @@ async function complete({ prompt, system, maxTokens = 1024 }) {
         messages: [{ role: 'user', content: prompt }]
     };
     if (system) body.system = system;
+    // Adaptive thinking — opt-in per caller. We leave display at the API
+    // default ("omitted") so reasoning never leaks into CLI output; this just
+    // lets the model think harder on complex tasks (review, conflict resolve)
+    // without changing what the user sees.
+    if (thinking) body.thinking = { type: 'adaptive' };
 
-    const res = await axios.post(API_URL, body, {
-        headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': API_VERSION,
-            'content-type': 'application/json'
-        },
-        timeout: 60000
-    });
+    try {
+        const res = await axios.post(API_URL, body, {
+            headers: {
+                'x-api-key': apiKey,
+                'anthropic-version': API_VERSION,
+                'content-type': 'application/json'
+            },
+            timeout: 60000
+        });
 
-    const blocks = (res.data && res.data.content) || [];
-    return blocks
-        .filter(b => b.type === 'text')
-        .map(b => b.text)
-        .join('')
-        .trim();
+        const blocks = (res.data && res.data.content) || [];
+        return blocks
+            .filter(b => b.type === 'text')
+            .map(b => b.text)
+            .join('')
+            .trim();
+    } catch (err) {
+        throw enrichAiError(err);
+    }
+}
+
+/**
+ * Wrap raw Anthropic errors with hints that actually help the user.
+ */
+function enrichAiError(err) {
+    const status = err?.response?.status;
+    const apiMsg = err?.response?.data?.error?.message || err?.response?.data?.message;
+    if (status === 401) {
+        return new Error('Anthropic rejected the API key (401). Check `gent config get ai.api_key` and try `gent ai test`.');
+    }
+    if (status === 404 || (apiMsg && /model/i.test(apiMsg))) {
+        return new Error(`Anthropic rejected the model "${getModel()}" — set a valid one with \`gent config set ai.model claude-opus-4-7\`.`);
+    }
+    if (status === 429) {
+        return new Error('Anthropic rate-limited the request (429). Retry in a moment or switch to a lighter model.');
+    }
+    if (apiMsg) return new Error(`AI request failed: ${apiMsg}`);
+    return err;
 }
 
 // ─── High-level helpers ─────────────────────────────────
@@ -142,15 +200,20 @@ async function resolveConflictHunk({ base, ours, theirs, fileName }) {
         `======= OURS\n${ours}\n` +
         `======= THEIRS\n${theirs}\n>>>>>>>\n\n` +
         'Return the merged result for this section.';
-    return complete({ system, prompt, maxTokens: 2048 });
+    return complete({ system, prompt, maxTokens: 2048, thinking: true });
 }
 
 module.exports = {
     isEnabled,
     getModel,
+    getApiKey,
     disabledHint,
+    prime,
+    resolveKey,
+    resolveModel,
     complete,
     suggestCommitMessage,
     explainChanges,
-    resolveConflictHunk
+    resolveConflictHunk,
+    DEFAULT_MODEL,
 };
