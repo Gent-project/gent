@@ -1,76 +1,69 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Cairo } from "next/font/google";
+
 import "./globals.css";
-import QueryProvider from "./providers";
-import ReduxProvider from "./redux-provider";
-import ThemeProvider from "./theme-provider";
-import CookieConsent from "./components/CookieConsent";
+
+import { Providers } from "@/components/providers/providers";
 import { Toaster } from "sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+/**
+ * Cairo is loaded once and exposed as the default sans + mono CSS variable.
+ * It supports Arabic and Latin glyphs, so the UI is RTL-friendly out of the box.
+ * The variable name `--font-cairo` is referenced from `globals.css`.
+ */
+const cairo = Cairo({
+  subsets: ["latin", "arabic"],
+  variable: "--font-cairo",
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
-  title: "Gent – Lightweight Version Control & Code Hosting Platform",
+  title: {
+    default: "Gent — Modern Version Control",
+    template: "%s · Gent",
+  },
   description:
-    "Gent is a lightweight version control system with a Git-like CLI and a GitHub-inspired web interface for managing repositories, commits, and collaboration.",
-    icons: {
-    icon: "/logo.png",
+    "Gent is a modern, Git-like version control platform with a fast CLI and a beautiful web dashboard. Push from your terminal, watch it appear here instantly.",
+  applicationName: "Gent",
+  icons: { icon: "/logo.png" },
+  openGraph: {
+    title: "Gent — Modern Version Control",
+    description:
+      "Push from your terminal, see it instantly on the web. Built for teams that want Git's power without its sharp edges.",
+    type: "website",
   },
 };
 
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  // Generate a simple CSRF token (in production, this should come from the server)
-  const csrfToken = typeof window !== 'undefined' 
-    ? localStorage.getItem('csrfToken') || 
-      Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-    : '';
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="csrf-token" content={csrfToken} />
+        {/* Inline theme bootstrap — runs before paint so we never flash the wrong
+         * theme. The user's preference is stored under "gent-theme". */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                const savedTheme = localStorage.getItem('theme');
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                const isDark = savedTheme ? savedTheme === 'dark' : prefersDark;
-                if (isDark) {
-                  document.documentElement.classList.add('dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
-                }
-              })();
-            `,
+            __html: `(() => {
+              try {
+                const stored = localStorage.getItem('gent-theme');
+                const prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const dark = stored ? stored === 'dark' : prefers;
+                document.documentElement.classList.toggle('dark', dark);
+              } catch (e) {}
+            })();`,
           }}
         />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <ReduxProvider>
-          <ThemeProvider>
-            <QueryProvider>
-              <Toaster position="top-center" richColors />
-              <CookieConsent />
-              {children}
-            </QueryProvider>
-          </ThemeProvider>
-        </ReduxProvider>
+      <body className={`${cairo.variable} font-sans antialiased`}>
+        <Providers>
+          {children}
+          <Toaster
+            position="top-center"
+            richColors
+            closeButton
+            toastOptions={{ style: { fontFamily: "var(--font-cairo)" } }}
+          />
+        </Providers>
       </body>
     </html>
   );

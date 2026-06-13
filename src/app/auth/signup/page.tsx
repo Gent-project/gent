@@ -1,99 +1,134 @@
 "use client";
 
-import SignUpForm from "@/app/components/SignUpForm";
-import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
-import AuthSteps from "@/app/components/AuthSteps";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
-import SharedNavigation from "@/app/components/SharedNavigation";
+import Link from "next/link";
+import { useState } from "react";
+import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 
-export default function SignUpPage() {
-  const isDark = useSelector((state: RootState) => state.theme.isDark);
-  const [isHydrated, setIsHydrated] = useState(false);
+import { AuthShell } from "@/components/layout/auth-shell";
+import { TextField } from "@/components/ui/text-field";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { PATHS } from "@/lib/paths";
 
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
+/**
+ * Signup page (POST /auth/register/).
+ *
+ * Matches the API's required fields exactly:
+ *   email · password · password_confirm · first_name · last_name
+ *
+ * `password_confirm` is checked client-side before the network call so users
+ * don't waste a request on a typo. The API will still re-validate.
+ */
+export default function SignupPage() {
+  const { register, isRegistering } = useAuth();
+  const [form, setForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    password: "",
+    password_confirm: "",
+  });
+  const [showPw, setShowPw] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
 
-  if (!isHydrated) return null;
+  function set<K extends keyof typeof form>(key: K, value: string) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function validate() {
+    const next: typeof errors = {};
+    if (!form.email.trim()) next.email = "Email is required.";
+    else if (!/\S+@\S+\.\S+/.test(form.email)) next.email = "Enter a valid email.";
+    if (!form.password) next.password = "Password is required.";
+    else if (form.password.length < 8) next.password = "Minimum 8 characters.";
+    if (form.password !== form.password_confirm)
+      next.password_confirm = "Passwords don't match.";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    register({
+      email: form.email.trim(),
+      password: form.password,
+      password_confirm: form.password_confirm,
+      first_name: form.first_name.trim() || undefined,
+      last_name: form.last_name.trim() || undefined,
+    });
+  }
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${
-      isDark 
-        ? "bg-gradient-to-br from-[#0f1419] via-[#1a1f2e] to-[#151b28]" 
-        : "bg-gradient-to-br from-[#bed19e] via-[#a8c88a] to-[#9bc07a]"
-    }`}>
-      {/* Navigation Bar */}
-      <SharedNavigation />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 py-8 px-4 mt-20">
-        <div className="w-full max-w-sm hidden lg:block">
-          <AuthSteps />
+    <AuthShell title="Create your account" subtitle="Start tracking your code with Gent in seconds.">
+      <form onSubmit={onSubmit} className="space-y-1" noValidate>
+        <div className="grid grid-cols-2 gap-3">
+          <TextField
+            label="First name"
+            placeholder="Ada"
+            value={form.first_name}
+            onChange={(e) => set("first_name", e.target.value)}
+            leadingIcon={<User />}
+          />
+          <TextField
+            label="Last name"
+            placeholder="Lovelace"
+            value={form.last_name}
+            onChange={(e) => set("last_name", e.target.value)}
+          />
         </div>
+        <TextField
+          label="Email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          value={form.email}
+          onChange={(e) => set("email", e.target.value)}
+          error={errors.email}
+          leadingIcon={<Mail />}
+        />
+        <TextField
+          label="Password"
+          type={showPw ? "text" : "password"}
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+          value={form.password}
+          onChange={(e) => set("password", e.target.value)}
+          error={errors.password}
+          leadingIcon={<Lock />}
+          trailingIcon={
+            <button
+              type="button"
+              onClick={() => setShowPw((v) => !v)}
+              className="hover:text-foreground transition"
+              aria-label={showPw ? "Hide password" : "Show password"}
+            >
+              {showPw ? <EyeOff /> : <Eye />}
+            </button>
+          }
+        />
+        <TextField
+          label="Confirm password"
+          type={showPw ? "text" : "password"}
+          autoComplete="new-password"
+          placeholder="Re-enter your password"
+          value={form.password_confirm}
+          onChange={(e) => set("password_confirm", e.target.value)}
+          error={errors.password_confirm}
+          leadingIcon={<Lock />}
+        />
 
-        {/* Right Side - Signup Form */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-md lg:max-w-lg"
-        >
-          <div className={`w-full rounded-2xl shadow-2xl p-6 sm:p-8 border transition-all ${
-            isDark
-              ? "border-white/20 bg-[#0f1419]/95 backdrop-blur-md"
-              : "border-[#5A7863]/30 bg-white/95 backdrop-blur-md"
-          }`}>
-            <h1 className={`text-2xl sm:text-3xl font-bold text-center mb-2 ${
-              isDark ? "text-white" : "text-[#2d3e2d]"
-            }`}>
-              Create Account
-            </h1>
-            <p className={`text-center text-sm mb-8 ${
-              isDark ? "text-white/60" : "text-[#2d3e2d]/60"
-            }`}>
-              Join thousands of developers using Gent
-            </p>
+        <Button type="submit" size="lg" className="w-full mt-2" disabled={isRegistering}>
+          {isRegistering ? "Creating account…" : "Create account"}
+        </Button>
 
-            <SignUpForm />
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Footer */}
-      <footer className={`w-full py-4 border-t transition-colors duration-300 ${
-        isDark
-          ? "border-white/10 bg-[#0f1419]/50"
-          : "border-[#5A7863]/20 bg-white/50"
-      }`}>
-        <div className="flex flex-wrap justify-center gap-6 text-xs sm:text-sm">
-          <a
-            href="/privacy"
-            className={`transition-colors ${
-              isDark
-                ? "text-white/60 hover:text-white"
-                : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
-            }`}
-          >
-            Privacy Policy
-          </a>
-          <a
-            href="/terms"
-            className={`transition-colors ${
-              isDark
-                ? "text-white/60 hover:text-white"
-                : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
-            }`}
-          >
-            Terms of Service
-          </a>
-          <span className={isDark ? "text-white/30" : "text-[#2d3e2d]/30"}>•</span>
-          <span className={`text-xs ${isDark ? "text-white/50" : "text-[#2d3e2d]/50"}`}>
-            © 2026 Gent. All rights reserved.
-          </span>
-        </div>
-      </footer>
-    </div>
+        <p className="text-center text-sm text-on-surface-variant pt-3">
+          Already have an account?{" "}
+          <Link href={PATHS.auth.login} className="text-primary font-semibold hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
   );
 }

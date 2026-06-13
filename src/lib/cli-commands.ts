@@ -1,0 +1,516 @@
+/**
+ * Reference data for the Gent CLI.
+ *
+ * Each command is documented once here and surfaced both on the CLI Explorer
+ * page (/cli) and inline on the project page when relevant. Keeping the list
+ * in TypeScript means the help text is searchable, keeps in sync with the UI,
+ * and ships in the static bundle (no API call needed).
+ *
+ * The command set mirrors `apps/Cli/src/commands/*.js` in the repository, so
+ * if you add or rename a CLI command, please update this list at the same time.
+ */
+import {
+  Boxes,
+  GitBranch,
+  GitCommit,
+  GitCompare,
+  GitMerge,
+  GitPullRequest,
+  GitFork,
+  Plus,
+  Minus,
+  Search,
+  RefreshCw,
+  Eye,
+  LogIn,
+  LogOut,
+  User,
+  Settings,
+  Tag,
+  Terminal,
+  Sparkles,
+  History,
+  HelpCircle,
+  Undo2,
+  Stamp,
+  HardDriveDownload,
+  Cloud,
+  type LucideIcon,
+} from "lucide-react";
+
+export type CliCommandCategory =
+  | "starter"
+  | "everyday"
+  | "branching"
+  | "remote"
+  | "history"
+  | "auth"
+  | "ai"
+  | "advanced";
+
+export interface CliCommand {
+  name: string;
+  syntax: string;
+  category: CliCommandCategory;
+  summary: string;
+  description: string;
+  examples: { command: string; comment?: string }[];
+  related?: string[];
+  icon: LucideIcon;
+}
+
+export const CLI_CATEGORIES: { id: CliCommandCategory; label: string; description: string }[] = [
+  { id: "starter", label: "Getting started", description: "First commands you'll run." },
+  { id: "everyday", label: "Everyday workflow", description: "Stage, commit, status." },
+  { id: "branching", label: "Branching & merging", description: "Diverge and reunite." },
+  { id: "remote", label: "Remote sync", description: "Talk to the server." },
+  { id: "history", label: "History & navigation", description: "Time-travel your code." },
+  { id: "auth", label: "Account", description: "Sign in / out of Gent." },
+  { id: "ai", label: "AI assistance", description: "Smarter commits and reviews." },
+  { id: "advanced", label: "Advanced", description: "Power tools." },
+];
+
+export const CLI_COMMANDS: CliCommand[] = [
+  {
+    name: "init",
+    syntax: "gent init",
+    category: "starter",
+    icon: Sparkles,
+    summary: "Initialise a new Gent repository in the current directory.",
+    description:
+      "Creates a `.gent/` directory with the initial HEAD, config and staging files. Run once per new project.",
+    examples: [
+      { command: "gent init", comment: "Initialise the current folder" },
+      { command: "gent init my-app && cd my-app", comment: "Create a fresh folder and init it" },
+    ],
+    related: ["clone", "setup"],
+  },
+  {
+    name: "clone",
+    syntax: "gent clone <url>",
+    category: "starter",
+    icon: HardDriveDownload,
+    summary: "Download an existing repository from the server.",
+    description:
+      "Pulls every branch, commit and object for the remote repository and sets up a local working copy.",
+    examples: [
+      { command: "gent clone https://gent.dev/abdo/atlas" },
+      { command: "gent clone https://gent.dev/abdo/atlas atlas-fork", comment: "Clone into a custom folder" },
+    ],
+    related: ["pull", "remote"],
+  },
+  {
+    name: "status",
+    syntax: "gent status",
+    category: "everyday",
+    icon: Eye,
+    summary: "Show staged, unstaged and untracked changes.",
+    description:
+      "The quickest way to see where you are. Lists files by state so you know exactly what `commit` will include.",
+    examples: [{ command: "gent status" }],
+    related: ["diff", "add"],
+  },
+  {
+    name: "add",
+    syntax: "gent add <paths…>",
+    category: "everyday",
+    icon: Plus,
+    summary: "Stage files for the next commit.",
+    description:
+      "Records the contents of the listed files in the staging area. Use `gent add -A` to stage every change in the working tree, or `gent add .` for the current directory.",
+    examples: [
+      { command: "gent add src/index.ts" },
+      { command: "gent add -A", comment: "Stage every change" },
+      { command: "gent add .", comment: "Stage everything below the cwd" },
+    ],
+    related: ["status", "commit", "rm"],
+  },
+  {
+    name: "rm",
+    syntax: "gent rm <paths…>",
+    category: "everyday",
+    icon: Minus,
+    summary: "Remove files from the working tree and the index.",
+    description:
+      "Deletes files from disk and from tracking. The change is staged automatically — just `commit` to finalise.",
+    examples: [{ command: "gent rm old-script.sh" }],
+    related: ["add", "reset"],
+  },
+  {
+    name: "commit",
+    syntax: 'gent commit -m "message"',
+    category: "everyday",
+    icon: GitCommit,
+    summary: "Record staged changes as a new commit.",
+    description:
+      "Takes a snapshot of the staging area and writes it as the next commit on the current branch. Always pair with a clear message.",
+    examples: [
+      { command: 'gent commit -m "Add login page"' },
+      { command: 'gent commit -am "Wire up auth"', comment: "Stage tracked changes and commit in one step" },
+    ],
+    related: ["add", "log", "push"],
+  },
+  {
+    name: "diff",
+    syntax: "gent diff [paths…]",
+    category: "everyday",
+    icon: GitCompare,
+    summary: "See line-by-line changes between commits or working tree.",
+    description:
+      "Compares two snapshots. With no args, it shows the diff between your working tree and the last commit.",
+    examples: [
+      { command: "gent diff" },
+      { command: "gent diff main feature/login" },
+    ],
+    related: ["status", "show"],
+  },
+  {
+    name: "branch",
+    syntax: "gent branch [name]",
+    category: "branching",
+    icon: GitBranch,
+    summary: "List, create or delete branches.",
+    description:
+      "Without an argument, lists branches and highlights HEAD. Pass a name to create a branch at the current commit.",
+    examples: [
+      { command: "gent branch" },
+      { command: "gent branch feature/login" },
+      { command: "gent branch -d old-feature", comment: "Delete a branch" },
+    ],
+    related: ["checkout", "merge"],
+  },
+  {
+    name: "checkout",
+    syntax: "gent checkout <branch>",
+    category: "branching",
+    icon: GitFork,
+    summary: "Switch to a different branch (or commit).",
+    description:
+      "Updates HEAD and the working tree to match the given branch. Pass `-b name` to create and switch in one step.",
+    examples: [
+      { command: "gent checkout main" },
+      { command: "gent checkout -b feature/payments", comment: "Create + switch" },
+    ],
+    related: ["branch", "reset"],
+  },
+  {
+    name: "merge",
+    syntax: "gent merge <branch>",
+    category: "branching",
+    icon: GitMerge,
+    summary: "Fold another branch's history into the current one.",
+    description:
+      "Performs a fast-forward when possible, or creates a merge commit. Conflicts are surfaced clearly and can be resolved with `gent resolve`.",
+    examples: [{ command: "gent merge feature/login" }],
+    related: ["branch", "resolve"],
+  },
+  {
+    name: "resolve",
+    syntax: "gent resolve",
+    category: "branching",
+    icon: GitMerge,
+    summary: "Resolve merge conflicts interactively.",
+    description: "Walks you file-by-file through any conflict markers left by a merge and lets you pick ours/theirs/edit.",
+    examples: [{ command: "gent resolve" }],
+    related: ["merge"],
+  },
+  {
+    name: "push",
+    syntax: "gent push [remote] [branch]",
+    category: "remote",
+    icon: Cloud,
+    summary: "Upload local commits to the server.",
+    description:
+      "Sends every new object and branch update for the given branch (defaults to the current one) to the remote. Add `--force` to overwrite history when you really mean to.",
+    examples: [
+      { command: "gent push" },
+      { command: "gent push origin feature/login" },
+    ],
+    related: ["pull", "remote"],
+  },
+  {
+    name: "pull",
+    syntax: "gent pull [remote] [branch]",
+    category: "remote",
+    icon: GitPullRequest,
+    summary: "Fetch and merge changes from the server.",
+    description: "Equivalent to a fetch + merge in one step. Pull regularly to stay in sync with your team.",
+    examples: [{ command: "gent pull origin main" }],
+    related: ["push", "remote"],
+  },
+  {
+    name: "remote",
+    syntax: "gent remote [add|remove|list] …",
+    category: "remote",
+    icon: Cloud,
+    summary: "Manage your remote endpoints.",
+    description: "Add the Gent server, list configured remotes, or remove an old one.",
+    examples: [
+      { command: "gent remote list" },
+      { command: "gent remote add origin https://gent.dev/abdo/atlas" },
+    ],
+    related: ["push", "pull"],
+  },
+  {
+    name: "log",
+    syntax: "gent log",
+    category: "history",
+    icon: History,
+    summary: "Browse commit history.",
+    description: "Pretty-prints recent commits with author, date and message. Pair with `gent show <sha>` for full details.",
+    examples: [{ command: "gent log" }, { command: "gent log -n 10" }],
+    related: ["show", "diff"],
+  },
+  {
+    name: "show",
+    syntax: "gent show <sha>",
+    category: "history",
+    icon: Search,
+    summary: "Inspect a single commit, branch or tag in detail.",
+    description: "Renders the commit message, author, parents and unified diff for the given identifier.",
+    examples: [{ command: "gent show a1b2c3d" }],
+    related: ["log", "diff"],
+  },
+  {
+    name: "reset",
+    syntax: "gent reset [--soft|--hard] <ref>",
+    category: "history",
+    icon: RefreshCw,
+    summary: "Move HEAD (and optionally the working tree) to a different commit.",
+    description: "`--soft` keeps the working tree, `--hard` overwrites it. Use carefully — `--hard` is destructive.",
+    examples: [
+      { command: "gent reset --soft HEAD~1", comment: "Undo last commit, keep changes" },
+      { command: "gent reset --hard origin/main", comment: "Match remote exactly" },
+    ],
+    related: ["undo", "checkout"],
+  },
+  {
+    name: "undo",
+    syntax: "gent undo",
+    category: "history",
+    icon: Undo2,
+    summary: "Step back through your most recent Gent operations.",
+    description: "Walks the operation journal and reverses commits, merges, resets or pushes safely.",
+    examples: [{ command: "gent undo" }],
+    related: ["reset"],
+  },
+  {
+    name: "tag",
+    syntax: "gent tag <name>",
+    category: "history",
+    icon: Tag,
+    summary: "Mark a commit as a release.",
+    description: "Tags can be lightweight or annotated. Use annotated tags (`-a`) for releases that ship.",
+    examples: [
+      { command: "gent tag v1.0.0" },
+      { command: 'gent tag -a v1.0.0 -m "First release"' },
+    ],
+    related: ["push", "show"],
+  },
+  {
+    name: "stash",
+    syntax: "gent stash [push|pop|list]",
+    category: "history",
+    icon: Boxes,
+    summary: "Park work-in-progress safely.",
+    description: "Saves uncommitted changes onto a stack so you can switch branches with a clean tree.",
+    examples: [{ command: "gent stash" }, { command: "gent stash pop" }],
+    related: ["checkout"],
+  },
+  {
+    name: "login",
+    syntax: "gent login",
+    category: "auth",
+    icon: LogIn,
+    summary: "Sign in to your Gent account from the terminal.",
+    description: "Prompts for email + password (or opens the browser) and stores the access token securely.",
+    examples: [{ command: "gent login" }],
+    related: ["whoami", "register"],
+  },
+  {
+    name: "register",
+    syntax: "gent register",
+    category: "auth",
+    icon: Stamp,
+    summary: "Create a new Gent account without leaving the terminal.",
+    description: "Walks you through email, password and (optional) display name, then logs you in.",
+    examples: [{ command: "gent register" }],
+    related: ["login"],
+  },
+  {
+    name: "logout",
+    syntax: "gent logout",
+    category: "auth",
+    icon: LogOut,
+    summary: "Clear stored credentials on this machine.",
+    description: "Removes the access and refresh tokens. Future commands will require `gent login` again.",
+    examples: [{ command: "gent logout" }],
+    related: ["login"],
+  },
+  {
+    name: "whoami",
+    syntax: "gent whoami",
+    category: "auth",
+    icon: User,
+    summary: "Print the currently signed-in user.",
+    description: "Useful for verifying which account is being used in CI or after switching profiles.",
+    examples: [{ command: "gent whoami" }],
+    related: ["login"],
+  },
+  {
+    name: "config",
+    syntax: "gent config <key> [value]",
+    category: "advanced",
+    icon: Settings,
+    summary: "Read or write Gent configuration entries.",
+    description: "Stores per-user defaults (name, email, editor) and per-repo overrides.",
+    examples: [
+      { command: 'gent config user.name "Ada Lovelace"' },
+      { command: "gent config --list" },
+    ],
+    related: ["setup", "doctor"],
+  },
+  {
+    name: "setup",
+    syntax: "gent setup",
+    category: "advanced",
+    icon: Settings,
+    summary: "Interactive first-time setup wizard.",
+    description: "Asks the right questions, writes the right config, and verifies you can talk to the server.",
+    examples: [{ command: "gent setup" }],
+    related: ["config", "doctor"],
+  },
+  {
+    name: "doctor",
+    syntax: "gent doctor",
+    category: "advanced",
+    icon: HelpCircle,
+    summary: "Diagnose common environment problems.",
+    description: "Checks tooling, configuration, network reachability and reports actionable suggestions.",
+    examples: [{ command: "gent doctor" }],
+    related: ["setup"],
+  },
+  {
+    name: "ai",
+    syntax: "gent ai <subcommand>",
+    category: "ai",
+    icon: Sparkles,
+    summary: "AI helpers: explain, summarise, review.",
+    description: "Powerful but optional. Hook your own provider key in `gent setup`.",
+    examples: [
+      { command: "gent ai explain HEAD~1" },
+      { command: "gent ai summary" },
+    ],
+    related: ["explain", "summary", "review"],
+  },
+  {
+    name: "explain",
+    syntax: "gent explain <ref>",
+    category: "ai",
+    icon: Sparkles,
+    summary: "Ask the AI to explain a commit or diff in plain English.",
+    description: "Great for onboarding new collaborators or remembering what you did last sprint.",
+    examples: [{ command: "gent explain HEAD" }],
+    related: ["ai", "show"],
+  },
+  {
+    name: "summary",
+    syntax: "gent summary",
+    category: "ai",
+    icon: Sparkles,
+    summary: "Generate a release-note-style summary of recent commits.",
+    description: "Reads the last N commits and produces grouped, polished notes you can paste straight into a changelog.",
+    examples: [{ command: "gent summary --since=v1.0.0" }],
+    related: ["ai", "changelog"],
+  },
+  {
+    name: "review",
+    syntax: "gent review",
+    category: "ai",
+    icon: Sparkles,
+    summary: "AI-assisted code review of staged changes.",
+    description: "Highlights smells, bugs and style issues before you push.",
+    examples: [{ command: "gent review" }],
+    related: ["ai", "diff"],
+  },
+  {
+    name: "ask",
+    syntax: "gent ask <question>",
+    category: "ai",
+    icon: Sparkles,
+    summary: "Ask anything about your repository.",
+    description: "Combines the AI with full repo context so answers are grounded in your code, not the internet.",
+    examples: [{ command: 'gent ask "where do we validate emails?"' }],
+    related: ["ai", "search"],
+  },
+  {
+    name: "search",
+    syntax: "gent search <query>",
+    category: "advanced",
+    icon: Search,
+    summary: "Search the working tree and history.",
+    description: "Fast grep across tracked files and recent commits.",
+    examples: [{ command: "gent search useAuth" }],
+    related: ["log"],
+  },
+  {
+    name: "share",
+    syntax: "gent share",
+    category: "advanced",
+    icon: Cloud,
+    summary: "Get a shareable web link to a commit or file.",
+    description: "Prints a clickable URL that opens the same view on the Gent web.",
+    examples: [{ command: "gent share HEAD" }],
+    related: ["web"],
+  },
+  {
+    name: "web",
+    syntax: "gent web",
+    category: "advanced",
+    icon: Terminal,
+    summary: "Open the current repository in the Gent web UI.",
+    description: "Launches your browser at the right project page so you can hand off to the dashboard.",
+    examples: [{ command: "gent web" }],
+    related: ["share"],
+  },
+  {
+    name: "changelog",
+    syntax: "gent changelog",
+    category: "history",
+    icon: History,
+    summary: "Render a `CHANGELOG.md` from your commit history.",
+    description: "Groups conventional commits by type and writes the result to disk.",
+    examples: [{ command: "gent changelog --since v1.0.0" }],
+    related: ["log", "summary"],
+  },
+  {
+    name: "template",
+    syntax: "gent template <name>",
+    category: "advanced",
+    icon: Boxes,
+    summary: "Apply a project template.",
+    description: "Scaffolds files, hooks and CI from a saved template definition.",
+    examples: [{ command: "gent template node-service" }],
+    related: ["init"],
+  },
+  {
+    name: "docs",
+    syntax: "gent docs [command]",
+    category: "advanced",
+    icon: HelpCircle,
+    summary: "Open the docs for a given command.",
+    description: "Calls the offline docs bundled with the CLI — no internet required.",
+    examples: [{ command: "gent docs commit" }],
+    related: ["doctor"],
+  },
+  {
+    name: "repos",
+    syntax: "gent repos",
+    category: "remote",
+    icon: Boxes,
+    summary: "List your projects on the server.",
+    description: "Quick way to see every repository you own without opening the web.",
+    examples: [{ command: "gent repos" }],
+    related: ["clone", "push"],
+  },
+];
