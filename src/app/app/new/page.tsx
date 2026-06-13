@@ -10,7 +10,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { Button } from "@/components/ui/button";
 import { useCreateRepo } from "@/hooks/use-repos";
+import { useAuth } from "@/hooks/use-auth";
 import { PATHS } from "@/lib/paths";
+import { repoCloneUrl, installCommand } from "@/lib/gent-urls";
 
 /**
  * New Project — full-page version (the modal still exists from the dashboard).
@@ -20,6 +22,7 @@ import { PATHS } from "@/lib/paths";
  */
 export default function NewProjectPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { mutate, isPending } = useCreateRepo();
   const [form, setForm] = useState({
     name: "",
@@ -28,6 +31,15 @@ export default function NewProjectPage() {
     default_branch: "main",
   });
   const [error, setError] = useState<string | undefined>();
+
+  /**
+   * The actual clone URL the CLI accepts. We don't know the new repo's id
+   * until the server responds, so before submission we preview using the
+   * signed-in user's id — that's almost always the same id the API will
+   * assign as the new owner.
+   */
+  const previewName = form.name || "my-awesome-app";
+  const previewCloneUrl = repoCloneUrl(user?.id ?? "{owner_id}", previewName);
 
   function set<K extends keyof typeof form>(key: K, value: typeof form[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -125,10 +137,16 @@ export default function NewProjectPage() {
               <Terminal className="size-4 text-primary" /> After you create
             </div>
             <p className="text-on-surface-variant">
-              You'll be able to clone this project locally with:
+              First install the CLI from npm:
             </p>
             <pre className="rounded-xl bg-inverse-surface text-on-inverse-surface p-3 text-xs overflow-x-auto">
-{`gent clone https://gent.dev/your-user/${form.name || "my-awesome-app"}`}
+{installCommand}
+            </pre>
+            <p className="text-on-surface-variant">
+              Then clone this project locally:
+            </p>
+            <pre className="rounded-xl bg-inverse-surface text-on-inverse-surface p-3 text-xs overflow-x-auto">
+{`gent clone ${previewCloneUrl}`}
             </pre>
             <p className="text-on-surface-variant">
               Or initialise an empty project and push it up:
@@ -137,6 +155,7 @@ export default function NewProjectPage() {
 {`gent init
 gent add .
 gent commit -m "first commit"
+gent remote add origin ${previewCloneUrl}
 gent push origin ${form.default_branch || "main"}`}
             </pre>
           </CardContent>

@@ -1,10 +1,11 @@
 "use client";
 
-import { GitBranch } from "lucide-react";
+import { GitBranch, Terminal } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { shortSha, timeAgo } from "@/lib/utils";
@@ -13,17 +14,20 @@ import type { Branch } from "@/types/api";
 /**
  * BranchList — compact list of branches with their head sha.
  *
- * The default branch is highlighted with a primary-tinted badge so it's easy
- * to spot at a glance.
+ * The default branch is highlighted with a primary-tinted badge. If
+ * `onCheckout` is provided, each row gets a small "Checkout" button that
+ * opens the interactive walkthrough modal.
  */
 export function BranchList({
   branches,
   defaultBranch,
   isLoading,
+  onCheckout,
 }: {
   branches: Branch[] | undefined;
   defaultBranch?: string;
   isLoading: boolean;
+  onCheckout?: (branchName: string) => void;
 }) {
   if (isLoading) {
     return (
@@ -75,6 +79,17 @@ export function BranchList({
                 <code className="rounded-md bg-surface-container px-2 py-1 text-xs font-mono">
                   {shortSha(b.commit_sha)}
                 </code>
+                {onCheckout && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onCheckout(b.name)}
+                    title="Show how to checkout this branch from the CLI"
+                  >
+                    <Terminal className="size-3.5" />
+                    Checkout
+                  </Button>
+                )}
               </div>
             </Card>
           </motion.li>

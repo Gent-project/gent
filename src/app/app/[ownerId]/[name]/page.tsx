@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   GitBranch,
+  GitBranchPlus,
   GitCommit,
   Tag as TagIcon,
   Copy,
@@ -14,6 +15,8 @@ import {
   Lock,
   Trash2,
   Activity,
+  Terminal,
+  FolderTree,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,7 +31,9 @@ import { TagList } from "@/components/features/projects/tag-list";
 import { useDeleteRepo, useRepoDetail } from "@/hooks/use-repos";
 import { useBranches, useCommits, useTags } from "@/hooks/use-git";
 import { PATHS } from "@/lib/paths";
+import { cloneCommand } from "@/lib/gent-urls";
 import { timeAgo, cn } from "@/lib/utils";
+import { InteractiveGuideModal, GuideKind } from "@/components/features/projects/interactive-guide-modal";
 
 /**
  * Project detail page.
@@ -63,17 +68,31 @@ export default function ProjectDetailPage({ params }: { params: Params }) {
 
   const [tab, setTab] = useState<Tab>("commits");
   const [copied, setCopied] = useState(false);
+  const [guide, setGuide] = useState<{ open: boolean; kind: GuideKind; branch?: string }>({
+    open: false,
+    kind: "clone",
+  });
 
   const syncing =
     branches.isFetching || commits.isFetching || tags.isFetching || repoQuery.isFetching;
 
-  const cloneUrl = useMemo(
-    () => `gent clone https://gent.dev/${ownerIdNum}/${name}`,
+  /**
+   * Canonical CLI clone command for this project.
+   *
+   * Format the Gent CLI accepts (see `apps/Cli/src/utils/constants.js`):
+   *   /api/repos/{owner_id}/{repo_name}
+   *
+   * That's why we resolve it through `cloneCommand()` instead of building
+   * `https://gent.dev/...` by hand — the CLI would reject that form with
+   * "Invalid repository URL".
+   */
+  const cloneCmd = useMemo(
+    () => cloneCommand(ownerIdNum, name),
     [ownerIdNum, name],
   );
 
   function copy() {
-    navigator.clipboard.writeText(cloneUrl).then(() => {
+    navigator.clipboard.writeText(cloneCmd).then(() => {
       setCopied(true);
       toast.success("Clone command copied.");
       setTimeout(() => setCopied(false), 1500);
@@ -127,9 +146,24 @@ export default function ProjectDetailPage({ params }: { params: Params }) {
       subtitle={repo.description || "No description yet."}
       actions={
         <>
-          <Button variant="outline" size="sm" onClick={copy}>
-            {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-            Clone
+          <Button asChild variant="outline" size="sm">
+            <Link href={PATHS.app.projectFiles(ownerIdNum, name)}>
+              <FolderTree className="size-4" /> Files
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setGuide({ open: true, kind: "clone" })}
+          >
+            <Terminal className="size-4" /> Clone
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setGuide({ open: true, kind: "new-branch" })}
+          >
+            <GitBranchPlus className="size-4" /> New branch
           </Button>
           <Button
             variant="destructive"
@@ -165,7 +199,7 @@ export default function ProjectDetailPage({ params }: { params: Params }) {
           </Badge>
         </div>
         <pre className="mt-4 inline-flex max-w-full items-center gap-2 rounded-xl bg-inverse-surface/95 text-on-inverse-surface px-3 py-2 text-xs overflow-x-auto">
-          <span>{cloneUrl}</span>
+          <span>{cloneCmd}</span>
           <button onClick={copy} aria-label="Copy clone URL" className="hover:opacity-80">
             {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
           </button>
@@ -226,11 +260,24 @@ export default function ProjectDetailPage({ params }: { params: Params }) {
               branches={branches.data}
               defaultBranch={repo.default_branch}
               isLoading={branches.isLoading}
+              onCheckout={(branchName) =>
+                setGuide({ open: true, kind: "checkout", branch: branchName })
+              }
             />
           )}
           {tab === "tags" && <TagList tags={tags.data} isLoading={tags.isLoading} />}
         </motion.div>
       </AnimatePresence>
+
+      <InteractiveGuideModal
+        open={guide.open}
+        onClose={() => setGuide((g) => ({ ...g, open: false }))}
+        kind={guide.kind}
+        ownerId={ownerIdNum}
+        repoName={repo.name}
+        defaultBranch={repo.default_branch}
+        targetBranch={guide.branch}
+      />
     </AppShell>
   );
 }

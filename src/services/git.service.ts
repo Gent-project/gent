@@ -5,7 +5,7 @@
  * together (a project page wants branches + commits + tags at once).
  */
 import { api } from "@/lib/api-client";
-import type { Branch, Commit, Tag } from "@/types/api";
+import type { Blob, Branch, Commit, Tag, Tree } from "@/types/api";
 
 const repoBase = (ownerId: number | string, name: string) =>
   `/repos/${ownerId}/${encodeURIComponent(name)}`;
@@ -35,6 +35,29 @@ export const gitService = {
   /* ----------- Tags ----------- */
   async tags(ownerId: number | string, name: string): Promise<Tag[]> {
     const { data } = await api.get<Tag[]>(`${repoBase(ownerId, name)}/tags/`);
+    return data;
+  },
+
+  /* ----------- Tree / Blob (file browser) ----------- */
+
+  async branchDetail(
+    ownerId: number | string,
+    name: string,
+    branchName: string,
+  ): Promise<Branch> {
+    const { data } = await api.get<Branch>(
+      `${repoBase(ownerId, name)}/branches/${encodeURIComponent(branchName)}/`,
+    );
+    return data;
+  },
+
+  async tree(ownerId: number | string, name: string, sha: string): Promise<Tree> {
+    const { data } = await api.get<Tree>(`${repoBase(ownerId, name)}/tree/${sha}/`);
+    return data;
+  },
+
+  async blob(ownerId: number | string, name: string, sha: string): Promise<Blob> {
+    const { data } = await api.get<Blob>(`${repoBase(ownerId, name)}/blob/${sha}/`);
     return data;
   },
 };

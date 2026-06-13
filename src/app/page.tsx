@@ -236,7 +236,7 @@ export default function HomePage() {
               {
                 step: "01",
                 title: "Sign up & install",
-                desc: "Create your free account, then `npm i -g @gent/cli` to install the binary.",
+                desc: "Create your free account, then `npm i -g gent-cli` to install the binary.",
               },
               {
                 step: "02",

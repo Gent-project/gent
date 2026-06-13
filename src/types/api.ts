@@ -103,6 +103,34 @@ export interface Tag {
   created_at: string;
 }
 
+/* ---------- Tree / Blob ---------- */
+
+export type TreeEntryType = "blob" | "tree";
+
+export interface TreeEntry {
+  type: TreeEntryType;
+  mode: string;
+  name: string;
+  sha: string;
+}
+
+export interface Tree {
+  id: number;
+  sha: string;
+  entries: TreeEntry[];
+  created_at: string;
+}
+
+export interface Blob {
+  id: number;
+  sha: string;
+  size: number;
+  content: string;
+  /** "utf-8" → text · "base64" → binary, must be decoded before display */
+  encoding: "utf-8" | "base64";
+  created_at: string;
+}
+
 /* ---------- Error envelope ---------- */
 
 export interface ApiErrorBody {
