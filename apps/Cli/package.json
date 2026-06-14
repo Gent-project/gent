@@ -1,14 +1,17 @@
 {
   "name": "gent-cli",
-  "version": "5.0.1",
-  "description": "A modern, Git-like version control CLI with built-in cloud authentication and global user identity management.",
+  "version": "8.0.0",
+  "description": "A modern, Git-like version control CLI with cloud sync, AI-powered superpowers (ask/review/docs/changelog), and zero-friction setup (gent setup/doctor/config).",
   "main": "src/index.js",
   "bin": {
     "gent": "src/index.js"
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --check src/index.js && node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js && node tests/offline-e2e.js",
+    "test:unit": "node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js",
+    "test:e2e": "node tests/offline-e2e.js",
+    "test:remote:e2e": "node tests/remote-e2e.js",
     "demo": "bash demo.sh",
     "link": "npm link",
     "unlink": "npm unlink",
@@ -46,7 +49,7 @@
     "ora": "^5.4.1"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   },
   "files": [
     "src/",

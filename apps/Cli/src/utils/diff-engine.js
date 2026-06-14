@@ -22,6 +22,14 @@
  *   - Move up (i-1) → DELETE (line only in old version)
  *   - Move left (j-1) → INSERT (line only in new version)
  *
+ * COMMON PREFIX/SUFFIX TRIMMING (optimization):
+ *   Before building the O(M×N) matrix, identical leading and trailing lines are
+ *   stripped. Only the differing "middle" is run through LCS; the trimmed lines
+ *   are re-attached as `equal` ops with their original 1-based positions. For
+ *   the common case of a localized edit in a large file this turns an O(M×N)
+ *   matrix into something proportional to the size of the change — a large
+ *   memory and time win — while producing byte-identical output.
+ *
  * HUNK GENERATION:
  *   Groups adjacent changes with N context lines (default 3) into hunks.
  *   Changes within 2*N+1 lines of each other merge into one hunk.
@@ -63,12 +71,14 @@ function buildLcsMatrix(a, b) {
 }
 
 /**
- * Backtrack LCS matrix → line operations.
+ * Backtrack the LCS matrix of two line arrays → line operations with
+ * 1-based positions local to the given arrays. Pure O(M×N) core; callers
+ * normally use buildLineOperations, which trims common prefix/suffix first.
  * @param {String[]} oldLines
  * @param {String[]} newLines
  * @returns {Array<{type: 'equal'|'insert'|'delete', oldLine: number, newLine: number, content: String}>}
  */
-function buildLineOperations(oldLines, newLines) {
+function lcsOperations(oldLines, newLines) {
     const matrix = buildLcsMatrix(oldLines, newLines);
     const ops = [];
     let i = oldLines.length;
@@ -88,6 +98,61 @@ function buildLineOperations(oldLines, newLines) {
     }
 
     return ops.reverse();
+}
+
+/**
+ * Diff two line arrays into operations, trimming common prefix/suffix before
+ * running LCS on the differing middle. Output is identical to running LCS on
+ * the full arrays, with `oldLine`/`newLine` as absolute 1-based positions.
+ * @param {String[]} oldLines
+ * @param {String[]} newLines
+ * @returns {Array<{type: 'equal'|'insert'|'delete', oldLine: number, newLine: number, content: String}>}
+ */
+function buildLineOperations(oldLines, newLines) {
+    const oldLen = oldLines.length;
+    const newLen = newLines.length;
+    const minLen = Math.min(oldLen, newLen);
+
+    // Common leading lines.
+    let prefix = 0;
+    while (prefix < minLen && oldLines[prefix] === newLines[prefix]) prefix++;
+
+    // Common trailing lines (not overlapping the prefix).
+    let suffix = 0;
+    while (
+        suffix < minLen - prefix &&
+        oldLines[oldLen - 1 - suffix] === newLines[newLen - 1 - suffix]
+    ) suffix++;
+
+    const ops = [];
+
+    // Prefix → equal ops at their original positions.
+    for (let k = 0; k < prefix; k++) {
+        ops.push({ type: 'equal', oldLine: k + 1, newLine: k + 1, content: oldLines[k] });
+    }
+
+    // Middle → LCS, shifted back into absolute coordinates by `prefix`.
+    const oldMid = oldLines.slice(prefix, oldLen - suffix);
+    const newMid = newLines.slice(prefix, newLen - suffix);
+    if (oldMid.length || newMid.length) {
+        for (const op of lcsOperations(oldMid, newMid)) {
+            ops.push({
+                type: op.type,
+                oldLine: op.oldLine + prefix,
+                newLine: op.newLine + prefix,
+                content: op.content
+            });
+        }
+    }
+
+    // Suffix → equal ops at their original positions.
+    for (let k = 0; k < suffix; k++) {
+        const oldIdx = oldLen - suffix + k;
+        const newIdx = newLen - suffix + k;
+        ops.push({ type: 'equal', oldLine: oldIdx + 1, newLine: newIdx + 1, content: oldLines[oldIdx] });
+    }
+
+    return ops;
 }
 
 /**
@@ -229,6 +294,7 @@ module.exports = {
     diffText,
     summarizeOperations,
     buildLcsMatrix,
+    lcsOperations,
     buildLineOperations,
     generateHunks,
     formatUnifiedDiff,

@@ -138,6 +138,29 @@ function hashBlob(content) {
 }
 
 /**
+ * Decode blob content returned by the backend.
+ * Current Django endpoints return raw UTF-8 content, while older/planned pull
+ * responses may return base64. Prefer the representation whose blob hash
+ * matches the expected object SHA.
+ * @param {String} content
+ * @param {String} expectedHash
+ * @returns {Buffer}
+ */
+function decodeRemoteBlobContent(content, expectedHash) {
+    const raw = Buffer.from(content, 'utf-8');
+    if (!expectedHash || hashBlob(raw) === expectedHash) {
+        return raw;
+    }
+
+    const decoded = Buffer.from(content, 'base64');
+    if (hashBlob(decoded) === expectedHash) {
+        return decoded;
+    }
+
+    return raw;
+}
+
+/**
  * Hash a tree structure.
  * @param {Array<{mode: String, name: String, hash: String, type: String}>} entries
  * @returns {String}
@@ -324,6 +347,7 @@ module.exports = {
     hashObject,
     hashBlob,
     hashTree,
+    decodeRemoteBlobContent,
     objectExists,
     storeBlob,
     readBlob,

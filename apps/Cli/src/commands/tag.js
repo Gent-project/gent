@@ -28,7 +28,8 @@
 const path = require('path');
 const chalk = require('chalk');
 const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
-const { COMMITS_FILE, CONFIG_FILE } = require('../utils/constants');
+const { COMMITS_FILE, CONFIG_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
+const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
 
 /**
@@ -104,10 +105,12 @@ async function createTag(name, repository, gentPath, options) {
     const tagObj = { hash: commitHash };
 
     // Annotated tag
+    let taggerName = '';
+    let taggerEmail = '';
     if (options.message) {
         const config = await readJSON(path.join(gentPath, CONFIG_FILE));
-        let taggerName = config.user.name;
-        let taggerEmail = config.user.email;
+        taggerName = config.user.name;
+        taggerEmail = config.user.email;
 
         if (!taggerName || !taggerEmail) {
             const user = await authStorage.getUser();
@@ -127,6 +130,9 @@ async function createTag(name, repository, gentPath, options) {
     await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
 
     console.log(chalk.green(`Created tag '${name}' → ${commitHash.substring(0, 7)}`));
+
+    // Sync to remote
+    await syncTagCreate(name, tagObj, taggerName, taggerEmail, gentPath);
 }
 
 /**
@@ -141,6 +147,69 @@ async function deleteTag(name, repository, gentPath) {
     delete repository.tags[name];
     await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
     console.log(chalk.green(`Deleted tag '${name}'`));
+
+    // Sync deletion to remote
+    await syncTagDelete(name, gentPath);
+}
+
+/**
+ * Sync tag creation to remote API
+ */
+async function syncTagCreate(name, tagObj, taggerName, taggerEmail, gentPath) {
+    try {
+        const isAuth = await authStorage.isAuthenticated();
+        if (!isAuth) return;
+
+        const config = await readJSON(path.join(gentPath, CONFIG_FILE));
+        const remoteConfig = config.remotes && config.remotes.origin;
+        if (!remoteConfig) return;
+
+        const repoInfo = parseRemoteUrl(remoteConfig.url);
+        if (!repoInfo) return;
+
+        const payload = {
+            name,
+            commit_sha: tagObj.hash,
+            message: tagObj.message || '',
+            annotated: !!tagObj.annotated,
+        };
+
+        if (taggerName) payload.tagger_name = taggerName;
+        if (taggerEmail) payload.tagger_email = taggerEmail;
+
+        const url = buildRepoUrl(API_ENDPOINTS.REPO_TAGS_CREATE, repoInfo);
+        await apiClient.post(url, payload);
+        console.log(chalk.gray(`  ↑ Synced to remote`));
+    } catch (error) {
+        if (error.response?.status === 400) {
+            console.log(chalk.gray(`  ⚠ Remote sync skipped (tag may already exist remotely)`));
+        }
+    }
+}
+
+/**
+ * Sync tag deletion to remote API
+ */
+async function syncTagDelete(name, gentPath) {
+    try {
+        const isAuth = await authStorage.isAuthenticated();
+        if (!isAuth) return;
+
+        const config = await readJSON(path.join(gentPath, CONFIG_FILE));
+        const remoteConfig = config.remotes && config.remotes.origin;
+        if (!remoteConfig) return;
+
+        const repoInfo = parseRemoteUrl(remoteConfig.url);
+        if (!repoInfo) return;
+
+        const url = buildRepoUrl(API_ENDPOINTS.REPO_TAG_DETAIL, { ...repoInfo, tag_name: name });
+        await apiClient.delete(url);
+        console.log(chalk.gray(`  ↑ Deleted from remote`));
+    } catch (error) {
+        if (error.response?.status === 404) {
+            // Tag didn't exist remotely
+        }
+    }
 }
 
 module.exports = tag;

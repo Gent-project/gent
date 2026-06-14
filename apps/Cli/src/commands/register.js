@@ -17,12 +17,19 @@ async function register(options) {
     console.log(chalk.cyan('\n🚀 Create your Gent account\n'));
 
     try {
+        let email = options.email;
+        let password = options.password;
+        let passwordConfirm = options.passwordConfirm;
+        let firstName = options.firstName;
+        let lastName = options.lastName;
+
         // Prompt for user information
         const answers = await inquirer.prompt([
             {
                 type: 'input',
                 name: 'email',
                 message: 'Email address:',
+                when: !email,
                 validate: (input) => {
                     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                     return emailRegex.test(input) || 'Please enter a valid email address';
@@ -33,6 +40,7 @@ async function register(options) {
                 name: 'password',
                 message: 'Password:',
                 mask: '*',
+                when: !password,
                 validate: (input) => {
                     if (input.length < 8) {
                         return 'Password must be at least 8 characters long';
@@ -45,33 +53,46 @@ async function register(options) {
                 name: 'passwordConfirm',
                 message: 'Confirm password:',
                 mask: '*',
+                when: !passwordConfirm,
                 validate: (input, answers) => {
-                    return input === answers.password || 'Passwords do not match';
+                    return input === (password || answers.password) || 'Passwords do not match';
                 }
             },
             {
                 type: 'input',
                 name: 'firstName',
                 message: 'First name:',
+                when: firstName === undefined,
                 default: ''
             },
             {
                 type: 'input',
                 name: 'lastName',
                 message: 'Last name:',
+                when: lastName === undefined,
                 default: ''
             }
         ]);
+
+        email = email || answers.email;
+        password = password || answers.password;
+        passwordConfirm = passwordConfirm || answers.passwordConfirm;
+        firstName = firstName !== undefined ? firstName : answers.firstName;
+        lastName = lastName !== undefined ? lastName : answers.lastName;
+
+        if (!email || !password || !passwordConfirm) {
+            throw new Error('Email, password, and password confirmation are required');
+        }
 
         const spinner = ora('Creating your account...').start();
 
         // Register user
         const user = await authService.register(
-            answers.email,
-            answers.password,
-            answers.passwordConfirm,
-            answers.firstName,
-            answers.lastName
+            email,
+            password,
+            passwordConfirm,
+            firstName || '',
+            lastName || ''
         );
 
         spinner.succeed(chalk.green('✓ Account created successfully!'));

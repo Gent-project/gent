@@ -14,27 +14,21 @@
  *
  * ALGORITHM:
  *   1. Read local commits since last known remote HEAD
- *   2. Collect all blob objects referenced by those commits
- *   3. POST packfile (commits + blobs + trees) to remote /push/ endpoint
- *   4. Remote updates branch pointer
+ *   2. Build proper pack: collect tree objects + blob objects
+ *   3. POST packfile to /api/repos/{owner_id}/{repo_name}/push/
+ *   4. Remote updates branch pointer via branch_updates
  *
- * DATA FORMAT SENT TO BACKEND:
- *   POST /api/repos/:id/push/
+ * DATA FORMAT SENT TO BACKEND (PushPackRequest):
+ *   POST /api/repos/{owner_id}/{repo_name}/push/
  *   {
- *     branch: "main",
- *     force: false,
- *     commits: [ { hash, message, author, timestamp, parent, treeHash, tree, files, stats } ],
- *     objects: [ { hash, type: "blob", data: "<base64>" } ],
+ *     pack: {
+ *       commits: [{ sha, message, tree_sha, parent_shas, author_name, author_email, committed_at }],
+ *       trees:   [{ sha, entries: [{ type, mode, name, sha }] }],
+ *       blobs:   [{ sha, size, content, encoding }]
+ *     },
+ *     branch_updates: [{ name, commit_sha }],
  *     tags: { "v1.0": { hash, message, ... } }
  *   }
- *
- * BACKEND EXPECTATIONS:
- *   - Validate auth (JWT Bearer token)
- *   - Verify fast-forward (reject non-ff unless force=true)
- *   - Store blob objects in backend object store
- *   - Append commits to branch history
- *   - Update branch refs
- *   - Return { success, ref, hash }
  *
  * ============================================================================
  */
@@ -44,10 +38,10 @@ const path = require('path');
 const chalk = require('chalk');
 const ora = require('ora');
 const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
-const { COMMITS_FILE, CONFIG_FILE } = require('../utils/constants');
+const { COMMITS_FILE, CONFIG_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
-const { readBlob, objectExists } = require('../utils/hash-engine');
+const { readBlob, readTree, objectExists, readBlobAsString } = require('../utils/hash-engine');
 
 /**
  * Push commits to remote
@@ -81,6 +75,15 @@ async function push(remoteName, branchName, options) {
             return;
         }
 
+        // Parse remote URL to get owner_id and repo_name
+        const repoInfo = parseRemoteUrl(remoteConfig.url);
+        if (!repoInfo) {
+            spinner.fail(chalk.red('Invalid remote URL format'));
+            console.log(chalk.yellow('Expected: /api/repos/{owner_id}/{repo_name}'));
+            console.log(chalk.yellow('Use "gent remote set-url origin <url>" to fix'));
+            return;
+        }
+
         const repository = await readJSON(path.join(gentPath, COMMITS_FILE));
         const branch = branchName || repository.currentBranch;
         const localHead = repository.branches[branch];
@@ -103,26 +106,71 @@ async function push(remoteName, branchName, options) {
 
         spinner.text = `Pushing ${commitsToPush.length} commit(s) to ${remote}/${branch}...`;
 
-        // Collect all blob hashes from commits to push
-        const blobHashes = new Set();
+        // Collect all tree and blob objects from commits
+        const treeShas = new Set();
+        const blobShas = new Set();
+
         for (const commit of commitsToPush) {
+            // Collect tree SHA
+            if (commit.treeHash) {
+                treeShas.add(commit.treeHash);
+            }
+            // Collect blob hashes from tree entries
             const tree = commit.tree || commit.files || [];
             for (const entry of tree) {
-                const h = entry.hash;
-                if (h) blobHashes.add(h);
+                if (entry.hash) blobShas.add(entry.hash);
             }
         }
 
-        // Read blob data for transfer
-        const objects = [];
-        for (const hash of blobHashes) {
+        // Build tree objects for the pack
+        const packTrees = [];
+        for (const treeSha of treeShas) {
+            try {
+                if (await objectExists(gentPath, treeSha)) {
+                    const entries = await readTree(gentPath, treeSha);
+                    packTrees.push({
+                        sha: treeSha,
+                        entries: entries.map(e => ({
+                            type: e.type || 'blob',
+                            mode: e.mode || '100644',
+                            name: e.name,
+                            sha: e.hash
+                        }))
+                    });
+                }
+            } catch {
+                // If tree can't be read from object store, build from commit data
+            }
+        }
+
+        // If no tree objects from object store, build from commit tree data
+        if (packTrees.length === 0) {
+            for (const commit of commitsToPush) {
+                if (commit.treeHash && commit.tree) {
+                    packTrees.push({
+                        sha: commit.treeHash,
+                        entries: commit.tree.map(e => ({
+                            type: e.type || 'blob',
+                            mode: e.mode || '100644',
+                            name: e.name || e.path,
+                            sha: e.hash
+                        }))
+                    });
+                }
+            }
+        }
+
+        // Build blob objects for the pack
+        const packBlobs = [];
+        for (const hash of blobShas) {
             try {
                 if (await objectExists(gentPath, hash)) {
                     const data = await readBlob(gentPath, hash);
-                    objects.push({
-                        hash,
-                        type: 'blob',
-                        data: data.toString('base64')
+                    packBlobs.push({
+                        sha: hash,
+                        size: data.length,
+                        content: data.toString('base64'),
+                        encoding: 'base64'
                     });
                 }
             } catch {
@@ -130,31 +178,34 @@ async function push(remoteName, branchName, options) {
             }
         }
 
-        // Build push payload
+        // Build commits for the pack
+        const packCommits = commitsToPush.map(c => ({
+            sha: c.hash,
+            message: c.message,
+            tree_sha: c.treeHash || '',
+            parent_shas: [c.parent, c.mergeParent].filter(Boolean),
+            author_name: typeof c.author === 'object' ? (c.author.name || 'Unknown') : (c.author || 'Unknown'),
+            author_email: typeof c.author === 'object' ? (c.author.email || '') : '',
+            committed_at: c.timestamp || new Date().toISOString()
+        }));
+
+        // Build push payload matching PushPackRequest schema
         const payload = {
-            branch,
-            force: !!options.force,
-            commits: commitsToPush.map(c => ({
-                hash: c.hash,
-                message: c.message,
-                author: c.author,
-                timestamp: c.timestamp,
-                parent: c.parent,
-                mergeParent: c.mergeParent || null,
-                treeHash: c.treeHash || null,
-                tree: c.tree || null,
-                files: c.files || [],
-                stats: c.stats || {}
-            })),
-            objects,
+            pack: {
+                commits: packCommits,
+                trees: packTrees,
+                blobs: packBlobs
+            },
+            branch_updates: [{
+                name: branch,
+                commit_sha: localHead
+            }],
             tags: repository.tags || {}
         };
 
         // Send to backend
-        const response = await apiClient.post(
-            `${remoteConfig.url}/push/`,
-            payload
-        );
+        const pushUrl = buildRepoUrl(API_ENDPOINTS.REPO_PUSH, repoInfo);
+        const response = await apiClient.post(pushUrl, payload);
 
         // Update remote ref
         config.remoteRefs[`${remote}/${branch}`] = localHead;
@@ -162,7 +213,7 @@ async function push(remoteName, branchName, options) {
 
         spinner.succeed(chalk.green(`Pushed ${commitsToPush.length} commit(s) to ${remote}/${branch}`));
         console.log(chalk.gray(`  ${localHead.substring(0, 7)} → ${remote}/${branch}`));
-        console.log(chalk.gray(`  ${objects.length} object(s) transferred`));
+        console.log(chalk.gray(`  ${packBlobs.length} blob(s), ${packTrees.length} tree(s) transferred`));
 
     } catch (error) {
         spinner.fail(chalk.red('Push failed'));
@@ -172,8 +223,10 @@ async function push(remoteName, branchName, options) {
             console.log(chalk.yellow('Run "gent pull" first, or use "gent push --force"'));
         } else if (error.response?.status === 401) {
             console.error(chalk.red('Authentication failed — run "gent login"'));
-        } else if (error.response?.data?.message) {
-            console.error(chalk.red(error.response.data.message));
+        } else if (error.response?.status === 403) {
+            console.error(chalk.red('Permission denied — only repo owner can push'));
+        } else if (error.response?.data) {
+            console.error(chalk.red(JSON.stringify(error.response.data, null, 2)));
         } else {
             console.error(chalk.red('Error:'), error.message);
         }

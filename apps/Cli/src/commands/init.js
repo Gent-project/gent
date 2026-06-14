@@ -8,7 +8,8 @@ const path = require('path');
 const chalk = require('chalk');
 const { ensureDir, writeJSON, pathExists } = require('../utils/fileSystem');
 const authStorage = require('../utils/auth-storage');
-const { GENT_DIR, CONFIG_FILE, STAGING_FILE, COMMITS_FILE } = require('../utils/constants');
+const apiClient = require('../utils/api-client');
+const { GENT_DIR, CONFIG_FILE, STAGING_FILE, COMMITS_FILE, API_ENDPOINTS } = require('../utils/constants');
 
 /**
  * Initialize a new gent repository
@@ -109,10 +110,58 @@ node_modules/
             console.log(chalk.gray(`Initialized empty Gent repository in ${gentPath}`));
         }
 
+        // Create remote repository if --remote flag is set
+        if (options.remote) {
+            await createRemoteRepo(cwd, gentPath, config, options);
+        }
+
     } catch (error) {
         console.error(chalk.red('Failed to initialize repository'));
         console.error(chalk.red('Error:'), error.message);
         process.exit(1);
+    }
+}
+
+/**
+ * Create a remote repository on the backend and link it
+ */
+async function createRemoteRepo(cwd, gentPath, config, options) {
+    try {
+        const isAuth = await authStorage.isAuthenticated();
+        if (!isAuth) {
+            console.log(chalk.yellow('Not authenticated — skipping remote creation'));
+            console.log(chalk.yellow('Run "gent login" then "gent repos --create <name>"'));
+            return;
+        }
+
+        const repoName = typeof options.remote === 'string' ? options.remote : path.basename(cwd);
+
+        console.log(chalk.gray(`Creating remote repository '${repoName}'...`));
+
+        const payload = {
+            name: repoName,
+            description: config.repository.description || '',
+        };
+
+        const data = await apiClient.post(API_ENDPOINTS.REPOS_CREATE, payload);
+        const repo = data.repository || data;
+
+        // Update local config with remote
+        const configPath = path.join(gentPath, CONFIG_FILE);
+        const localConfig = await require('../utils/fileSystem').readJSON(configPath);
+        localConfig.remotes = localConfig.remotes || {};
+        localConfig.remotes.origin = { url: `/api/repos/${repo.owner_id}/${repo.name}` };
+        await writeJSON(configPath, localConfig);
+
+        console.log(chalk.green(`✓ Remote repository created: /api/repos/${repo.owner_id}/${repo.name}`));
+        console.log(chalk.gray(`  Remote 'origin' configured automatically`));
+
+    } catch (error) {
+        if (error.response?.status === 400) {
+            console.log(chalk.yellow('Remote creation failed — repository name may already exist'));
+        } else {
+            console.log(chalk.yellow(`Remote creation failed: ${error.message}`));
+        }
     }
 }
 

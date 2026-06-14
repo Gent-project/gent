@@ -30,6 +30,7 @@ const ora = require('ora');
 const { getGentPath, readJSON, writeJSON, pathExists } = require('../utils/fileSystem');
 const { STAGING_FILE, COMMITS_FILE } = require('../utils/constants');
 const { readBlobAsString } = require('../utils/hash-engine');
+const journal = require('../utils/journal');
 
 /**
  * Reset staging or HEAD
@@ -111,6 +112,15 @@ async function resetHead(gentPath, cwd, args, options) {
     }
 
     const spinner = ora(`Resetting to ${target.hash.substring(0, 7)}...`).start();
+
+    // Journal pre-state. A hard reset discards working-tree content, so flag it
+    // for working-tree restore on undo.
+    await journal.recordOp(
+        gentPath,
+        'reset',
+        `${options.hard ? 'hard' : 'soft'} reset to ${target.hash.substring(0, 7)}`,
+        { restoreTree: !!options.hard }
+    );
 
     // Move branch pointer
     repository.branches[currentBranch] = target.hash;

@@ -1,7 +1,10 @@
 # Gent CLI — Architecture & Backend Specification
 
 > Complete technical documentation for the Gent version control system.  
-> Version 2.0.0 | April 2026
+> Version 7.0.0
+>
+> See also: [ALGORITHMS.md](ALGORITHMS.md) (diff/merge/hash deep dive) and
+> [COMMANDS.md](COMMANDS.md) (full command reference).
 
 ---
 
@@ -25,8 +28,12 @@
 Gent is a Git-like version control CLI that stores data locally in `.gent/` and syncs to a cloud backend via REST API. It provides:
 
 - **Content-addressable object store** (SHA-256 + zlib compression)
-- **Line-level LCS diff** with unified diff output
-- **Three-way smart merge** with aggressive auto-resolution
+- **Line-level LCS diff** with prefix/suffix trimming and unified diff output
+- **Three-way smart merge (diff3)** with language-aware auto-resolution (JSON, imports)
+- **Operation journal** with one-command `undo` / `redo` (friendlier than reflog)
+- **Interactive conflict resolver** (`gent resolve`)
+- **Repository dashboard** (`gent summary`) and ASCII commit graph (`log --graph`)
+- **Optional AI layer** (key-gated): commit messages, diff explanations, conflict help
 - **Branching, tagging, stashing** — full local workflow
 - **Push/Pull/Clone** — cloud sync with JWT authentication
 
@@ -34,24 +41,24 @@ Gent is a Git-like version control CLI that stores data locally in `.gent/` and 
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   User Commands                      │
+│                   User Commands                     │
 │  init │ add │ commit │ diff │ merge │ push │ pull   │
 └──────────────┬──────────────────────────────────────┘
                │
 ┌──────────────▼──────────────────────────────────────┐
-│                  Engine Layer                         │
-│  hash-engine.js  │  diff-engine.js  │ merge-engine.js│
+│                  Engine Layer                       │
+│ hash-engine.js  │  diff-engine.js  │ merge-engine.js│
 └──────────────┬──────────────────────────────────────┘
                │
 ┌──────────────▼──────────────────────────────────────┐
-│              Local Storage (.gent/)                   │
-│  objects/  │  commits.json  │  staging.json  │ HEAD  │
+│              Local Storage (.gent/)                 │
+│  objects/  │  commits.json  │  staging.json  │ HEAD │
 └──────────────┬──────────────────────────────────────┘
                │ (push/pull via REST)
 ┌──────────────▼──────────────────────────────────────┐
-│              Backend API Server                       │
-│  /api/auth/*  │  /api/repos/:id/*                    │
-│  Blob Store   │  Commit DB  │  Branch Refs           │
+│              Backend API Server                     │
+│  /api/auth/*  │  /api/repos/:id/*                   │
+│  Blob Store   │  Commit DB  │  Branch Refs          │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -76,8 +83,12 @@ src/
 │   ├── tag.js               # Tag management
 │   ├── branch.js            # Branch management
 │   ├── checkout.js          # Switch branches
-│   ├── merge.js             # 3-way smart merge
+│   ├── merge.js             # 3-way smart merge (diff3)
+│   ├── resolve.js           # Interactive conflict resolver
 │   ├── stash.js             # Stash working changes
+│   ├── undo.js              # undo/redo over the operation journal
+│   ├── summary.js           # Repository health dashboard
+│   ├── explain.js           # Plain-language commit/diff explanation
 │   ├── remote.js            # Configure remotes
 │   ├── push.js              # Upload to remote
 │   ├── pull.js              # Download + merge from remote
@@ -87,8 +98,10 @@ src/
 │   └── whoami.js            # Current user info
 ├── utils/
 │   ├── hash-engine.js       # SHA-256 blob/tree store + FNV-1a line hash
-│   ├── diff-engine.js       # LCS line diff + hunk generation
-│   ├── merge-engine.js      # 3-way merge + tree merge + merge base
+│   ├── diff-engine.js       # LCS line diff (prefix/suffix trimmed) + hunks
+│   ├── merge-engine.js      # diff3 merge + JSON/import-aware + tree merge + DAG merge base
+│   ├── journal.js           # Operation journal (undo/redo)
+│   ├── ai-service.js        # Optional, key-gated Claude integration
 │   ├── fileSystem.js        # File I/O helpers
 │   ├── helpers.js           # General utilities
 │   ├── constants.js         # Config values + API endpoints
@@ -108,6 +121,7 @@ src/
 ├── commits.json             # Full commit history + branches + tags
 ├── staging.json             # Current staging area (entries + merge state)
 ├── stash.json               # Stash stack (created on first stash)
+├── journal.json             # Operation journal for undo/redo (created on first op)
 ├── HEAD                     # Current branch ref
 ├── objects/                 # Content-addressable blob/tree store
 │   ├── ab/                  # 2-char prefix directory
@@ -229,6 +243,12 @@ Given: oldLines[0..M-1], newLines[0..N-1]
 
 **Complexity:** Time O(M×N), Space O(M×N) using `Uint32Array`.
 
+**Prefix/suffix trimming:** identical leading and trailing lines are stripped
+before the matrix is built; LCS runs only on the differing middle, and the
+trimmed lines are re-attached as `equal` ops at their original positions. Output
+is byte-identical, but a localized edit in a large file costs a matrix sized to
+the change, not the whole file. See [ALGORITHMS.md §2.2](ALGORITHMS.md#22-prefixsuffix-trimming-the-optimization).
+
 **Hunk Generation:**
 - Group changes within `2*contextLines+1` of each other into hunks
 - Default 3 context lines (same as `git diff`)
@@ -238,48 +258,48 @@ Given: oldLines[0..M-1], newLines[0..N-1]
 
 **Location:** `src/utils/merge-engine.js`
 
-**Algorithm:**
+**Algorithm (diff3):**
 
 ```
 Inputs: BASE (common ancestor), OURS (current), THEIRS (incoming)
 
-1. diffOurs  = LCS_diff(BASE, OURS)
-2. diffTheirs = LCS_diff(BASE, THEIRS)
-
-3. Extract "change regions": contiguous modified areas anchored to BASE line indices
-   Region = { baseStart, oldLines[], newLines[] }
-
-4. Map regions by baseStart for O(1) lookup
-
-5. Walk BASE line-by-line:
-   For each base index:
-     a) Check if OURS has a region starting here
-     b) Check if THEIRS has a region starting here
-     c) Apply resolution rules (see table below)
-     d) Advance past consumed base lines
+1. Diff BASE→OURS and BASE→THEIRS (LCS, §4.2).
+2. A base line is a STABLE ANCHOR when it survives unchanged in BOTH sides;
+   at an anchor all three files are synchronized. (LCS matches are monotonic,
+   so the shared anchor set is monotonic in all three index spaces.)
+3. Walk anchors in order. Between two consecutive anchors lies one UNSTABLE
+   region: baseSeg / oursSeg / theirsSeg (each possibly empty).
+4. Classify and resolve each region (table below), then emit the anchor line.
 ```
 
-**Resolution Rules:**
+This replaced an earlier region-walk that **looped forever on one-sided pure
+insertions** (a region consuming zero base lines never advanced) and could
+**drop overlapping edits**. Both are now regression-tested. Full write-up:
+[ALGORITHMS.md §3](ALGORITHMS.md#3-three-way-merge--diff3).
 
-| Ours Region? | Theirs Region? | Action |
-|---|---|---|
-| Yes | No | Take OURS new lines |
-| No | Yes | Take THEIRS new lines |
-| Yes (identical) | Yes (identical) | Take either |
-| Yes (same length) | Yes (same length) | Sub-merge line-by-line |
-| Yes (different) | Yes (different) | **CONFLICT** — insert markers |
+**Resolution Rules (per unstable region):**
 
-**Sub-merge (fine-grained):**
-When both sides modify a region to the same length:
-- Compare line-by-line
-- If line matches base → other side changed it → take that
-- If both changed same line differently → CONFLICT
-- Whitespace-only diff → take OURS
+| Region situation | Action |
+|---|---|
+| Neither side changed it | Keep BASE |
+| Only OURS changed | Take OURS |
+| Only THEIRS changed | Take THEIRS |
+| Both changed identically | Take either |
+| Both changed, same length, disjoint lines | Sub-merge line-by-line |
+| Whitespace-only difference | Take OURS |
+| Both added import/require lines (empty base) | Union them |
+| Otherwise (true overlap) | **CONFLICT** — insert markers |
 
-**Merge Base Finder:**
+**Language-aware file merge:** `mergeFileContent` dispatches by file type before
+the line merge and always falls back to conflict markers when unsure — JSON
+files get a key-level 3-way merge (e.g. disjoint `package.json` dependency
+additions auto-resolve); additive import/require blocks are unioned.
+
+**Merge Base Finder (DAG-aware):**
 ```
-1. Walk OURS parent chain → collect all ancestors in Set
-2. Walk THEIRS parent chain → first hash found in Set = merge base
+Traverse BOTH `parent` and `mergeParent` edges (correct once merges exist):
+1. Collect all ancestors of OURS into a Set (both edges).
+2. BFS from THEIRS (nearest-first) → first node in the Set = merge base.
 ```
 
 ### 4.4 Tree-Level Merge
@@ -299,6 +319,29 @@ For each file path across all three trees:
 | A | A | — | Delete (theirs deleted) |
 | A | B | — | **CONFLICT** (modify/delete) → keep B |
 | A | — | B | **CONFLICT** (modify/delete) → keep B |
+
+### 4.5 Operation Journal (undo / redo)
+
+**Location:** `src/utils/journal.js`
+
+Before any history-changing command (commit, merge, reset, checkout, branch
+delete) writes `commits.json`, `recordOp` snapshots the `branches` map and
+`currentBranch` into `.gent/journal.json` (`{ entries, redo }`, capped at 100).
+`gent undo` restores the last snapshot (and, for content-discarding ops flagged
+`restoreTree`, rewrites working files from the object store — it never deletes
+them); `gent redo` is the mirror. One generic mechanism reverses every command.
+See [ALGORITHMS.md §4](ALGORITHMS.md#4-operation-journal-undo--redo).
+
+### 4.6 Optional AI Layer
+
+**Location:** `src/utils/ai-service.js`
+
+A key-gated client over the Anthropic Messages API (via the existing `axios`
+dependency) powering optional enhancements only: commit-message suggestions
+(`commit --ai`), diff explanations (`explain`), AI-assisted conflict resolution
+(`resolve`), and a health narrative (`summary --ai`). Enabled by
+`ANTHROPIC_API_KEY`; model via `GENT_AI_MODEL` (default `claude-opus-4-8`).
+Absent key or failed request → graceful fallback to the algorithmic path.
 
 ---
 
@@ -325,10 +368,11 @@ For each file path across all three trees:
 
 | Command | Description |
 |---|---|
-| `gent commit [-m <msg>] [-a]` | Create commit with tree object |
-| `gent log [-n <N>] [--oneline] [--stat]` | Commit history |
+| `gent commit [-m <msg>] [-a] [--ai]` | Create commit; `--ai` suggests a message |
+| `gent log [-n <N>] [--oneline] [--graph] [--stat]` | Commit history; `--graph` = ASCII DAG |
 | `gent show [ref] [--no-patch]` | Commit details + diff |
 | `gent tag [name] [-m <msg>] [-d <name>]` | Tag management |
+| `gent explain [ref] [--staged]` | Plain-language summary of a commit/diff |
 
 ### Branching & Merging
 
@@ -336,8 +380,17 @@ For each file path across all three trees:
 |---|---|
 | `gent branch [name] [-d <name>] [-a]` | Branch management |
 | `gent checkout <branch> [-b]` | Switch branches |
-| `gent merge <branch> [-m <msg>]` | 3-way smart merge |
+| `gent merge <branch> [-m <msg>]` | 3-way smart merge (diff3) |
+| `gent resolve` | Interactively resolve merge conflicts |
 | `gent stash [pop\|list\|drop\|apply] [-m <msg>]` | Stash changes |
+
+### Safety & Insight
+
+| Command | Description |
+|---|---|
+| `gent undo [--list]` | Reverse the last history-changing op; `--list` shows history |
+| `gent redo` | Re-apply the last undone op |
+| `gent summary [--ai]` | Repository health & statistics dashboard |
 
 ### Remote & Sync
 
@@ -572,7 +625,7 @@ Client                                 Server
   │                                      ├─ Store blobs (dedup)
   │                                      ├─ Append commits
   │                                      ├─ Update branch ref
-  │  ◄── { success, ref, hash }  ───────┤
+  │  ◄── { success, ref, hash }  ────────┤
   ├─ Update local remoteRefs             │
   │                                      │
 ```
@@ -586,7 +639,7 @@ Client                                 Server
   │                                      ├─ Walk commit chain
   │                                      ├─ Collect new commits
   │                                      ├─ Collect blob objects
-  │  ◄── { commits, objects, head } ────┤
+  │  ◄── { commits, objects, head } ─────┤
   ├─ Store received blobs locally        │
   ├─ Append new commits                  │
   ├─ Check fast-forward?                 │
@@ -603,7 +656,7 @@ Client                                 Server
   │                                      │
   ├─ GET /clone/  ─────────────────────► │
   │                                      ├─ Collect ALL data
-  │  ◄── { name, commits, objects,  ────┤
+  │  ◄── { name, commits, objects,  ─────┤
   │       branches, tags }               │
   ├─ Create .gent/ structure             │
   ├─ Store all blobs                     │
@@ -649,110 +702,3 @@ Client                                 Server
 2. Export a single async function
 3. Register in `src/index.js` using commander
 4. Add to this documentation
-
-### Backend Database Schema (recommended)
-
-```sql
--- Users (handled by auth framework)
-CREATE TABLE users (
-    id          UUID PRIMARY KEY,
-    email       VARCHAR(255) UNIQUE NOT NULL,
-    password    VARCHAR(255) NOT NULL,
-    first_name  VARCHAR(100),
-    last_name   VARCHAR(100),
-    created_at  TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Repositories
-CREATE TABLE repositories (
-    id          UUID PRIMARY KEY,
-    name        VARCHAR(255) NOT NULL,
-    description TEXT,
-    owner_id    UUID REFERENCES users(id),
-    created_at  TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(owner_id, name)
-);
-
--- Branch refs
-CREATE TABLE branches (
-    id          UUID PRIMARY KEY,
-    repo_id     UUID REFERENCES repositories(id),
-    name        VARCHAR(255) NOT NULL,
-    head_hash   VARCHAR(64),
-    UNIQUE(repo_id, name)
-);
-
--- Commits
-CREATE TABLE commits (
-    id          UUID PRIMARY KEY,
-    repo_id     UUID REFERENCES repositories(id) ON DELETE CASCADE,
-    hash        VARCHAR(64) NOT NULL,
-    message     TEXT NOT NULL,
-    author_name VARCHAR(255),
-    author_email VARCHAR(255),
-    timestamp   TIMESTAMPTZ,
-    parent_hash VARCHAR(64),
-    merge_parent_hash VARCHAR(64),
-    tree_hash   VARCHAR(64),
-    tree_data   JSONB,
-    stats       JSONB,
-    UNIQUE(repo_id, hash)
-);
-
--- Blob objects
-CREATE TABLE objects (
-    id          UUID PRIMARY KEY,
-    repo_id     UUID REFERENCES repositories(id) ON DELETE CASCADE,
-    hash        VARCHAR(64) NOT NULL,
-    type        VARCHAR(10) DEFAULT 'blob',
-    data        BYTEA NOT NULL,
-    size        INTEGER,
-    UNIQUE(repo_id, hash)
-);
-
--- Tags
-CREATE TABLE tags (
-    id          UUID PRIMARY KEY,
-    repo_id     UUID REFERENCES repositories(id) ON DELETE CASCADE,
-    name        VARCHAR(255) NOT NULL,
-    commit_hash VARCHAR(64) NOT NULL,
-    message     TEXT,
-    annotated   BOOLEAN DEFAULT FALSE,
-    tagger_name VARCHAR(255),
-    tagger_email VARCHAR(255),
-    created_at  TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(repo_id, name)
-);
-
--- Collaborators
-CREATE TABLE collaborators (
-    id          UUID PRIMARY KEY,
-    repo_id     UUID REFERENCES repositories(id) ON DELETE CASCADE,
-    user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
-    role        VARCHAR(20) DEFAULT 'collaborator',
-    UNIQUE(repo_id, user_id)
-);
-```
-
-### Backend Implementation Notes
-
-1. **Push endpoint** should:
-   - Validate JSON payload size limits (recommend 50MB max)
-   - Process commits in order (oldest first)
-   - Use database transaction for atomicity
-   - Return 409 if non-fast-forward and force=false
-   
-2. **Pull endpoint** should:
-   - Walk commit parent chain server-side
-   - Only return blobs referenced by new commits (delta transfer)
-   - Support pagination for large histories
-   
-3. **Clone endpoint** should:
-   - Stream large repositories (consider chunked transfer)
-   - Compress response body (gzip content-encoding)
-   - Include all branches, not just current
-
-4. **Object deduplication** on backend:
-   - Check hash existence before storing blob
-   - Across repos: consider content-addressable global store
-   - Use PostgreSQL `ON CONFLICT DO NOTHING` for atomic dedup
