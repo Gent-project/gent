@@ -41,12 +41,18 @@ Every call goes through `src/lib/api-client.ts` (one axios instance) →
 | GET    | `/repos/{owner}/{name}/branches/`                   | `gitService.branches`     | `useBranches` (poll)|
 | GET    | `/repos/{owner}/{name}/branches/{branchName}/`      | `gitService.branchDetail` | `useBranchCommit`   |
 | GET    | `/repos/{owner}/{name}/commits/`                    | `gitService.commits`      | `useCommits` (poll) |
-| GET    | `/repos/{owner}/{name}/commits/{sha}/`              | `gitService.commitDetail` | `useBranchCommit`   |
+| GET    | `/repos/{owner}/{name}/commits/{sha}/`              | `gitService.commitDetail` | `useBranchCommit`, `useCommitDiff`, `useDirLastCommits` |
 | GET    | `/repos/{owner}/{name}/tags/`                       | `gitService.tags`         | `useTags` (poll)    |
-| GET    | `/repos/{owner}/{name}/tree/{sha}/`                 | `gitService.tree`         | `useTree`           |
-| GET    | `/repos/{owner}/{name}/blob/{sha}/`                 | `gitService.blob`         | `useBlob`           |
+| GET    | `/repos/{owner}/{name}/tree/{sha}/`                 | `gitService.tree`         | `useTree`, `useCommitDiff`, `useDirLastCommits` |
+| GET    | `/repos/{owner}/{name}/blob/{sha}/`                 | `gitService.blob`         | `useBlob`, `useCommitDiff` |
 
 **(poll)** = refetches every 12 seconds.
+
+> **There is no diff endpoint.** Commit diffs and the file explorer's per-file
+> "last commit" columns are derived in the browser by replaying these tree /
+> blob / commit calls — see `src/lib/diff.ts` with `useCommitDiff` and
+> `useDirLastCommits` ([10-hooks-reference.md](./10-hooks-reference.md)). Both
+> cache aggressively because a commit's tree is immutable.
 
 ---
 

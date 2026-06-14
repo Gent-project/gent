@@ -23,8 +23,8 @@ calls, which components it composes, and any access rules.
 | `/app`                           | yes           | Dashboard (project grid + stats)              | `useReposList`                            |
 | `/app/new`                       | yes           | Create-project form + CLI snippet             | `useCreateRepo`                           |
 | `/app/settings`                  | yes           | Profile + theme picker                        | `useAuth()`, `useTheme()`                 |
-| `/app/[ownerId]/[name]`          | yes           | Project detail                                | `useRepoDetail`, `useBranches`, `useCommits`, `useTags` |
-| `/app/[ownerId]/[name]/files`    | yes           | File browser (tree + blob viewer)             | `useBranchCommit`, `useTree`, `useBlob`   |
+| `/app/[ownerId]/[name]`          | yes           | Project detail                                | `useRepoDetail`, `useBranches`, `useCommits`, `useTags`, `useCommitDiff` |
+| `/app/[ownerId]/[name]/files`    | yes           | GitHub-style file explorer + diffs            | `useBranchCommit`, `useTree`, `useBlob`, `useDirLastCommits`, `useCommitDiff` |
 
 ---
 
@@ -163,24 +163,38 @@ Layout:
 - Clone URL block (read from `gentCloneUrl`) with copy button.
 - Tabs:
   - **Commits** → `<CommitTimeline>` — vertical timeline with author chips,
-    short SHAs, relative time (`timeAgo()`), commit messages.
+    short SHAs, relative time (`timeAgo()`), commit messages. Each commit is
+    clickable (`onSelect`) — it opens `<CommitDiffModal>` with the unified line
+    diff of that commit against its parent.
   - **Branches** → `<BranchList>` — branch name, latest commit SHA, age.
   - **Tags** → `<TagList>` — tag name, target SHA, annotated/not.
 - "Open file browser" button → `/app/[ownerId]/[name]/files`.
 - "Interactive guide" modal — `<InteractiveGuideModal>` walks new users
   through `clone → edit → push`.
 
-### `/app/[ownerId]/[name]/files` — File browser
+### `/app/[ownerId]/[name]/files` — File explorer
 
 `src/app/app/[ownerId]/[name]/files/page.tsx`
 
-- Branch picker (default = `repo.default_branch`).
+A GitHub-style repository explorer (no more left-tree / right-pane split):
+
+- Toolbar: branch picker (default = `repo.default_branch`) + breadcrumbs.
 - Calls `useBranchCommit` to resolve the branch tip → commit.
-- From `commit.tree_sha`, calls `useTree` to load directory entries.
-- Renders rows with `<FileTreeRow>` (folder vs blob icon, name, mode).
-- Clicking a blob calls `useBlob(blobSha)` and opens `<FileViewer>` —
+- **Latest-commit header bar**: author avatar, the HEAD commit message, its
+  short SHA, relative time, and a total commit count. Clicking the message or
+  SHA opens `<CommitDiffModal>`.
+- **File table**: one row per entry (folders first, then files). Each row shows
+  the name, the message of the *last commit that touched it*, and a relative
+  time. The per-file "last commit" columns have no backend endpoint — they're
+  computed in the browser by `useDirLastCommits` (walks the branch history and
+  attributes each visible entry); clicking that message opens its diff.
+- Clicking a **folder** descends into it (breadcrumbs walk back).
+- Clicking a **file** opens a **full-width** `<FileViewer>` (not a side pane);
+  the page passes the already-fetched `useBlob` result down as props —
   - utf-8 → render with line numbers
-  - base64 → "binary file" placeholder with size in KB
+  - base64 → "binary file" notice with a download button
+- Clicking any **commit** (header bar or a row) opens `<CommitDiffModal>`, which
+  computes the diff client-side via `useCommitDiff` (see `src/lib/diff.ts`).
 - Uses `isEmptySha(sha)` to short-circuit brand-new empty branches.
 
 ---

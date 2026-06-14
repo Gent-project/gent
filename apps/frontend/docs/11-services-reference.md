@@ -146,8 +146,10 @@ happens at call sites.
 
 ## Patterns
 
-- **One axios call per method.** If a feature requires two, do them in the
-  hook and compose two service methods (see `useBranchCommit`).
+- **One axios call per method.** If a feature requires several, compose them in
+  the hook, not the service (see `useBranchCommit`, or `useCommitDiff` which
+  replays `commitDetail` + `tree` + `blob` to build a diff with no diff
+  endpoint).
 - **Return parsed data, not the AxiosResponse.** Use `const { data } = ...`
   and return `data`. The hook layer doesn't care about HTTP semantics.
 - **Type the response.** `api.get<Branch[]>(...)` gives the rest of the

@@ -42,6 +42,12 @@ others.
    not handling payments). Tokens auto-refresh on 401 inside axios. We can
    migrate to cookies later without touching call sites because the token
    store is isolated in `tokenStore` in `lib/api-client.ts`.
+4. **Some "git" features are derived in the browser.** The API exposes trees and
+   blobs but no diff endpoint, so commit diffs and per-file "last commit" blame
+   are computed client-side in `src/lib/diff.ts` (consumed by `useCommitDiff`
+   and `useDirLastCommits`). The pattern stays the same — a hook owns the work
+   and feeds a presentational component — the data source is just the layers
+   below rather than a single endpoint.
 
 ---
 
@@ -92,7 +98,7 @@ queries and mutations:
 |----------------|-------------------------------------------------------------------------------------|
 | `use-auth.ts`  | `useAuth()` — current user, login, register, logout                                 |
 | `use-repos.ts` | `useReposList`, `useRepoDetail`, `useCreateRepo`, `useDeleteRepo`                   |
-| `use-git.ts`   | `useBranches`, `useCommits`, `useTags`, `useBranchCommit`, `useTree`, `useBlob`     |
+| `use-git.ts`   | `useBranches`, `useCommits`, `useTags`, `useBranchCommit`, `useTree`, `useBlob`, `useCommitDiff`, `useDirLastCommits` |
 | `use-theme.ts` | `useTheme()` — light/dark with no-flash bootstrap                                   |
 
 Hooks own caching, polling, optimistic updates, and toast notifications. See

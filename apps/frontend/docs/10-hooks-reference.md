@@ -214,6 +214,65 @@ function useBlob(
 
 ---
 
+## `useCommitDiff(ownerId, name, sha)`
+
+```ts
+function useCommitDiff(
+  ownerId: number | string,
+  name: string,
+  sha: string | undefined,
+): UseQueryResult<CommitDiffResult>;
+```
+
+The full diff of a commit against its first parent. **There is no diff endpoint
+on the API** — this hook computes it client-side (see `src/lib/diff.ts`):
+
+1. Fetch the commit and its first parent (`commit.parent_shas[0]`).
+2. `diffTrees(...)` walks the two trees in lock-step, pruning identical
+   subtrees, to get a flat list of added / removed / modified files.
+3. For each changed *text* blob, fetch both sides and `diffText(...)` produces a
+   unified line diff. Binary and over-cap files are flagged, not diffed.
+
+- Returns `{ commit, parentSha, files, additions, deletions }`
+  (`CommitDiffResult`); each `files[]` entry carries its own `lines`, `+/−`
+  counts, and `binary` / `tooLarge` flags.
+- Key: `["git", "commit-diff", String(ownerId), name, sha]`.
+- `staleTime: Infinity` — commits are immutable, so a computed diff never goes
+  stale. Per-call `Map` caches dedupe any tree/blob shared by both sides.
+- Disabled when `sha` is missing or `isEmptySha(sha)`. `<CommitDiffModal>`
+  passes `undefined` while closed so the work only runs on open.
+
+---
+
+## `useDirLastCommits(ownerId, name, headSha, pathNames, entries, commits)`
+
+```ts
+function useDirLastCommits(
+  ownerId: number | string,
+  name: string,
+  headSha: string | undefined,
+  pathNames: string[],          // the current folder path, e.g. ["src", "lib"]
+  entries: TreeEntry[] | undefined,
+  commits: Commit[] | undefined, // seeds the commit cache to avoid refetches
+): UseQueryResult<Record<string, Commit | null>>;
+```
+
+The per-file "last commit" blame behind the file explorer's table columns
+(name · last commit message · relative time). Also computed client-side:
+
+- Walks the branch's **first-parent history** from `headSha`, resolving the
+  current directory's tree on each side and comparing child SHAs. When an
+  entry's SHA changes between a commit and its parent, that commit is the one
+  that last touched it.
+- Stops as soon as every visible entry is attributed (a guard caps the walk at
+  400 commits). Unresolved entries map to `null`, and the UI falls back to
+  showing the entry SHA.
+- Returns a map of `entryName → Commit | null`.
+- Key: `["git", "dir-commits", String(ownerId), name, headSha, path]` plus the
+  entry count; `staleTime: 5 minutes`.
+
+---
+
 ## `isEmptySha(sha)`
 
 Helper exported from `use-git.ts` (lives there because it's tightly coupled

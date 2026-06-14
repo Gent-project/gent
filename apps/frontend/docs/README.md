@@ -4,9 +4,13 @@ Welcome to the documentation for the **Gent Web Frontend** — the Next.js 16
 application that powers `https://gent.app` and talks to the Django REST API at
 `https://gent-api.onrender.com/api/`.
 
-This `docs/` folder is the long-form companion to the project's top-level
-`README.md`. If the README tells you *how to run it*, the docs tell you
-*how it is built, why it is built that way, and how to extend it*.
+This `docs/` folder is the long-form companion to the app's `README.md`. If the
+README tells you *how to run it*, the docs tell you *how it is built, why it is
+built that way, and how to extend it*.
+
+> **Location.** The frontend lives at **`apps/frontend/`** inside the Gent
+> monorepo (alongside `apps/Cli/` and `apps/server/`). All paths and commands in
+> these docs are relative to `apps/frontend/` unless stated otherwise.
 
 ---
 
@@ -43,33 +47,34 @@ self-contained and links to the others. Jump to whatever you need.
 ## Quick map of the codebase
 
 ```
-gent/                                  ← frontend project root
-├─ docs/                                ← you are here
-├─ src/
-│  ├─ app/                              ← Next.js App Router routes
-│  ├─ components/
-│  │  ├─ ui/                            ← primitive design-system components
-│  │  ├─ layout/                        ← page shells (marketing, auth, app)
-│  │  ├─ features/                      ← domain-specific composed components
-│  │  └─ providers/                     ← Redux + TanStack Query glue
-│  ├─ hooks/                            ← `useAuth`, `useRepos`, `useGit`, `useTheme`
-│  ├─ services/                         ← typed REST wrappers
-│  ├─ lib/                              ← `api-client`, `paths`, `utils`, `cli-commands`
-│  ├─ store/                            ← Redux slices (auth, theme)
-│  └─ types/                            ← `api.ts` — single source of truth for API shapes
-├─ public/                              ← static assets
-├─ next.config.ts
-├─ tailwind.config.* (Tailwind v4 — config-less, via PostCSS plugin)
-├─ tsconfig.json
-└─ package.json
+gent/                                   ← monorepo root (apps/Cli, apps/server, apps/frontend)
+└─ apps/frontend/                       ← THIS app (frontend project root)
+   ├─ docs/                             ← you are here
+   ├─ src/
+   │  ├─ app/                           ← Next.js App Router routes
+   │  ├─ components/
+   │  │  ├─ ui/                         ← primitive design-system components
+   │  │  ├─ layout/                     ← page shells (marketing, auth, app)
+   │  │  ├─ features/                   ← domain-specific composed components
+   │  │  └─ providers/                  ← Redux + TanStack Query glue
+   │  ├─ hooks/                         ← `useAuth`, `useRepos`, `useGit`, `useTheme`
+   │  ├─ services/                      ← typed REST wrappers
+   │  ├─ lib/                           ← `api-client`, `paths`, `utils`, `diff`, `cli-commands`
+   │  ├─ store/                         ← Redux slices (auth, theme)
+   │  └─ types/                         ← `api.ts` — single source of truth for API shapes
+   ├─ public/                           ← static assets
+   ├─ next.config.ts
+   ├─ tailwind.config.* (Tailwind v4 — config-less, via PostCSS plugin)
+   ├─ tsconfig.json
+   └─ package.json
 ```
 
 ---
 
 ## Conventions used in these docs
 
-- **File paths** are written relative to the frontend project root unless
-  otherwise stated.
+- **File paths** are written relative to the frontend project root
+  (`apps/frontend/`) unless otherwise stated.
 - **`{ownerId}` and `{name}`** are the two route params that identify a repo
   (e.g. `1/my-app`).
 - A line like `POST /auth/login/` always refers to a path on the Gent REST API

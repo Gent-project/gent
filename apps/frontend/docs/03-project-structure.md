@@ -6,25 +6,47 @@ about to write*.
 
 ---
 
-## Top-level layout
+## Monorepo layout
+
+The frontend lives inside a small monorepo alongside the CLI and the backend.
+The repo root is intentionally thin — it just holds the `apps/` and the deploy
+manifest:
 
 ```
-gent/
+gent/                          ← monorepo root
+├─ apps/
+│  ├─ Cli/                     ← the `gent` CLI (Node)
+│  ├─ server/                  ← the Django REST API
+│  └─ frontend/                ← THIS app (the Next.js web frontend)
+├─ render.yaml                 ← Render deploy manifest (all apps)
+└─ .gitignore
+```
+
+Everything in these docs refers to **`apps/frontend/`** unless stated
+otherwise. All install/run commands are run from that directory (`cd
+apps/frontend`), not the repo root.
+
+---
+
+## App layout (`apps/frontend/`)
+
+```
+apps/frontend/
 ├─ .env.example                ← committed example env vars
 ├─ .env.local                  ← (gitignored) your local overrides
 ├─ .vscode/                    ← shared editor settings
-├─ apps/                       ← sibling apps (Cli/, server/) — not part of the frontend
+├─ components.json             ← shadcn-style component generator config
 ├─ docs/                       ← this folder
+├─ eslint.config.mjs           ← flat ESLint config (Next + TS rules)
 ├─ next.config.ts              ← Next.js config (kept intentionally minimal)
 ├─ next-env.d.ts               ← Next's generated TS shims (do not edit)
 ├─ package.json                ← deps + scripts
 ├─ package-lock.json           ← npm lockfile (committed, authoritative)
 ├─ postcss.config.mjs          ← Tailwind v4 PostCSS plugin
 ├─ public/                     ← static assets served at /
-├─ README.md                   ← short top-level README
+├─ README.md                   ← short app README
 ├─ src/                        ← all application code
-├─ tsconfig.json               ← TS config (path aliases live here)
-└─ tsconfig.tsbuildinfo        ← TS incremental build cache (gitignored ideally)
+└─ tsconfig.json               ← TS config (path aliases live here)
 ```
 
 ---
@@ -89,9 +111,10 @@ src/
 │     │
 │     └─ projects/
 │        ├─ branch-list.tsx
+│        ├─ commit-diff.tsx          ← <CommitDiffPanel> (renders a commit diff)
+│        ├─ commit-diff-modal.tsx    ← <CommitDiffModal> (loads the diff on open)
 │        ├─ commit-timeline.tsx
 │        ├─ create-project-modal.tsx
-│        ├─ file-tree-row.tsx
 │        ├─ file-viewer.tsx
 │        ├─ interactive-guide-modal.tsx
 │        ├─ project-card.tsx
@@ -100,7 +123,8 @@ src/
 ├─ hooks/
 │  ├─ use-auth.ts              ← session + auth mutations
 │  ├─ use-repos.ts             ← repo list / detail / create / delete
-│  ├─ use-git.ts               ← branches / commits / tags / tree / blob
+│  ├─ use-git.ts               ← branches / commits / tags / tree / blob,
+│  │                             plus client-side commit diff + per-file blame
 │  └─ use-theme.ts             ← light/dark with no-flash bootstrap
 │
 ├─ services/
@@ -111,6 +135,7 @@ src/
 ├─ lib/
 │  ├─ api-client.ts            ← axios + token store + 401 refresh logic
 │  ├─ cli-commands.ts          ← canonical data for /cli explorer
+│  ├─ diff.ts                  ← client-side git diff engine (tree + line diff)
 │  ├─ gent-urls.ts             ← CLI clone-URL helpers
 │  ├─ paths.ts                 ← centralized route paths
 │  └─ utils.ts                 ← cn(), timeAgo(), shortSha(), avatarColors(), isBrowser()

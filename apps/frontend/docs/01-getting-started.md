@@ -23,15 +23,19 @@ Linux, or WSL.
 
 ## 2. Clone & install
 
+The frontend lives at `apps/frontend/` inside the Gent monorepo, so `cd` into
+it after cloning — that's where `package.json` and every command below live:
+
 ```bash
 git clone https://github.com/Gent-project/gent.git
-cd gent
+cd gent/apps/frontend
 npm install
 ```
 
 The install pulls roughly 330 packages (`package-lock.json` is committed and
 authoritative — do not delete it). Expect about 25–60 seconds on a fast
-connection.
+connection. Every command in the rest of this guide is run from
+`apps/frontend/`.
 
 ---
 

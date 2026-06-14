@@ -77,6 +77,12 @@ If a user backgrounds the tab, the polling pauses (React Query checks
 `document.visibilityState`). When they come back, the first fetch happens
 immediately, not after another 12s.
 
+**Not everything polls.** Trees and blobs are SHA-addressed and immutable, so
+`useTree` / `useBlob` use a 5-minute `staleTime` and no interval. The
+client-side commit diff (`useCommitDiff`) goes further with `staleTime:
+Infinity` — a commit can never change, so once computed its diff is cached for
+the session. See [10-hooks-reference.md](./10-hooks-reference.md).
+
 ---
 
 ## Query keys
@@ -87,7 +93,7 @@ Every key starts with a namespace string so devtools group them sensibly:
 |-----------|-------------------------------------------------------------------|
 | `auth`    | `["auth", "profile"]`                                             |
 | `repos`   | `["repos"]`, `["repos", ownerId, name]`                           |
-| `git`     | `["git", "branches", ownerId, name]`, `["git", "commit", ..., sha]`|
+| `git`     | `["git", "branches", ownerId, name]`, `["git", "commit", ..., sha]`, `["git", "commit-diff", ..., sha]`, `["git", "dir-commits", ...]` |
 
 For complex modules we centralize keys in an object (`gitKeys` in
 `use-git.ts`) so we never typo a key in two places. For one-off keys we

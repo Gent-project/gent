@@ -8,6 +8,7 @@ hooks, or services.
 | `api-client.ts`   | `api`, `tokenStore`, `API_BASE_URL`, `readApiError`                                       |
 | `paths.ts`        | `PATHS` (all client-side routes)                                                         |
 | `utils.ts`        | `cn`, `timeAgo`, `shortSha`, `avatarColors`, `isBrowser` (and others)                   |
+| `diff.ts`         | `diffTrees`, `diffText`, `blobToText`, `isEmptyTreeSha` + diff types — client-side git diff |
 | `gent-urls.ts`    | `gentCloneUrl(owner, name)` (and possibly more URL helpers for the CLI snippet UI)        |
 | `cli-commands.ts` | `CLI_COMMANDS` — canonical data for the `/cli` explorer                                  |
 
@@ -96,6 +97,35 @@ consistent badge across sessions.
 `typeof window !== "undefined"`. Used in `tokenStore` and any place that
 must guard SSR — even though the app is mostly client-rendered, Next still
 runs module top-level code on the server.
+
+---
+
+## `diff.ts`
+
+The client-side git diff engine. The Gent API serves trees and blobs but has
+**no diff endpoint**, so the web app computes "what changed" itself. Everything
+here is pure except for an injected `getTree` accessor (which wraps
+`gitService.tree`), which keeps it cache-friendly and testable.
+
+```ts
+import { diffTrees, diffText, blobToText, isEmptyTreeSha } from "@/lib/diff";
+```
+
+- **`diffTrees(getTree, oldSha, newSha)`** — walks two trees in lock-step,
+  descending only into subtrees whose SHA differs (identical subtrees are
+  pruned, exactly how git skips unchanged directories), and returns a flat
+  `RawFileChange[]` of `added` / `removed` / `modified` files. A `null` side
+  means "no tree" (e.g. the first commit has no parent).
+- **`diffText(oldText, newText)`** — an LCS line diff that returns unified-style
+  hunks (`@@ … @@`) with old/new line numbers and `additions` / `deletions`
+  counts. Skips the O(n·m) diff for very large files (`tooLarge`).
+- **`blobToText(blob)`** — decodes a `utf-8` blob to text; treats `base64` as
+  binary (not shown).
+- **`isEmptyTreeSha(sha)`** — the all-zeros sentinel check, for trees (the
+  sibling of `isEmptySha` in `use-git.ts`, which guards branch/blob shas).
+
+Consumed by `useCommitDiff` (whole-commit diff) and `useDirLastCommits`
+(per-file blame) in `src/hooks/use-git.ts`; rendered by `<CommitDiffPanel>`.
 
 ---
 
