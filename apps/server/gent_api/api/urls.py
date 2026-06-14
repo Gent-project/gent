@@ -37,6 +37,7 @@ urlpatterns = [
     # Commit endpoints
     path('repos/<int:owner_id>/<str:repo_name>/commits/', views.commit_list, name='commit-list'),
     path('repos/<int:owner_id>/<str:repo_name>/commits/create/', views.commit_create, name='commit-create'),
+    path('repos/<int:owner_id>/<str:repo_name>/commits/<str:sha>/diff/', views.commit_diff, name='commit-diff'),
     path('repos/<int:owner_id>/<str:repo_name>/commits/<str:sha>/', views.commit_detail, name='commit-detail'),
 
     # Object endpoints
