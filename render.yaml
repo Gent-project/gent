@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: gent-api
+    env: docker
+    region: oregon
+    plan: free
+    dockerContext: apps/server/gent_api
+    dockerfilePath: apps/server/gent_api/Dockerfile
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: CORS_ALLOW_ALL_ORIGINS
+        value: True
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gent-db
+          property: connectionString
+
+databases:
+  - name: gent-db
+    databaseName: gent_api
+    user: gent_user
+    plan: free
+    ipAllowList: []

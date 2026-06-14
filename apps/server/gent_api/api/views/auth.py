@@ -5,20 +5,22 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from django.contrib.auth import authenticate
-from .models import User
-from .serializers import (
+from api.serializers import (
     UserRegistrationSerializer,
     UserSerializer,
-    UserProfileUpdateSerializer
+    UserProfileUpdateSerializer,
 )
 
 
+@extend_schema(
+    responses={200: OpenApiTypes.OBJECT},
+    summary='API Root',
+    description='Returns a welcome message and lists all available API endpoints.'
+)
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def api_root(request):
-    """
-    API root endpoint
-    """
+    """API root endpoint"""
     return Response({
         'message': 'Welcome to Gent API',
         'endpoints': {
@@ -28,6 +30,37 @@ def api_root(request):
                 'logout': '/api/auth/logout/',
                 'profile': '/api/auth/profile/',
                 'token_refresh': '/api/auth/token/refresh/',
+            },
+            'repositories': {
+                'list': '/api/repos/',
+                'create': '/api/repos/create/',
+                'detail': '/api/repos/{owner_id}/{repo_name}/',
+                'delete': '/api/repos/{owner_id}/{repo_name}/delete/',
+            },
+            'branches': {
+                'list': '/api/repos/{owner_id}/{repo_name}/branches/',
+                'create': '/api/repos/{owner_id}/{repo_name}/branches/create/',
+                'detail': '/api/repos/{owner_id}/{repo_name}/branches/{branch_name}/',
+            },
+            'commits': {
+                'list': '/api/repos/{owner_id}/{repo_name}/commits/',
+                'create': '/api/repos/{owner_id}/{repo_name}/commits/create/',
+                'detail': '/api/repos/{owner_id}/{repo_name}/commits/{sha}/',
+            },
+            'tags': {
+                'list': '/api/repos/{owner_id}/{repo_name}/tags/',
+                'create': '/api/repos/{owner_id}/{repo_name}/tags/create/',
+                'delete': '/api/repos/{owner_id}/{repo_name}/tags/{tag_name}/',
+            },
+            'objects': {
+                'tree_create': '/api/repos/{owner_id}/{repo_name}/tree/create/',
+                'tree': '/api/repos/{owner_id}/{repo_name}/tree/{sha}/',
+                'blob_create': '/api/repos/{owner_id}/{repo_name}/blob/create/',
+                'blob': '/api/repos/{owner_id}/{repo_name}/blob/{sha}/',
+            },
+            'sync': {
+                'push': '/api/repos/{owner_id}/{repo_name}/push/',
+                'pull': '/api/repos/{owner_id}/{repo_name}/pull/?branch={name}&since={sha}',
             },
             'documentation': {
                 'swagger': '/api/docs/',
@@ -61,18 +94,7 @@ def api_root(request):
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def register(request):
-    """
-    Register a new user.
-    
-    POST /api/auth/register/
-    Body: {
-        "email": "user@example.com",
-        "password": "securepassword",
-        "password_confirm": "securepassword",
-        "first_name": "John",
-        "last_name": "Doe"
-    }
-    """
+    """Register a new user."""
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
@@ -116,15 +138,7 @@ def register(request):
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def login(request):
-    """
-    Login a user and return JWT tokens.
-    
-    POST /api/auth/login/
-    Body: {
-        "email": "user@example.com",
-        "password": "securepassword"
-    }
-    """
+    """Login a user and return JWT tokens."""
     email = request.data.get('email')
     password = request.data.get('password')
 
@@ -135,7 +149,7 @@ def login(request):
         )
 
     user = authenticate(request, username=email, password=password)
-    
+
     if user is None:
         return Response(
             {'error': 'Invalid email or password'},
@@ -176,17 +190,7 @@ def login(request):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def logout(request):
-    """
-    Logout a user by blacklisting the refresh token.
-    
-    POST /api/auth/logout/
-    Headers: {
-        "Authorization": "Bearer <access_token>"
-    }
-    Body: {
-        "refresh": "<refresh_token>"
-    }
-    """
+    """Logout a user by blacklisting the refresh token."""
     try:
         refresh_token = request.data.get('refresh')
         if refresh_token:
@@ -200,7 +204,7 @@ def logout(request):
             {'error': 'Refresh token is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    except Exception as e:
+    except Exception:
         return Response(
             {'error': 'Invalid token'},
             status=status.HTTP_400_BAD_REQUEST
@@ -223,20 +227,11 @@ def logout(request):
 @api_view(['GET', 'PUT', 'PATCH'])
 @permission_classes([permissions.IsAuthenticated])
 def profile(request):
-    """
-    Get or update user profile.
-    
-    GET /api/auth/profile/ - Get current user profile
-    PUT /api/auth/profile/ - Update user profile (full update)
-    PATCH /api/auth/profile/ - Update user profile (partial update)
-    Headers: {
-        "Authorization": "Bearer <access_token>"
-    }
-    """
+    """Get or update user profile."""
     if request.method == 'GET':
         serializer = UserSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
     elif request.method in ['PUT', 'PATCH']:
         serializer = UserProfileUpdateSerializer(
             request.user,
