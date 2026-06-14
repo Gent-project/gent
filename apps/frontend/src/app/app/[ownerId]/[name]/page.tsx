@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommitTimeline } from "@/components/features/projects/commit-timeline";
+import { CommitDiffModal } from "@/components/features/projects/commit-diff-modal";
 import { BranchList } from "@/components/features/projects/branch-list";
 import { TagList } from "@/components/features/projects/tag-list";
 import { useDeleteRepo, useRepoDetail } from "@/hooks/use-repos";
@@ -68,6 +69,7 @@ export default function ProjectDetailPage({ params }: { params: Params }) {
 
   const [tab, setTab] = useState<Tab>("commits");
   const [copied, setCopied] = useState(false);
+  const [diffSha, setDiffSha] = useState<string | null>(null);
   const [guide, setGuide] = useState<{ open: boolean; kind: GuideKind; branch?: string }>({
     open: false,
     kind: "clone",
@@ -253,7 +255,11 @@ export default function ProjectDetailPage({ params }: { params: Params }) {
           transition={{ duration: 0.2 }}
         >
           {tab === "commits" && (
-            <CommitTimeline commits={commits.data} isLoading={commits.isLoading} />
+            <CommitTimeline
+              commits={commits.data}
+              isLoading={commits.isLoading}
+              onSelect={(c) => setDiffSha(c.sha)}
+            />
           )}
           {tab === "branches" && (
             <BranchList
@@ -277,6 +283,14 @@ export default function ProjectDetailPage({ params }: { params: Params }) {
         repoName={repo.name}
         defaultBranch={repo.default_branch}
         targetBranch={guide.branch}
+      />
+
+      <CommitDiffModal
+        open={!!diffSha}
+        onClose={() => setDiffSha(null)}
+        ownerId={ownerIdNum}
+        name={name}
+        sha={diffSha}
       />
     </AppShell>
   );

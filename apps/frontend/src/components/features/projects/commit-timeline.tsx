@@ -1,13 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { GitCommit, User2 } from "lucide-react";
+import { ChevronRight, GitCommit } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { shortSha, timeAgo } from "@/lib/utils";
+import { cn, shortSha, timeAgo } from "@/lib/utils";
 import type { Commit } from "@/types/api";
 
 /**
@@ -16,13 +16,17 @@ import type { Commit } from "@/types/api";
  * Designed to feel "alive": each row fades up sequentially and the connector
  * dot for the freshest commit gets the marching-ants animation if it was
  * authored in the last minute.
+ *
+ * Pass `onSelect` to make each commit clickable (e.g. to open its diff).
  */
 export function CommitTimeline({
   commits,
   isLoading,
+  onSelect,
 }: {
   commits: Commit[] | undefined;
   isLoading: boolean;
+  onSelect?: (commit: Commit) => void;
 }) {
   if (isLoading) {
     return (
@@ -65,7 +69,23 @@ export function CommitTimeline({
             >
               <GitCommit className="size-4" />
             </span>
-            <Card className="p-4">
+            <Card
+              interactive={!!onSelect}
+              onClick={onSelect ? () => onSelect(c) : undefined}
+              role={onSelect ? "button" : undefined}
+              tabIndex={onSelect ? 0 : undefined}
+              onKeyDown={
+                onSelect
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelect(c);
+                      }
+                    }
+                  : undefined
+              }
+              className={cn("p-4", onSelect && "cursor-pointer")}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-medium text-foreground truncate">{c.message}</p>
@@ -81,9 +101,16 @@ export function CommitTimeline({
                     <span>{timeAgo(c.committed_at)}</span>
                   </div>
                 </div>
-                <code className="rounded-md bg-surface-container px-2 py-1 text-xs font-mono">
-                  {shortSha(c.sha)}
-                </code>
+                <div className="flex shrink-0 items-center gap-2">
+                  <code className="rounded-md bg-surface-container px-2 py-1 text-xs font-mono">
+                    {shortSha(c.sha)}
+                  </code>
+                  {onSelect && (
+                    <span className="hidden items-center gap-0.5 text-xs font-medium text-primary sm:inline-flex">
+                      Changes <ChevronRight className="size-3.5" />
+                    </span>
+                  )}
+                </div>
               </div>
             </Card>
           </motion.li>
