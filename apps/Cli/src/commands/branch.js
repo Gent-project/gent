@@ -148,6 +148,8 @@ async function syncBranchCreate(name, commitSha, gentPath) {
         // Non-fatal: branch created locally even if remote sync fails
         if (error.response?.status === 400) {
             console.log(chalk.gray(`  ⚠ Remote sync skipped (branch may already exist remotely)`));
+        } else if (error.response?.status === 403) {
+            console.log(chalk.yellow(`  ⚠ Remote sync skipped — no write access to this repository`));
         }
     }
 }
@@ -173,6 +175,8 @@ async function syncBranchDelete(name, gentPath) {
     } catch (error) {
         if (error.response?.status === 400) {
             console.log(chalk.gray(`  ⚠ Cannot delete default branch on remote`));
+        } else if (error.response?.status === 403) {
+            console.log(chalk.yellow(`  ⚠ Remote delete skipped — no write access to this repository`));
         } else if (error.response?.status === 404) {
             // Branch didn't exist remotely, that's fine
         }

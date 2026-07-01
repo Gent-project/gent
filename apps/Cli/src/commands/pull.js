@@ -11,13 +11,10 @@
  *   gent pull                          → Pull from origin/current-branch
  *   gent pull <remote> <branch>        → Pull specific remote/branch
  *
- * ALGORITHM (client-side, no /pull/ endpoint):
- *   1. GET .../branches/{branch}/ → get remote branch head SHA
- *   2. GET .../commits/ → list all remote commits
- *   3. Diff local vs remote commits, find new ones
- *   4. For each new commit, fetch tree + blobs via individual endpoints
- *   5. Store objects locally
- *   6. If diverged: run 3-way merge. If fast-forward: advance pointer
+ * ALGORITHM:
+ *   1. GET .../pull/?branch=&since= → { commits, objects (base64), head } in one call
+ *   2. Store objects locally, add new commits to the local store
+ *   3. If diverged: run 3-way merge. If fast-forward: advance the pointer
  *
  * ============================================================================
  */
@@ -30,7 +27,7 @@ const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
 const { COMMITS_FILE, CONFIG_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
-const { storeBlob, objectExists, readBlob, readBlobAsString, decodeRemoteBlobContent } = require('../utils/hash-engine');
+const { storeBlob, readBlob } = require('../utils/hash-engine');
 const { findMergeBase, mergeTreeEntries } = require('../utils/merge-engine');
 const { generateCommitHash } = require('../utils/helpers');
 
@@ -73,104 +70,48 @@ async function pull(remoteName, branchName, options) {
         const branch = branchName || repository.currentBranch;
         const localHead = repository.branches[branch] || null;
 
-        // 1. Get remote branch info to find remote HEAD
-        spinner.text = `Fetching branch info for ${branch}...`;
-        let remoteHead;
+        // 1. Fetch commits + objects for this branch in a single call. `since`
+        //    lets the server send only what we don't have on a fast-forward.
+        spinner.text = `Fetching updates for ${branch}...`;
+        let pullData;
         try {
-            const branchInfo = await apiClient.get(
-                buildRepoUrl(API_ENDPOINTS.REPO_BRANCH_DETAIL, { ...repoInfo, branch_name: branch })
-            );
-            remoteHead = branchInfo.commit_sha;
+            const pullUrl = buildRepoUrl(API_ENDPOINTS.REPO_PULL, repoInfo);
+            const query = localHead
+                ? `?branch=${encodeURIComponent(branch)}&since=${encodeURIComponent(localHead)}`
+                : `?branch=${encodeURIComponent(branch)}`;
+            pullData = await apiClient.get(pullUrl + query);
         } catch (error) {
             if (error.response?.status === 404) {
                 spinner.succeed(chalk.green('Remote branch not found — nothing to pull'));
                 return;
             }
+            if (error.response?.status === 403) {
+                spinner.fail(chalk.red('Access denied — you are not a member of this private repository'));
+                return;
+            }
             throw error;
         }
 
+        const remoteHead = pullData.head;
+        config.remoteRefs = config.remoteRefs || {};
+
         if (!remoteHead || remoteHead === localHead) {
-            spinner.succeed(chalk.green('Already up-to-date'));
-            return;
-        }
-
-        // 2. Fetch all remote commits
-        spinner.text = `Fetching commits...`;
-        const remoteCommits = await apiClient.get(
-            buildRepoUrl(API_ENDPOINTS.REPO_COMMITS, repoInfo)
-        );
-
-        // 3. Find commits we don't have locally
-        const localCommitSet = new Set((repository.commits || []).map(c => c.hash || c.sha));
-        const newRemoteCommits = remoteCommits.filter(c => !localCommitSet.has(c.sha));
-
-        if (newRemoteCommits.length === 0) {
-            // We have all commits but pointer is different — update ref
-            config.remoteRefs = config.remoteRefs || {};
-            config.remoteRefs[`${remote}/${branch}`] = remoteHead;
+            if (remoteHead) config.remoteRefs[`${remote}/${branch}`] = remoteHead;
             await writeJSON(path.join(gentPath, CONFIG_FILE), config);
             spinner.succeed(chalk.green('Already up-to-date'));
             return;
         }
 
-        // 4. For each new commit, fetch tree and blobs
-        spinner.text = `Fetching ${newRemoteCommits.length} new commit(s) + objects...`;
-
-        const fetchedCommits = [];
-        for (const commit of newRemoteCommits) {
-            // Fetch tree for this commit
-            let treeEntries = [];
-            if (commit.tree_sha) {
-                try {
-                    const tree = await apiClient.get(
-                        buildRepoUrl(API_ENDPOINTS.REPO_TREE_DETAIL, { ...repoInfo, sha: commit.tree_sha })
-                    );
-                    treeEntries = tree.entries || [];
-                } catch {
-                    // Tree may not be available
-                }
-            }
-
-            // Fetch and store blobs
-            for (const entry of treeEntries) {
-                if (entry.type === 'blob' && entry.sha) {
-                    if (!(await objectExists(gentPath, entry.sha))) {
-                        try {
-                            const blob = await apiClient.get(
-                                buildRepoUrl(API_ENDPOINTS.REPO_BLOB_DETAIL, { ...repoInfo, sha: entry.sha })
-                            );
-                            if (blob.content) {
-                                const buf = decodeRemoteBlobContent(blob.content, entry.sha);
-                                await storeBlob(gentPath, buf);
-                            }
-                        } catch {
-                            // Blob fetch failed, continue
-                        }
-                    }
-                }
-            }
-
-            // Convert remote commit format to local format
-            fetchedCommits.push({
-                hash: commit.sha,
-                message: commit.message,
-                author: { name: commit.author_name, email: commit.author_email },
-                timestamp: commit.committed_at,
-                parent: commit.parent_shas && commit.parent_shas[0] || null,
-                mergeParent: commit.parent_shas && commit.parent_shas[1] || null,
-                treeHash: commit.tree_sha,
-                tree: treeEntries.map(e => ({
-                    mode: e.mode || '100644',
-                    name: e.name,
-                    hash: e.sha,
-                    type: e.type || 'blob'
-                })),
-                files: treeEntries.map(e => ({ path: e.name, hash: e.sha })),
-                stats: {}
-            });
+        // 2. Store blob objects (base64) into the local object store.
+        spinner.text = 'Storing objects...';
+        for (const obj of pullData.objects || []) {
+            if (obj.type !== 'blob' || typeof obj.data !== 'string') continue;
+            await storeBlob(gentPath, Buffer.from(obj.data, 'base64'));
         }
 
-        // 5. Add new commits to local store (dedup)
+        // 3. Add new remote commits to the local store (dedup by hash). The
+        //    server returns them in the CLI's native commit shape already.
+        const fetchedCommits = pullData.commits || [];
         let newCount = 0;
         const commitSet = new Set((repository.commits || []).map(c => c.hash));
         for (const commit of fetchedCommits) {
@@ -182,9 +123,7 @@ async function pull(remoteName, branchName, options) {
             }
         }
 
-        // 6. Merge strategy
-        config.remoteRefs = config.remoteRefs || {};
-
+        // 4. Merge strategy
         if (!localHead || isAncestor(repository.commits, localHead, remoteHead)) {
             // Fast-forward
             const previousTree = localHead ? getCommitTree(repository.commits, localHead) : [];
@@ -224,7 +163,7 @@ async function pull(remoteName, branchName, options) {
             const mergeCommit = {
                 hash: generateCommitHash(),
                 message: `Merge remote-tracking branch '${remote}/${branch}'`,
-                author: (repository.commits.find(c => c.hash === localHead) || {}).author || { name: 'Unknown', email: '' },
+                author: (repository.commits.find(c => c.hash === localHead) || {}).author || { name: 'Unknown', email: (await authStorage.getUser())?.email || '' },
                 timestamp: new Date().toISOString(),
                 parent: localHead,
                 mergeParent: remoteHead,
@@ -259,6 +198,8 @@ async function pull(remoteName, branchName, options) {
         spinner.fail(chalk.red('Pull failed'));
         if (error.response?.status === 401) {
             console.error(chalk.red('Authentication failed — run "gent login"'));
+        } else if (error.response?.status === 403) {
+            console.error(chalk.red('Access denied — you are not a member of this private repository'));
         } else if (error.response?.data) {
             console.error(chalk.red(JSON.stringify(error.response.data)));
         } else {

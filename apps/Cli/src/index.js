@@ -14,8 +14,8 @@
  *   Branching:   branch, checkout, merge, resolve, stash
  *   Safety:      undo, redo
  *   Insight:     summary, ask, review, docs, changelog
- *   Remote:      remote, repos, push, pull, search, web, share
- *   Auth:        register, login, logout, whoami
+ *   Remote:      remote, repos, members, push, pull, search, web, share
+ *   Auth:        register, login, logout, whoami, password
  *   AI:          ai (status|test|models)
  *   Templates:   template (list|use)
  *
@@ -50,6 +50,7 @@ const remoteCommand = require('./commands/remote');
 const pushCommand = require('./commands/push');
 const pullCommand = require('./commands/pull');
 const reposCommand = require('./commands/repos');
+const membersCommand = require('./commands/members');
 const undoCommand = require('./commands/undo');
 const resolveCommand = require('./commands/resolve');
 const summaryCommand = require('./commands/summary');
@@ -60,6 +61,7 @@ const registerCommand = require('./commands/register');
 const loginCommand = require('./commands/login');
 const logoutCommand = require('./commands/logout');
 const whoamiCommand = require('./commands/whoami');
+const passwordCommand = require('./commands/password');
 
 // Import new gent-platform commands
 const configCommand = require('./commands/config');
@@ -242,6 +244,12 @@ program
     .action(reposCommand);
 
 program
+    .command('members [action] [email]')
+    .description('Manage repo collaborators (list | add <email> | remove <email>)')
+    .option('--role <role>', 'Role when adding a member: write or read', 'write')
+    .action(membersCommand);
+
+program
     .command('push [remote] [branch]')
     .description('Push local commits to remote')
     .option('-f, --force', 'Force push (overwrite remote)')
@@ -357,6 +365,12 @@ program
     .command('whoami')
     .description('Display current user information')
     .action(whoamiCommand);
+
+program
+    .command('password [action]')
+    .description('Change or reset your password (change | reset [email] | reset-confirm)')
+    .option('-e, --email <email>', 'Account email (for reset)')
+    .action(passwordCommand);
 
 // Help command
 program

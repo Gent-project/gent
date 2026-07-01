@@ -138,10 +138,9 @@ async function refreshToken() {
             refresh: refreshToken
         });
 
-        const { access } = response;
-
-        // Update only access token
-        await authStorage.updateAccessToken(access);
+        // Backend rotates refresh tokens, so persist the new one too.
+        const { access, refresh } = response;
+        await authStorage.updateTokens(access, refresh);
 
         return access;
     } catch (error) {

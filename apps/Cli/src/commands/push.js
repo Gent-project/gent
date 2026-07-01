@@ -178,16 +178,38 @@ async function push(remoteName, branchName, options) {
             }
         }
 
-        // Build commits for the pack
+        // Build commits for the pack. author_email must satisfy the backend's
+        // EmailField(required=True); fall back to the logged-in user's email so
+        // merge/legacy commits with a blank email don't 400 the whole push.
+        const fallbackEmail = (await authStorage.getUser())?.email || '';
         const packCommits = commitsToPush.map(c => ({
             sha: c.hash,
             message: c.message,
             tree_sha: c.treeHash || '',
             parent_shas: [c.parent, c.mergeParent].filter(Boolean),
-            author_name: typeof c.author === 'object' ? (c.author.name || 'Unknown') : (c.author || 'Unknown'),
-            author_email: typeof c.author === 'object' ? (c.author.email || '') : '',
+            author_name: (typeof c.author === 'object' ? c.author.name : c.author) || 'Unknown',
+            author_email: (typeof c.author === 'object' ? c.author.email : '') || fallbackEmail,
             committed_at: c.timestamp || new Date().toISOString()
         }));
+
+        // Only send tags whose target commit will exist on the remote after this
+        // push (in this pack, or reachable from an already-pushed remote ref).
+        // The backend validates every tag's commit and atomically 400s the whole
+        // push for any tag pointing at a commit it doesn't have.
+        const pushableShas = new Set(commitsToPush.map(c => c.hash));
+        const commitByHash = new Map(commits.map(c => [c.hash, c]));
+        for (const [refName, refHead] of Object.entries(config.remoteRefs || {})) {
+            if (!refName.startsWith(`${remote}/`)) continue;
+            let cur = refHead;
+            while (cur && !pushableShas.has(cur)) {
+                pushableShas.add(cur);
+                cur = commitByHash.get(cur)?.parent || null;
+            }
+        }
+        const tagsToPush = {};
+        for (const [name, tag] of Object.entries(repository.tags || {})) {
+            if (tag && tag.hash && pushableShas.has(tag.hash)) tagsToPush[name] = tag;
+        }
 
         // Build push payload matching PushPackRequest schema
         const payload = {
@@ -200,7 +222,7 @@ async function push(remoteName, branchName, options) {
                 name: branch,
                 commit_sha: localHead
             }],
-            tags: repository.tags || {}
+            tags: tagsToPush
         };
 
         // Send to backend
@@ -224,7 +246,7 @@ async function push(remoteName, branchName, options) {
         } else if (error.response?.status === 401) {
             console.error(chalk.red('Authentication failed — run "gent login"'));
         } else if (error.response?.status === 403) {
-            console.error(chalk.red('Permission denied — only repo owner can push'));
+            console.error(chalk.red(error.response.data?.error || error.response.data?.detail || 'Permission denied — you need write access to this repository'));
         } else if (error.response?.data) {
             console.error(chalk.red(JSON.stringify(error.response.data, null, 2)));
         } else {

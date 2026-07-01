@@ -41,7 +41,7 @@ async function search(query, options = {}) {
         const filtered = repos.filter(r => {
             if (options.mine && myId && r.owner_id !== myId) return false;
             if (!q) return true;
-            const haystack = [r.name, r.description, r.owner_name, r.owner_email]
+            const haystack = [r.name, r.description, r.owner_email]
                 .filter(Boolean).join(' ').toLowerCase();
             return haystack.includes(q);
         });

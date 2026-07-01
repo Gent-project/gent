@@ -11,15 +11,12 @@
  *   gent clone <url>                   → Clone into folder named after repo
  *   gent clone <url> <directory>       → Clone into specific directory
  *
- * ALGORITHM (client-side, no /clone/ endpoint):
+ * ALGORITHM:
  *   1. Parse URL to get owner_id + repo_name
- *   2. GET repo details → name, description, default_branch
- *   3. GET branches list → all branch names + SHAs
- *   4. GET commits list → all commits
- *   5. For each commit, fetch tree + blobs
- *   6. Create .gent/ directory structure
- *   7. Store all objects locally
- *   8. Checkout HEAD (restore working tree from latest commit)
+ *   2. GET /clone/ → full snapshot (commits, base64 objects, branches, tags)
+ *   3. Create .gent/ structure + store objects locally
+ *   4. Write commits.json / config / HEAD / staging
+ *   5. Checkout the default branch's tree
  *
  * ============================================================================
  */
@@ -32,7 +29,7 @@ const { ensureDir, writeJSON, pathExists } = require('../utils/fileSystem');
 const { GENT_DIR, CONFIG_FILE, STAGING_FILE, COMMITS_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
-const { storeBlob, readBlob, decodeRemoteBlobContent } = require('../utils/hash-engine');
+const { storeBlob, readBlob } = require('../utils/hash-engine');
 
 /**
  * Clone remote repository
@@ -65,14 +62,14 @@ async function clone(url, directory, options) {
             return;
         }
 
-        // 1. Get repo details
-        spinner.text = 'Fetching repository info...';
-        const repoDetail = await apiClient.get(
-            buildRepoUrl(API_ENDPOINTS.REPO_DETAIL, repoInfo)
+        // Fetch the full repository snapshot in one call.
+        spinner.text = 'Fetching repository...';
+        const payload = await apiClient.get(
+            buildRepoUrl(API_ENDPOINTS.REPO_CLONE, repoInfo)
         );
 
-        const repoName = repoDetail.name || repoInfo.repo_name;
-        const defaultBranch = repoDetail.default_branch || 'main';
+        const repoName = payload.name || repoInfo.repo_name;
+        const defaultBranch = payload.currentBranch || 'main';
         const targetDir = directory || repoName;
         const targetPath = path.resolve(process.cwd(), targetDir);
 
@@ -84,39 +81,6 @@ async function clone(url, directory, options) {
             }
         }
 
-        // 2. Get branches
-        spinner.text = 'Fetching branches...';
-        let remoteBranches = [];
-        try {
-            remoteBranches = await apiClient.get(
-                buildRepoUrl(API_ENDPOINTS.REPO_BRANCHES, repoInfo)
-            );
-        } catch {
-            // No branches yet
-        }
-
-        // 3. Get all commits
-        spinner.text = 'Fetching commits...';
-        let remoteCommits = [];
-        try {
-            remoteCommits = await apiClient.get(
-                buildRepoUrl(API_ENDPOINTS.REPO_COMMITS, repoInfo)
-            );
-        } catch {
-            // No commits yet
-        }
-
-        // 4. Get tags
-        spinner.text = 'Fetching tags...';
-        let remoteTags = [];
-        try {
-            remoteTags = await apiClient.get(
-                buildRepoUrl(API_ENDPOINTS.REPO_TAGS, repoInfo)
-            );
-        } catch {
-            // No tags
-        }
-
         // Create directory structure
         spinner.text = 'Setting up repository...';
         const gentPath = path.join(targetPath, GENT_DIR);
@@ -125,100 +89,33 @@ async function clone(url, directory, options) {
         await ensureDir(path.join(gentPath, 'refs', 'heads'));
         await ensureDir(path.join(gentPath, 'refs', 'tags'));
 
-        // 5. For each commit, fetch tree and blobs
-        const localCommits = [];
+        // Store blob objects (base64) into the local object store.
+        spinner.text = 'Storing objects...';
         let objectCount = 0;
-
-        for (let i = 0; i < remoteCommits.length; i++) {
-            const commit = remoteCommits[i];
-            spinner.text = `Fetching objects (${i + 1}/${remoteCommits.length})...`;
-
-            let treeEntries = [];
-            if (commit.tree_sha) {
-                try {
-                    const tree = await apiClient.get(
-                        buildRepoUrl(API_ENDPOINTS.REPO_TREE_DETAIL, { ...repoInfo, sha: commit.tree_sha })
-                    );
-                    treeEntries = tree.entries || [];
-                } catch {
-                    // Tree not available
-                }
-            }
-
-            // Fetch and store blobs
-            for (const entry of treeEntries) {
-                if (entry.type === 'blob' && entry.sha) {
-                    try {
-                        const blob = await apiClient.get(
-                            buildRepoUrl(API_ENDPOINTS.REPO_BLOB_DETAIL, { ...repoInfo, sha: entry.sha })
-                        );
-                        if (blob.content) {
-                            const buf = decodeRemoteBlobContent(blob.content, entry.sha);
-                            await storeBlob(gentPath, buf);
-                            objectCount++;
-                        }
-                    } catch {
-                        // Blob fetch failed
-                    }
-                }
-            }
-
-            // Convert to local commit format
-            localCommits.push({
-                hash: commit.sha,
-                message: commit.message,
-                author: { name: commit.author_name, email: commit.author_email },
-                timestamp: commit.committed_at,
-                parent: commit.parent_shas && commit.parent_shas[0] || null,
-                mergeParent: commit.parent_shas && commit.parent_shas[1] || null,
-                treeHash: commit.tree_sha,
-                tree: treeEntries.map(e => ({
-                    mode: e.mode || '100644',
-                    name: e.name,
-                    hash: e.sha,
-                    type: e.type || 'blob'
-                })),
-                files: treeEntries.map(e => ({ path: e.name, hash: e.sha })),
-                stats: {}
-            });
+        for (const obj of payload.objects || []) {
+            if (obj.type !== 'blob' || typeof obj.data !== 'string') continue;
+            await storeBlob(gentPath, Buffer.from(obj.data, 'base64'));
+            objectCount++;
         }
 
-        // Build branches map
-        const branches = {};
-        for (const b of remoteBranches) {
-            branches[b.name] = b.commit_sha;
-        }
-        if (!branches[defaultBranch]) {
-            branches[defaultBranch] = null;
-        }
-
-        // Build tags map
-        const tagsMap = {};
-        for (const t of remoteTags) {
-            tagsMap[t.name] = {
-                hash: t.commit_sha,
-                message: t.message || '',
-                annotated: t.annotated || false,
-                tagger: { name: t.tagger_name || '', email: t.tagger_email || '' },
-                timestamp: t.created_at
-            };
-        }
+        const localCommits = payload.commits || [];
+        const branches = payload.branches || {};
+        if (!(defaultBranch in branches)) branches[defaultBranch] = null;
 
         // Write commits.json
-        const repoData = {
+        await writeJSON(path.join(gentPath, COMMITS_FILE), {
             commits: localCommits,
             branches,
             currentBranch: defaultBranch,
-            tags: tagsMap
-        };
-        await writeJSON(path.join(gentPath, COMMITS_FILE), repoData);
+            tags: payload.tags || {}
+        });
 
         // Write config with remote
         const config = {
             user: { name: '', email: '' },
             repository: {
                 name: repoName,
-                description: repoDetail.description || '',
+                description: payload.description || '',
                 created: new Date().toISOString()
             },
             remotes: {
@@ -256,12 +153,15 @@ async function clone(url, directory, options) {
                 spinner.text = 'Checking out files...';
                 let fileCount = 0;
                 for (const entry of tree) {
+                    if (entry.type && entry.type !== 'blob') continue;
+                    const relPath = entry.name || entry.path;
+                    if (!relPath || !entry.hash) continue;
                     try {
                         // Write the raw Buffer — not a UTF-8 string. Decoding a
                         // binary blob (PNG, PDF, etc.) as UTF-8 would replace
                         // non-utf-8 bytes with U+FFFD, silently corrupting it.
                         const buf = await readBlob(gentPath, entry.hash);
-                        const fullPath = path.join(targetPath, entry.name || entry.path);
+                        const fullPath = path.join(targetPath, relPath);
                         await fs.mkdir(path.dirname(fullPath), { recursive: true });
                         await fs.writeFile(fullPath, buf);
                         fileCount++;
@@ -285,6 +185,8 @@ async function clone(url, directory, options) {
             console.error(chalk.red('Repository not found'));
         } else if (error.response?.status === 401) {
             console.error(chalk.red('Authentication failed — run "gent login"'));
+        } else if (error.response?.status === 403) {
+            console.error(chalk.red('Access denied — you do not have permission to clone this repository'));
         } else if (error.response?.data) {
             console.error(chalk.red(JSON.stringify(error.response.data)));
         } else {
