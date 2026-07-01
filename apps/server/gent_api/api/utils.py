@@ -2,6 +2,13 @@ import hashlib
 import base64
 from pathlib import Path
 from django.conf import settings
+from django.shortcuts import get_object_or_404
+from django.core.exceptions import PermissionDenied
+from api.models import Repository
+from rest_framework import status
+from rest_framework.response import Response
+
+from api.services.repository_access import user_can_read_repo, user_can_write_repo
 
 
 def calculate_sha256(content):
@@ -13,20 +20,26 @@ def calculate_sha256(content):
 
 def get_repository_or_404(owner_id, repo_name, user):
     """Get repository or 404, checking permissions."""
-    from django.shortcuts import get_object_or_404
-    from django.core.exceptions import PermissionDenied
-    from .models import Repository
-
     repository = get_object_or_404(
-        Repository,
+        Repository.objects.select_related('owner'),
         owner_id=owner_id,
-        name=repo_name
+        name=repo_name,
     )
 
-    if repository.is_private and repository.owner != user:
+    if not user_can_read_repo(user, repository):
         raise PermissionDenied("You don't have access to this repository.")
 
     return repository
+
+
+def require_repo_write(user, repository):
+    """Return a 403 Response if the user lacks write access, else None."""
+    if not user_can_write_repo(user, repository):
+        return Response(
+            {'error': 'You do not have write access to this repository.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return None
 
 
 def save_blob_content(repository, sha, content, encoding='utf-8'):

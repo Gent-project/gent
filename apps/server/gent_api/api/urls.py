@@ -10,6 +10,13 @@ urlpatterns = [
     path('auth/login/', views.login, name='login'),
     path('auth/logout/', views.logout, name='logout'),
     path('auth/profile/', views.profile, name='profile'),
+    path('auth/password/change/', views.password_change, name='password_change'),
+    path('auth/password/reset/', views.password_reset, name='password_reset'),
+    path(
+        'auth/password/reset/confirm/',
+        views.password_reset_confirm,
+        name='password_reset_confirm',
+    ),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # Repository endpoints
@@ -17,6 +24,12 @@ urlpatterns = [
     path('repos/create/', views.repository_create, name='repository-create'),
     path('repos/<int:owner_id>/<str:repo_name>/', views.repository_detail, name='repository-detail'),
     path('repos/<int:owner_id>/<str:repo_name>/delete/', views.repository_delete, name='repository-delete'),
+    path('repos/<int:owner_id>/<str:repo_name>/members/', views.member_list, name='member-list'),
+    path(
+        'repos/<int:owner_id>/<str:repo_name>/members/<int:user_id>/',
+        views.member_remove,
+        name='member-remove',
+    ),
 
     # Branch endpoints
     path('repos/<int:owner_id>/<str:repo_name>/branches/', views.branch_list, name='branch-list'),

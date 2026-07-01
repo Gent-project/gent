@@ -1,15 +1,32 @@
+import logging
+
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import (
+    BlacklistedToken,
+    OutstandingToken,
+)
 from drf_spectacular.utils import extend_schema, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from django.contrib.auth import authenticate
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.conf import settings
+from api.models import User
+from api.services.email import send_password_reset_email
 from api.serializers import (
     UserRegistrationSerializer,
     UserSerializer,
     UserProfileUpdateSerializer,
+    PasswordChangeSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @extend_schema(
@@ -29,6 +46,9 @@ def api_root(request):
                 'login': '/api/auth/login/',
                 'logout': '/api/auth/logout/',
                 'profile': '/api/auth/profile/',
+                'password_change': '/api/auth/password/change/',
+                'password_reset': '/api/auth/password/reset/',
+                'password_reset_confirm': '/api/auth/password/reset/confirm/',
                 'token_refresh': '/api/auth/token/refresh/',
             },
             'repositories': {
@@ -36,6 +56,7 @@ def api_root(request):
                 'create': '/api/repos/create/',
                 'detail': '/api/repos/{owner_id}/{repo_name}/',
                 'delete': '/api/repos/{owner_id}/{repo_name}/delete/',
+                'members': '/api/repos/{owner_id}/{repo_name}/members/',
             },
             'branches': {
                 'list': '/api/repos/{owner_id}/{repo_name}/branches/',
@@ -246,3 +267,96 @@ def profile(request):
                 'user': user_serializer.data
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+def _blacklist_user_refresh_tokens(user):
+    """Blacklist all outstanding refresh tokens for a user."""
+    for token in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=token)
+
+
+@extend_schema(
+    request=PasswordChangeSerializer,
+    responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT},
+    summary='Change password',
+    description='Change the authenticated user\'s password. Blacklists all refresh tokens.'
+)
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def password_change(request):
+    """Change the authenticated user's password."""
+    serializer = PasswordChangeSerializer(
+        data=request.data,
+        context={'request': request},
+    )
+    if serializer.is_valid():
+        serializer.save()
+        _blacklist_user_refresh_tokens(request.user)
+        return Response(
+            {'message': 'Password changed successfully'},
+            status=status.HTTP_200_OK,
+        )
+    if 'current_password' in serializer.errors:
+        return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+PASSWORD_RESET_MESSAGE = (
+    'If an account with that email exists, a password reset link has been sent.'
+)
+
+
+@extend_schema(
+    request=PasswordResetRequestSerializer,
+    responses={200: OpenApiTypes.OBJECT},
+    summary='Request password reset',
+    description='Request a password reset email. Always returns a generic success message.'
+)
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def password_reset(request):
+    """Request a password reset email."""
+    serializer = PasswordResetRequestSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    email = serializer.validated_data['email']
+    try:
+        user = User.objects.get(email=email, is_active=True)
+    except User.DoesNotExist:
+        return Response({'message': PASSWORD_RESET_MESSAGE}, status=status.HTTP_200_OK)
+
+    token_generator = PasswordResetTokenGenerator()
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = token_generator.make_token(user)
+    reset_url = (
+        f'{settings.FRONTEND_URL.rstrip("/")}'
+        f'/auth/reset-password?uid={uid}&token={token}'
+    )
+    try:
+        send_password_reset_email(user, reset_url)
+    except Exception:
+        logger.exception('Failed to send password reset email for %s', email)
+
+    return Response({'message': PASSWORD_RESET_MESSAGE}, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    request=PasswordResetConfirmSerializer,
+    responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT},
+    summary='Confirm password reset',
+    description='Reset password using a signed token from the reset email.'
+)
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def password_reset_confirm(request):
+    """Confirm a password reset with uid and token."""
+    serializer = PasswordResetConfirmSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        _blacklist_user_refresh_tokens(user)
+        return Response(
+            {'message': 'Password reset successfully'},
+            status=status.HTTP_200_OK,
+        )
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

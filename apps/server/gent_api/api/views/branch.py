@@ -6,8 +6,8 @@ from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
 from api.models import Branch, Commit
 from api.serializers import BranchSerializer, BranchCreateSerializer, BranchPatchSerializer
-from api.utils import get_repository_or_404
-from api.permissions import IsRepositoryOwnerByParams
+from api.utils import get_repository_or_404, require_repo_write
+from api.permissions import CanWriteRepositoryByParams
 
 
 @extend_schema(
@@ -32,16 +32,14 @@ def branch_list(request, owner_id, repo_name):
     description='Create a new branch in a repository.'
 )
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated, IsRepositoryOwnerByParams])
+@permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
 def branch_create(request, owner_id, repo_name):
     """Create a new branch."""
     repository = get_repository_or_404(owner_id, repo_name, request.user)
 
-    if repository.owner != request.user:
-        return Response(
-            {'error': 'Only the repository owner can create branches.'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+    write_denied = require_repo_write(request.user, repository)
+    if write_denied:
+        return write_denied
 
     serializer = BranchCreateSerializer(data=request.data)
 
@@ -102,11 +100,9 @@ def branch_detail(request, owner_id, repo_name, branch_name):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PATCH':
-        if repository.owner != request.user:
-            return Response(
-                {'error': 'Only the repository owner can update branches.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        write_denied = require_repo_write(request.user, repository)
+        if write_denied:
+            return write_denied
 
         serializer = BranchPatchSerializer(data=request.data)
         if not serializer.is_valid():
@@ -124,11 +120,9 @@ def branch_detail(request, owner_id, repo_name, branch_name):
         return Response(BranchSerializer(branch).data, status=status.HTTP_200_OK)
 
     elif request.method == 'DELETE':
-        if repository.owner != request.user:
-            return Response(
-                {'error': 'Only the repository owner can delete branches.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        write_denied = require_repo_write(request.user, repository)
+        if write_denied:
+            return write_denied
 
         if branch.name == repository.default_branch:
             return Response(

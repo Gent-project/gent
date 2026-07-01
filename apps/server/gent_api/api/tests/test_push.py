@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.test import TestCase
 from api.models import User, Repository, Branch, Commit, Tree, Blob
+from api.tests.helpers import RepositoryAccessTestMixin
 
 
 class PushAPITestCase(TestCase):
@@ -332,3 +333,34 @@ class PushAPITestCase(TestCase):
             Commit.objects.get(repository=self.repo, sha='commit-child').parent_shas,
             ['commit-base']
         )
+
+
+class PushMemberAccessTestCase(RepositoryAccessTestMixin, TestCase):
+    """Role-matrix tests for push access."""
+
+    def setUp(self):
+        super().setUp()
+        self.push_url = reverse(
+            'push',
+            kwargs={'owner_id': self.owner.id, 'repo_name': 'team-repo'},
+        )
+
+    def test_push_owner_success(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.owner_token}')
+        response = self.client.post(self.push_url, self._build_push_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_push_write_member_success(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.write_token}')
+        response = self.client.post(self.push_url, self._build_push_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_push_read_member_denied(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.read_token}')
+        response = self.client.post(self.push_url, self._build_push_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_push_outsider_denied(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.outsider_token}')
+        response = self.client.post(self.push_url, self._build_push_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

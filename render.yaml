@@ -19,6 +19,14 @@ services:
         fromDatabase:
           name: gent-db
           property: connectionString
+      - key: RESEND_API_KEY
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        value: noreply@yourdomain.com
+      - key: FRONTEND_URL
+        value: https://your-frontend.vercel.app
+      - key: PASSWORD_RESET_TIMEOUT
+        value: "3600"
 
 databases:
   - name: gent-db

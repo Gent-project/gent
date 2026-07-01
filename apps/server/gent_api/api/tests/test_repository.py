@@ -3,7 +3,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.test import TestCase
-from api.models import User, Repository, Branch
+from api.models import User, Repository, Branch, RepositoryMember, RepositoryMemberRole
 
 
 class RepositoryAPITestCase(TestCase):
@@ -67,6 +67,21 @@ class RepositoryAPITestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
 
+    def test_list_repositories_includes_memberships(self):
+        shared_repo = Repository.objects.create(owner=self.user2, name='shared-repo')
+        RepositoryMember.objects.create(
+            repository=shared_repo,
+            user=self.user1,
+            role=RepositoryMemberRole.READ,
+            added_by=self.user2,
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user1_token}')
+        response = self.client.get(self.repo_list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['name'], 'shared-repo')
+        self.assertEqual(response.data[0]['role'], RepositoryMemberRole.READ)
+
     def test_get_repository_detail(self):
         repo = Repository.objects.create(owner=self.user1, name='test-repo')
         url = reverse('repository-detail', kwargs={'owner_id': self.user1.id, 'repo_name': 'test-repo'})
@@ -92,3 +107,54 @@ class RepositoryAPITestCase(TestCase):
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(Repository.objects.filter(id=repo.id).exists())
+
+    def test_write_member_cannot_patch_repository_settings(self):
+        owner = User.objects.create_user(
+            email='repo-owner@example.com',
+            password='testpass123',
+        )
+        writer = User.objects.create_user(
+            email='repo-writer@example.com',
+            password='testpass123',
+        )
+        repo = Repository.objects.create(owner=owner, name='managed-repo', is_private=True)
+        Branch.objects.create(repository=repo, name='main', commit_sha='0' * 64)
+        RepositoryMember.objects.create(
+            repository=repo,
+            user=writer,
+            role=RepositoryMemberRole.WRITE,
+            added_by=owner,
+        )
+        url = reverse(
+            'repository-detail',
+            kwargs={'owner_id': owner.id, 'repo_name': 'managed-repo'},
+        )
+        writer_token = str(RefreshToken.for_user(writer).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {writer_token}')
+        response = self.client.patch(url, {'description': 'Nope'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_public_repo_access_for_authenticated_non_member(self):
+        owner = User.objects.create_user(
+            email='public-owner@example.com',
+            password='testpass123',
+        )
+        outsider = User.objects.create_user(
+            email='public-outsider@example.com',
+            password='testpass123',
+        )
+        Repository.objects.create(
+            owner=owner,
+            name='open-repo',
+            is_private=False,
+        )
+        url = reverse(
+            'repository-detail',
+            kwargs={'owner_id': owner.id, 'repo_name': 'open-repo'},
+        )
+        outsider_token = str(RefreshToken.for_user(outsider).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {outsider_token}')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['name'], 'open-repo')
+        self.assertIsNone(response.data['role'])

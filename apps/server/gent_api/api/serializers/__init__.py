@@ -1,4 +1,11 @@
-from .auth import UserRegistrationSerializer, UserSerializer, UserProfileUpdateSerializer
+from .auth import (
+    UserRegistrationSerializer,
+    UserSerializer,
+    UserProfileUpdateSerializer,
+    PasswordChangeSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer,
+)
 from .repository import RepositorySerializer, RepositoryCreateSerializer
 from .branch import (
     BranchSerializer,
@@ -8,6 +15,7 @@ from .branch import (
 from .commit import CommitSerializer, CommitCreateSerializer
 from .object import TreeSerializer, TreeCreateSerializer, BlobSerializer, BlobCreateSerializer
 from .tag import TagSerializer, TagCreateSerializer
+from .member import RepositoryMemberSerializer, RepositoryMemberAddSerializer
 from .push import (
     PushPackSerializer,
     PushRequestSerializer,
@@ -22,6 +30,9 @@ __all__ = [
     'UserRegistrationSerializer',
     'UserSerializer',
     'UserProfileUpdateSerializer',
+    'PasswordChangeSerializer',
+    'PasswordResetRequestSerializer',
+    'PasswordResetConfirmSerializer',
     'RepositorySerializer',
     'RepositoryCreateSerializer',
     'BranchSerializer',
@@ -35,6 +46,8 @@ __all__ = [
     'BlobCreateSerializer',
     'TagSerializer',
     'TagCreateSerializer',
+    'RepositoryMemberSerializer',
+    'RepositoryMemberAddSerializer',
     'PushPackSerializer',
     'PushRequestSerializer',
     'PushCommitSerializer',

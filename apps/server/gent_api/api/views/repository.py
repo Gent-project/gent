@@ -1,13 +1,15 @@
 import shutil
+from django.db.models import Q, Prefetch
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
-from api.models import Repository, Branch
+from api.models import Repository, Branch, RepositoryMember
 from api.serializers import RepositorySerializer, RepositoryCreateSerializer
 from api.utils import get_repository_or_404
-from api.permissions import IsRepositoryOwnerByParams
+from api.services.repository_access import user_can_manage_repo
+from api.permissions import CanWriteRepositoryByParams
 
 
 @extend_schema(
@@ -19,8 +21,20 @@ from api.permissions import IsRepositoryOwnerByParams
 @permission_classes([permissions.IsAuthenticated])
 def repository_list(request):
     """List user's repositories."""
-    repositories = Repository.objects.filter(owner=request.user)
-    serializer = RepositorySerializer(repositories, many=True)
+    repositories = Repository.objects.filter(
+        Q(owner=request.user) | Q(members__user=request.user)
+    ).distinct().select_related('owner').prefetch_related(
+        Prefetch(
+            'members',
+            queryset=RepositoryMember.objects.filter(user=request.user),
+            to_attr='_user_membership',
+        )
+    )
+    serializer = RepositorySerializer(
+        repositories,
+        many=True,
+        context={'request': request},
+    )
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -60,7 +74,10 @@ def repository_create(request):
         return Response(
             {
                 'message': 'Repository created successfully',
-                'repository': RepositorySerializer(repository).data
+                'repository': RepositorySerializer(
+                    repository,
+                    context={'request': request},
+                ).data
             },
             status=status.HTTP_201_CREATED
         )
@@ -74,17 +91,17 @@ def repository_create(request):
     description='Get details of a specific repository.'
 )
 @api_view(['GET', 'PATCH'])
-@permission_classes([permissions.IsAuthenticated, IsRepositoryOwnerByParams])
+@permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
 def repository_detail(request, owner_id, repo_name):
     """Get or update repository details."""
     repository = get_repository_or_404(owner_id, repo_name, request.user)
 
     if request.method == 'GET':
-        serializer = RepositorySerializer(repository)
+        serializer = RepositorySerializer(repository, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PATCH':
-        if repository.owner != request.user:
+        if not user_can_manage_repo(request.user, repository):
             return Response(
                 {'error': 'Only the repository owner can update it.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -115,12 +132,12 @@ def repository_detail(request, owner_id, repo_name):
     description='Delete a repository. Only the owner can delete.'
 )
 @api_view(['DELETE'])
-@permission_classes([permissions.IsAuthenticated, IsRepositoryOwnerByParams])
+@permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
 def repository_delete(request, owner_id, repo_name):
     """Delete a repository."""
     repository = get_repository_or_404(owner_id, repo_name, request.user)
 
-    if repository.owner != request.user:
+    if not user_can_manage_repo(request.user, repository):
         return Response(
             {'error': 'Only the repository owner can delete it.'},
             status=status.HTTP_403_FORBIDDEN

@@ -86,6 +86,41 @@ class Repository(models.Model):
         return Path(settings.MEDIA_ROOT) / 'repos' / str(self.owner.id) / str(self.id)
 
 
+class RepositoryMemberRole(models.TextChoices):
+    WRITE = 'write', 'Write'
+    READ = 'read', 'Read'
+
+
+class RepositoryMember(models.Model):
+    """Collaborator membership for a repository."""
+    repository = models.ForeignKey(
+        Repository,
+        on_delete=models.CASCADE,
+        related_name='members',
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='repository_memberships',
+    )
+    role = models.CharField(max_length=10, choices=RepositoryMemberRole.choices)
+    added_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='+',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['repository', 'user']
+        verbose_name = 'repository member'
+        verbose_name_plural = 'repository members'
+
+    def __str__(self):
+        return f'{self.user.email} ({self.role}) on {self.repository}'
+
+
 class Branch(models.Model):
     """Repository branch."""
     repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='branches')

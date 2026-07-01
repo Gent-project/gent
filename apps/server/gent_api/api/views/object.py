@@ -8,8 +8,8 @@ from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
 from api.models import Tree, Blob
 from api.serializers import TreeSerializer, TreeCreateSerializer, BlobSerializer, BlobCreateSerializer
-from api.utils import calculate_sha256, save_blob_content, get_repository_or_404
-from api.permissions import IsRepositoryOwnerByParams
+from api.utils import calculate_sha256, save_blob_content, get_repository_or_404, require_repo_write
+from api.permissions import CanWriteRepositoryByParams
 
 
 @extend_schema(
@@ -19,16 +19,14 @@ from api.permissions import IsRepositoryOwnerByParams
     description='Create a new tree object in a repository.'
 )
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated, IsRepositoryOwnerByParams])
+@permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
 def tree_create(request, owner_id, repo_name):
     """Create a new tree."""
     repository = get_repository_or_404(owner_id, repo_name, request.user)
 
-    if repository.owner != request.user:
-        return Response(
-            {'error': 'Only the repository owner can create trees.'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+    write_denied = require_repo_write(request.user, repository)
+    if write_denied:
+        return write_denied
 
     serializer = TreeCreateSerializer(data=request.data)
 
@@ -80,16 +78,14 @@ def tree_detail(request, owner_id, repo_name, sha):
     description='Create a new blob object (file content) in a repository.'
 )
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated, IsRepositoryOwnerByParams])
+@permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
 def blob_create(request, owner_id, repo_name):
     """Create a new blob."""
     repository = get_repository_or_404(owner_id, repo_name, request.user)
 
-    if repository.owner != request.user:
-        return Response(
-            {'error': 'Only the repository owner can create blobs.'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+    write_denied = require_repo_write(request.user, repository)
+    if write_denied:
+        return write_denied
 
     serializer = BlobCreateSerializer(data=request.data)
 

@@ -147,6 +147,12 @@ REPO_MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 REPO_SMALL_FILE_THRESHOLD = 1024 * 1024  # 1MB (store in DB)
 REPO_MAX_REPO_SIZE = 1024 * 1024 * 1024  # 1GB
 
+# Email / password reset
+RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@yourdomain.com')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', '3600'))
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

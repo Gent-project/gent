@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.test import TestCase
 from api.models import User, Repository, Branch, Commit, Tree
+from api.tests.helpers import RepositoryAccessTestMixin
 
 
 class BranchAPITestCase(TestCase):
@@ -151,5 +152,52 @@ class BranchAPITestCase(TestCase):
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertTrue(Branch.objects.filter(id=branch.id).exists())
+
+
+class BranchMemberAccessTestCase(RepositoryAccessTestMixin, TestCase):
+    """Role-matrix tests for branch create access."""
+
+    def setUp(self):
+        super().setUp()
+        self.branch_create_url = reverse(
+            'branch-create',
+            kwargs={'owner_id': self.owner.id, 'repo_name': 'team-repo'},
+        )
+
+    def test_branch_create_owner_success(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.owner_token}')
+        response = self.client.post(
+            self.branch_create_url,
+            {'name': 'feature', 'commit_sha': 'a' * 64},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_branch_create_write_member_success(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.write_token}')
+        response = self.client.post(
+            self.branch_create_url,
+            {'name': 'feature', 'commit_sha': 'a' * 64},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_branch_create_read_member_denied(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.read_token}')
+        response = self.client.post(
+            self.branch_create_url,
+            {'name': 'feature', 'commit_sha': 'a' * 64},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_branch_create_outsider_denied(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.outsider_token}')
+        response = self.client.post(
+            self.branch_create_url,
+            {'name': 'feature', 'commit_sha': 'a' * 64},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 

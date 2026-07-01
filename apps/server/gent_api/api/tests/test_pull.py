@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.test import TestCase
 from api.models import User, Repository, Branch, Commit, Tree, Blob
+from api.tests.helpers import RepositoryAccessTestMixin
 
 
 class PullAPITestCase(TestCase):
@@ -323,3 +324,34 @@ class PullAPITestCase(TestCase):
             ['main-commit', 'side-commit', 'merge-commit']
         )
         self.assertEqual(response.data['commits'][-1]['mergeParent'], 'side-commit')
+
+
+class PullMemberAccessTestCase(RepositoryAccessTestMixin, TestCase):
+    """Role-matrix tests for pull access on private repos."""
+
+    def setUp(self):
+        super().setUp()
+        self.pull_url = reverse(
+            'pull',
+            kwargs={'owner_id': self.owner.id, 'repo_name': 'team-repo'},
+        )
+
+    def test_pull_owner_success(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.owner_token}')
+        response = self.client.get(self.pull_url, {'branch': 'main'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_pull_write_member_success(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.write_token}')
+        response = self.client.get(self.pull_url, {'branch': 'main'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_pull_read_member_success(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.read_token}')
+        response = self.client.get(self.pull_url, {'branch': 'main'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_pull_outsider_denied(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.outsider_token}')
+        response = self.client.get(self.pull_url, {'branch': 'main'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

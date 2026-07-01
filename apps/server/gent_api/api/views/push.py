@@ -13,8 +13,8 @@ from api.serializers import (
     BranchUpdateSerializer,
     BranchSerializer,
 )
-from api.utils import save_blob_content, get_repository_or_404
-from api.permissions import IsRepositoryOwnerByParams
+from api.utils import save_blob_content, get_repository_or_404, require_repo_write
+from api.permissions import CanWriteRepositoryByParams
 
 
 @extend_schema(
@@ -24,16 +24,14 @@ from api.permissions import IsRepositoryOwnerByParams
     description='Receive a pack of commits, trees, and blobs, update branches atomically.'
 )
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated, IsRepositoryOwnerByParams])
+@permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
 def push(request, owner_id, repo_name):
     """Push a pack of objects and update branches."""
     repository = get_repository_or_404(owner_id, repo_name, request.user)
 
-    if repository.owner != request.user:
-        return Response(
-            {'error': 'Only the repository owner can push.'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+    write_denied = require_repo_write(request.user, repository)
+    if write_denied:
+        return write_denied
 
     serializer = PushRequestSerializer(data=request.data)
     if not serializer.is_valid():

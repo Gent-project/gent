@@ -1,6 +1,13 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Repository, Branch, Commit, Tree, Blob
+from .models import User, Repository, RepositoryMember, Branch, Commit, Tree, Blob
+
+
+class RepositoryMemberInline(admin.TabularInline):
+    model = RepositoryMember
+    extra = 0
+    readonly_fields = ['created_at']
+    autocomplete_fields = ['user', 'added_by']
 
 
 @admin.register(User)
@@ -34,6 +41,17 @@ class RepositoryAdmin(admin.ModelAdmin):
     search_fields = ['name', 'owner__email', 'description']
     ordering = ['-created_at']
     readonly_fields = ['created_at', 'updated_at']
+    inlines = [RepositoryMemberInline]
+
+
+@admin.register(RepositoryMember)
+class RepositoryMemberAdmin(admin.ModelAdmin):
+    """Admin interface for RepositoryMember model."""
+    list_display = ['repository', 'user', 'role', 'added_by', 'created_at']
+    list_filter = ['role', 'created_at']
+    search_fields = ['repository__name', 'user__email']
+    readonly_fields = ['created_at']
+    autocomplete_fields = ['repository', 'user', 'added_by']
 
 
 @admin.register(Branch)
