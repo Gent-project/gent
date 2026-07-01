@@ -82,6 +82,7 @@ def api_root(request):
             'sync': {
                 'push': '/api/repos/{owner_id}/{repo_name}/push/',
                 'pull': '/api/repos/{owner_id}/{repo_name}/pull/?branch={name}&since={sha}',
+                'clone': '/api/repos/{owner_id}/{repo_name}/clone/',
             },
             'documentation': {
                 'swagger': '/api/docs/',

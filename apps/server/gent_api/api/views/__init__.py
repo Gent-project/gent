@@ -15,6 +15,7 @@ from .diff import commit_diff
 from .object import tree_create, tree_detail, blob_create, blob_detail
 from .push import push
 from .pull import pull
+from .clone import clone
 from .tag import tag_list, tag_create, tag_delete
 from .members import member_list, member_remove
 
@@ -46,6 +47,7 @@ __all__ = [
     'blob_detail',
     'push',
     'pull',
+    'clone',
     'tag_list',
     'tag_create',
     'tag_delete',
