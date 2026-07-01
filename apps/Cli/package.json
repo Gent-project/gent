@@ -1,0 +1,59 @@
+{
+  "name": "gent-cli",
+  "version": "8.0.0",
+  "description": "A modern, Git-like version control CLI with cloud sync, AI-powered superpowers (ask/review/docs/changelog), and zero-friction setup (gent setup/doctor/config).",
+  "main": "src/index.js",
+  "bin": {
+    "gent": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --check src/index.js && node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js && node tests/offline-e2e.js",
+    "test:unit": "node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js",
+    "test:e2e": "node tests/offline-e2e.js",
+    "test:remote:e2e": "node tests/remote-e2e.js",
+    "demo": "bash demo.sh",
+    "link": "npm link",
+    "unlink": "npm unlink",
+    "prepublishOnly": "echo 'Ready to publish gent-cli!'"
+  },
+  "keywords": [
+    "cli",
+    "version-control",
+    "git-like",
+    "gent",
+    "authentication",
+    "jwt",
+    "api",
+    "command-line",
+    "developer-tools"
+  ],
+  "author": "Abdalrahman Kanawati <kanawatiabdalrahman@gmail.com>",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SaadShaya7/gent.git"
+  },
+  "homepage": "https://github.com/SaadShaya7/gent#readme",
+  "bugs": {
+    "url": "https://github.com/SaadShaya7/gent/issues"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "boxen": "^5.1.2",
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "crypto-js": "^4.2.0",
+    "date-fns": "^2.30.0",
+    "inquirer": "^8.2.5",
+    "ora": "^5.4.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "QUICKSTART.md"
+  ]
+}
