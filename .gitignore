@@ -40,3 +40,33 @@ env/
 *.tmp
 *.bak
 *.backup
+
+# Monorepo root ignore rules.
+# App-specific rules live in each app's own .gitignore (e.g. apps/frontend/.gitignore).
+
+# macOS / editor cruft
+.DS_Store
+*.swp
+
+# Dependencies (any workspace)
+node_modules/
+
+# Python (apps/server)
+.venv/
+__pycache__/
+*.py[cod]
+
+# Build output / caches (any workspace)
+.next/
+out/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
