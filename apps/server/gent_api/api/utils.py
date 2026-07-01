@@ -1,5 +1,6 @@
 import hashlib
 import base64
+import binascii
 from pathlib import Path
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -16,6 +17,22 @@ def calculate_sha256(content):
     if isinstance(content, str):
         content = content.encode('utf-8')
     return hashlib.sha256(content).hexdigest()
+
+
+def hash_blob(content_bytes):
+    """Calculate Gent content-addressable blob hash matching the CLI hashBlob."""
+    header = f"blob {len(content_bytes)}\0".encode('ascii')
+    return hashlib.sha256(header + content_bytes).hexdigest()
+
+
+def decode_push_blob_content(content, encoding='utf-8'):
+    """Decode push payload blob content to raw bytes."""
+    if encoding == 'base64':
+        try:
+            return base64.b64decode(content, validate=True)
+        except (binascii.Error, ValueError, TypeError):
+            raise ValueError('Invalid base64 blob content') from None
+    return content.encode('utf-8')
 
 
 def get_repository_or_404(owner_id, repo_name, user):
@@ -42,17 +59,15 @@ def require_repo_write(user, repository):
     return None
 
 
-def save_blob_content(repository, sha, content, encoding='utf-8'):
+def save_blob_content(repository, sha, content, encoding='utf-8', content_bytes=None):
     """Save blob content to filesystem or database."""
-    if encoding == 'base64':
-        content_bytes = base64.b64decode(content)
-        try:
-            decoded_content = content_bytes.decode('utf-8')
-        except UnicodeDecodeError:
-            decoded_content = None
-    else:
-        content_bytes = content.encode('utf-8')
-        decoded_content = content
+    if content_bytes is None:
+        content_bytes = decode_push_blob_content(content, encoding)
+
+    try:
+        decoded_content = content_bytes.decode('utf-8')
+    except UnicodeDecodeError:
+        decoded_content = None
 
     size = len(content_bytes)
 

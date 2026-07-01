@@ -7,6 +7,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.test import TestCase
 from api.models import User, Repository, Branch, Commit, Tree, Blob
 from api.tests.helpers import RepositoryAccessTestMixin
+from api.utils import hash_blob
+
+
+HELLO_WORLD_SHA = hash_blob(b'Hello, World!')
+HELLO_SHA = hash_blob(b'hello')
 
 
 class PushAPITestCase(TestCase):
@@ -52,12 +57,43 @@ class PushAPITestCase(TestCase):
             'tags': tags or {}
         }
 
+    def _blob_entry(self, content, encoding='utf-8'):
+        if isinstance(content, str):
+            content_bytes = content.encode('utf-8')
+        else:
+            content_bytes = content
+
+        if encoding == 'base64':
+            payload = base64.b64encode(content_bytes).decode('utf-8')
+        else:
+            payload = content_bytes.decode('utf-8')
+
+        return {
+            'sha': hash_blob(content_bytes),
+            'size': len(content_bytes),
+            'content': payload,
+            'encoding': encoding,
+        }
+
+    def _cli_blob_object(self, content):
+        if isinstance(content, str):
+            content_bytes = content.encode('utf-8')
+        else:
+            content_bytes = content
+
+        return {
+            'hash': hash_blob(content_bytes),
+            'type': 'blob',
+            'data': base64.b64encode(content_bytes).decode('utf-8'),
+        }
+
     def test_push_success(self):
-        blobs = [{'sha': 'blob123', 'size': 13, 'content': 'Hello, World!', 'encoding': 'utf-8'}]
+        blob_sha = HELLO_WORLD_SHA
+        blobs = [self._blob_entry('Hello, World!')]
         trees = [{
             'sha': 'tree123',
             'entries': [
-                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': 'blob123'}
+                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': blob_sha}
             ]
         }]
         commits = [{
@@ -81,7 +117,7 @@ class PushAPITestCase(TestCase):
         self.assertEqual(response.data['blobs_created'], 1)
         self.assertEqual(response.data['branches_updated'], 1)
 
-        self.assertTrue(Blob.objects.filter(repository=self.repo, sha='blob123').exists())
+        self.assertTrue(Blob.objects.filter(repository=self.repo, sha=blob_sha).exists())
         self.assertTrue(Tree.objects.filter(repository=self.repo, sha='tree123').exists())
         self.assertTrue(Commit.objects.filter(sha='commit123').exists())
 
@@ -89,11 +125,12 @@ class PushAPITestCase(TestCase):
         self.assertEqual(branch.commit_sha, 'commit123')
 
     def test_push_idempotent(self):
-        blobs = [{'sha': 'blob123', 'size': 13, 'content': 'Hello, World!', 'encoding': 'utf-8'}]
+        blob_sha = HELLO_WORLD_SHA
+        blobs = [self._blob_entry('Hello, World!')]
         trees = [{
             'sha': 'tree123',
             'entries': [
-                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': 'blob123'}
+                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': blob_sha}
             ]
         }]
         commits = [{
@@ -120,16 +157,17 @@ class PushAPITestCase(TestCase):
         self.assertEqual(response2.data['trees_created'], 0)
         self.assertEqual(response2.data['commits_created'], 0)
 
-        self.assertEqual(Blob.objects.filter(repository=self.repo, sha='blob123').count(), 1)
+        self.assertEqual(Blob.objects.filter(repository=self.repo, sha=blob_sha).count(), 1)
         self.assertEqual(Tree.objects.filter(repository=self.repo, sha='tree123').count(), 1)
         self.assertEqual(Commit.objects.filter(sha='commit123').count(), 1)
 
     def test_push_with_branch_update(self):
-        blobs = [{'sha': 'blob123', 'size': 13, 'content': 'Hello, World!', 'encoding': 'utf-8'}]
+        blob_sha = HELLO_WORLD_SHA
+        blobs = [self._blob_entry('Hello, World!')]
         trees = [{
             'sha': 'tree123',
             'entries': [
-                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': 'blob123'}
+                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': blob_sha}
             ]
         }]
         commits = [{
@@ -193,15 +231,8 @@ class PushAPITestCase(TestCase):
 
     def test_push_large_base64_blob(self):
         large_content = b'x' * (1024 * 1024 + 1)
-        large_content_b64 = base64.b64encode(large_content).decode('utf-8')
-        blob_sha = 'largeblob123'
-
-        blobs = [{
-            'sha': blob_sha,
-            'size': len(large_content),
-            'content': large_content_b64,
-            'encoding': 'base64'
-        }]
+        blob_sha = hash_blob(large_content)
+        blobs = [self._blob_entry(large_content, encoding='base64')]
         trees = [{
             'sha': 'tree123',
             'entries': [
@@ -236,11 +267,8 @@ class PushAPITestCase(TestCase):
 
     def test_push_accepts_cli_payload_shape(self):
         blob_content = b'Hello, World!'
-        objects = [{
-            'hash': 'blob123',
-            'type': 'blob',
-            'data': base64.b64encode(blob_content).decode('utf-8')
-        }]
+        blob_sha = HELLO_WORLD_SHA
+        objects = [self._cli_blob_object(blob_content)]
         commits = [{
             'hash': 'commit123',
             'message': 'Initial commit',
@@ -250,10 +278,10 @@ class PushAPITestCase(TestCase):
             'mergeParent': None,
             'treeHash': 'tree123',
             'tree': [
-                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'hash': 'blob123'}
+                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'hash': blob_sha}
             ],
             'files': [
-                {'path': 'README.md', 'hash': 'blob123'}
+                {'path': 'README.md', 'hash': blob_sha}
             ],
             'stats': {'filesChanged': 1, 'insertions': 1, 'deletions': 0}
         }]
@@ -279,20 +307,17 @@ class PushAPITestCase(TestCase):
 
         tree = Tree.objects.get(repository=self.repo, sha='tree123')
         self.assertEqual(tree.entries, [
-            {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': 'blob123'}
+            {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': blob_sha}
         ])
 
-        blob = Blob.objects.get(repository=self.repo, sha='blob123')
+        blob = Blob.objects.get(repository=self.repo, sha=blob_sha)
         self.assertEqual(blob.content, blob_content.decode('utf-8'))
         self.assertEqual(blob.size, len(blob_content))
 
     def test_push_accepts_cli_parent_shape(self):
         blob_content = b'hello'
-        objects = [{
-            'hash': 'blob123',
-            'type': 'blob',
-            'data': base64.b64encode(blob_content).decode('utf-8')
-        }]
+        blob_sha = HELLO_SHA
+        objects = [self._cli_blob_object(blob_content)]
         commits = [
             {
                 'hash': 'commit-base',
@@ -303,9 +328,9 @@ class PushAPITestCase(TestCase):
                 'mergeParent': None,
                 'treeHash': 'tree123',
                 'tree': [
-                    {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'hash': 'blob123'}
+                    {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'hash': blob_sha}
                 ],
-                'files': [{'path': 'README.md', 'hash': 'blob123'}],
+                'files': [{'path': 'README.md', 'hash': blob_sha}],
                 'stats': {}
             },
             {
@@ -317,9 +342,9 @@ class PushAPITestCase(TestCase):
                 'mergeParent': None,
                 'treeHash': 'tree123',
                 'tree': [
-                    {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'hash': 'blob123'}
+                    {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'hash': blob_sha}
                 ],
-                'files': [{'path': 'README.md', 'hash': 'blob123'}],
+                'files': [{'path': 'README.md', 'hash': blob_sha}],
                 'stats': {}
             }
         ]
@@ -333,6 +358,193 @@ class PushAPITestCase(TestCase):
             Commit.objects.get(repository=self.repo, sha='commit-child').parent_shas,
             ['commit-base']
         )
+
+    def test_hash_blob_matches_cli_algorithm(self):
+        self.assertEqual(
+            hash_blob(b'hello world'),
+            'fee53a18d32820613c0527aa79be5cb30173c823a9b448fa4817767cc84c6f03',
+        )
+
+    def test_push_rejects_blob_hash_mismatch(self):
+        blobs = [self._blob_entry('Hello, World!')]
+        wrong_sha = '0' * 64
+        blobs[0]['sha'] = wrong_sha
+        trees = [{
+            'sha': 'tree123',
+            'entries': [
+                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': wrong_sha}
+            ]
+        }]
+        commits = [{
+            'sha': 'commit123',
+            'message': 'Initial commit',
+            'tree_sha': 'tree123',
+            'parent_shas': [],
+            'author_name': 'Test User',
+            'author_email': 'user@example.com',
+            'committed_at': '2024-01-15T10:30:00Z'
+        }]
+        data = self._build_pack(blobs=blobs, trees=trees, commits=commits)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.post(self.push_url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('content hash mismatch', str(response.data))
+        self.assertFalse(Blob.objects.filter(repository=self.repo).exists())
+
+    def test_push_rejects_blob_size_mismatch(self):
+        blob_sha = HELLO_WORLD_SHA
+        blobs = [self._blob_entry('Hello, World!')]
+        blobs[0]['size'] = 999
+        trees = [{
+            'sha': 'tree123',
+            'entries': [
+                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': blob_sha}
+            ]
+        }]
+        commits = [{
+            'sha': 'commit123',
+            'message': 'Initial commit',
+            'tree_sha': 'tree123',
+            'parent_shas': [],
+            'author_name': 'Test User',
+            'author_email': 'user@example.com',
+            'committed_at': '2024-01-15T10:30:00Z'
+        }]
+        data = self._build_pack(blobs=blobs, trees=trees, commits=commits)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.post(self.push_url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('size mismatch', str(response.data))
+        self.assertFalse(Blob.objects.filter(repository=self.repo).exists())
+
+    def test_push_rejects_invalid_base64_blob(self):
+        blob_sha = HELLO_WORLD_SHA
+        blobs = [{
+            'sha': blob_sha,
+            'size': 13,
+            'content': 'not-valid-base64!!!',
+            'encoding': 'base64',
+        }]
+        trees = [{
+            'sha': 'tree123',
+            'entries': [
+                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': blob_sha}
+            ]
+        }]
+        commits = [{
+            'sha': 'commit123',
+            'message': 'Initial commit',
+            'tree_sha': 'tree123',
+            'parent_shas': [],
+            'author_name': 'Test User',
+            'author_email': 'user@example.com',
+            'committed_at': '2024-01-15T10:30:00Z'
+        }]
+        data = self._build_pack(blobs=blobs, trees=trees, commits=commits)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.post(self.push_url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Invalid blob content encoding', str(response.data))
+        self.assertFalse(Blob.objects.filter(repository=self.repo).exists())
+
+    def test_push_cli_rejects_blob_hash_mismatch(self):
+        blob_content = b'Hello, World!'
+        wrong_hash = '0' * 64
+        objects = [{
+            'hash': wrong_hash,
+            'type': 'blob',
+            'data': base64.b64encode(blob_content).decode('utf-8'),
+        }]
+        commits = [{
+            'hash': 'commit123',
+            'message': 'Initial commit',
+            'author': {'name': 'Test User', 'email': 'user@example.com'},
+            'timestamp': '2024-01-15T10:30:00Z',
+            'parent': None,
+            'mergeParent': None,
+            'treeHash': 'tree123',
+            'tree': [
+                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'hash': wrong_hash}
+            ],
+            'files': [{'path': 'README.md', 'hash': wrong_hash}],
+            'stats': {},
+        }]
+        data = self._build_cli_payload(objects=objects, commits=commits)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.post(self.push_url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('content hash mismatch', str(response.data))
+        self.assertFalse(Blob.objects.filter(repository=self.repo).exists())
+
+    def test_push_skips_storage_for_existing_blob(self):
+        blob_sha = HELLO_WORLD_SHA
+        blobs = [self._blob_entry('Hello, World!')]
+        trees = [{
+            'sha': 'tree123',
+            'entries': [
+                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': blob_sha}
+            ]
+        }]
+        commits = [{
+            'sha': 'commit123',
+            'message': 'Initial commit',
+            'tree_sha': 'tree123',
+            'parent_shas': [],
+            'author_name': 'Test User',
+            'author_email': 'user@example.com',
+            'committed_at': '2024-01-15T10:30:00Z'
+        }]
+        data = self._build_pack(blobs=blobs, trees=trees, commits=commits)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response1 = self.client.post(self.push_url, data, format='json')
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        response2 = self.client.post(self.push_url, data, format='json')
+        self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response2.data['blobs_created'], 0)
+        self.assertEqual(Blob.objects.filter(repository=self.repo, sha=blob_sha).count(), 1)
+
+    def test_push_rejects_tampered_blob_when_sha_already_exists(self):
+        blob_sha = HELLO_WORLD_SHA
+        blobs = [self._blob_entry('Hello, World!')]
+        trees = [{
+            'sha': 'tree123',
+            'entries': [
+                {'type': 'blob', 'mode': '100644', 'name': 'README.md', 'sha': blob_sha}
+            ]
+        }]
+        commits = [{
+            'sha': 'commit123',
+            'message': 'Initial commit',
+            'tree_sha': 'tree123',
+            'parent_shas': [],
+            'author_name': 'Test User',
+            'author_email': 'user@example.com',
+            'committed_at': '2024-01-15T10:30:00Z'
+        }]
+        data = self._build_pack(blobs=blobs, trees=trees, commits=commits)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response1 = self.client.post(self.push_url, data, format='json')
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        tampered = self._build_pack(blobs=blobs, trees=trees, commits=commits)
+        tampered['pack']['blobs'][0]['content'] = 'tampered content'
+        tampered['pack']['blobs'][0]['size'] = len('tampered content')
+
+        response2 = self.client.post(self.push_url, tampered, format='json')
+        self.assertEqual(response2.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('content hash mismatch', str(response2.data))
+        self.assertEqual(Blob.objects.filter(repository=self.repo, sha=blob_sha).count(), 1)
 
 
 class PushMemberAccessTestCase(RepositoryAccessTestMixin, TestCase):

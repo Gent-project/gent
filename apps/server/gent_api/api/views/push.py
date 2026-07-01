@@ -13,7 +13,13 @@ from api.serializers import (
     BranchUpdateSerializer,
     BranchSerializer,
 )
-from api.utils import save_blob_content, get_repository_or_404, require_repo_write
+from api.utils import (
+    decode_push_blob_content,
+    hash_blob,
+    save_blob_content,
+    get_repository_or_404,
+    require_repo_write,
+)
 from api.permissions import CanWriteRepositoryByParams
 
 
@@ -135,6 +141,41 @@ def push(request, owner_id, repo_name):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+    verified_blob_bytes = {}
+    # Validate every blob in the pack, including ones already stored. The SHA
+    # is the object identity; inconsistent payload content is rejected even
+    # when we skip re-storing an existing blob during persistence.
+    for blob in blobs:
+        try:
+            content_bytes = decode_push_blob_content(blob['content'], blob['encoding'])
+        except ValueError:
+            return Response(
+                {'error': 'Invalid blob content encoding'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        actual_size = len(content_bytes)
+        claimed_size = blob['size']
+        if actual_size != claimed_size:
+            return Response(
+                {
+                    'error': (
+                        f"Blob {blob['sha']}: size mismatch "
+                        f"(claimed {claimed_size}, got {actual_size})"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        computed_sha = hash_blob(content_bytes)
+        if computed_sha != blob['sha']:
+            return Response(
+                {'error': f"Blob {blob['sha']}: content hash mismatch"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        verified_blob_bytes[blob['sha']] = content_bytes
+
     with transaction.atomic():
         commits_created = 0
         trees_created = 0
@@ -144,7 +185,13 @@ def push(request, owner_id, repo_name):
         for blob in blobs:
             if blob['sha'] in existing_blob_shas:
                 continue
-            blob_data = save_blob_content(repository, blob['sha'], blob['content'], blob['encoding'])
+            blob_data = save_blob_content(
+                repository,
+                blob['sha'],
+                blob['content'],
+                blob['encoding'],
+                content_bytes=verified_blob_bytes[blob['sha']],
+            )
             Blob.objects.create(
                 repository=repository,
                 sha=blob['sha'],
