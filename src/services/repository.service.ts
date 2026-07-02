@@ -5,7 +5,7 @@ import {
   Branch,
   Commit,
   Tag,
-  Blob
+  Blob,
 } from "@/types/repository";
 
 // Define missing types based on API structure
@@ -26,10 +26,10 @@ export interface UpdateBranchPayload {
 }
 
 export interface CreateCommitPayload {
-  sha: string;
+  sha?: string;
   message: string;
   tree_sha: string;
-  parent_shas: string[];
+  parent_shas?: string[];
   author_name: string;
   author_email: string;
   branch: string;
@@ -55,7 +55,7 @@ export interface TreeEntry {
   path: string;
   hash: string;
   sha: string;
-  type: 'blob' | 'tree';
+  type: "blob" | "tree";
 }
 
 export interface CreateTreePayload {
@@ -63,7 +63,7 @@ export interface CreateTreePayload {
     mode: string;
     name: string;
     sha: string;
-    type: 'blob' | 'tree';
+    type: "blob" | "tree";
   }>;
 }
 
@@ -79,91 +79,152 @@ export class RepositoryService {
     return response.data;
   }
 
-  static async createRepository(payload: CreateRepositoryRequest): Promise<Repository> {
+  static async createRepository(
+    payload: CreateRepositoryRequest,
+  ): Promise<Repository> {
     const response = await axios.post("/api/repos/create/", payload);
     return response.data;
   }
 
-  static async getRepository(ownerId: number, repoName: string): Promise<Repository> {
+  static async getRepository(
+    ownerId: number,
+    repoName: string,
+  ): Promise<Repository> {
     const response = await axios.get(`/api/repos/${ownerId}/${repoName}/`);
     return response.data;
   }
 
   static async updateRepository(
-    ownerId: number, 
-    repoName: string, 
-    payload: UpdateRepositoryPayload
+    ownerId: number,
+    repoName: string,
+    payload: UpdateRepositoryPayload,
   ): Promise<Repository> {
-    const response = await axios.patch(`/api/repos/${ownerId}/${repoName}/`, payload);
+    const response = await axios.patch(
+      `/api/repos/${ownerId}/${repoName}/`,
+      payload,
+    );
     return response.data;
   }
 
-  static async deleteRepository(ownerId: number, repoName: string): Promise<void> {
+  static async deleteRepository(
+    ownerId: number,
+    repoName: string,
+  ): Promise<void> {
     await axios.delete(`/api/repos/${ownerId}/${repoName}/delete/`);
   }
 
   // Blob Management
-  static async getBlob(ownerId: number, repoName: string, sha: string): Promise<Blob> {
-    const response = await axios.get(`/api/repos/${ownerId}/${repoName}/blob/${sha}/`);
+  static async getBlob(
+    ownerId: number,
+    repoName: string,
+    sha: string,
+  ): Promise<Blob> {
+    const response = await axios.get(
+      `/api/repos/${ownerId}/${repoName}/blob/${sha}/`,
+    );
     return response.data;
   }
 
-  static async createBlob(ownerId: number, repoName: string, payload: Blob): Promise<{ sha: string }> {
-    const response = await axios.post(`/api/repos/${ownerId}/${repoName}/blob/create/`, payload);
+  static async createBlob(
+    ownerId: number,
+    repoName: string,
+    payload: Blob,
+  ): Promise<{ sha: string }> {
+    const response = await axios.post(
+      `/api/repos/${ownerId}/${repoName}/blob/create/`,
+      payload,
+    );
     return response.data;
   }
 
   // Branch Management
-  static async getBranches(ownerId: number, repoName: string): Promise<Branch[]> {
-    const response = await axios.get(`/api/repos/${ownerId}/${repoName}/branches/`);
+  static async getBranches(
+    ownerId: number,
+    repoName: string,
+  ): Promise<Branch[]> {
+    const response = await axios.get(
+      `/api/repos/${ownerId}/${repoName}/branches/`,
+    );
     return response.data;
   }
 
-  static async getBranch(ownerId: number, repoName: string, branchName: string): Promise<Branch> {
-    const response = await axios.get(`/api/repos/${ownerId}/${repoName}/branches/${branchName}/`);
+  static async getBranch(
+    ownerId: number,
+    repoName: string,
+    branchName: string,
+  ): Promise<Branch> {
+    const response = await axios.get(
+      `/api/repos/${ownerId}/${repoName}/branches/${branchName}/`,
+    );
     return response.data;
   }
 
   static async createBranch(
-    ownerId: number, 
-    repoName: string, 
-    payload: CreateBranchPayload
+    ownerId: number,
+    repoName: string,
+    payload: CreateBranchPayload,
   ): Promise<Branch> {
-    const response = await axios.post(`/api/repos/${ownerId}/${repoName}/branches/create/`, payload);
+    const response = await axios.post(
+      `/api/repos/${ownerId}/${repoName}/branches/create/`,
+      payload,
+    );
     return response.data;
   }
 
   static async updateBranch(
-    ownerId: number, 
-    repoName: string, 
-    branchName: string, 
-    payload: UpdateBranchPayload
+    ownerId: number,
+    repoName: string,
+    branchName: string,
+    payload: UpdateBranchPayload,
   ): Promise<Branch> {
-    const response = await axios.patch(`/api/repos/${ownerId}/${repoName}/branches/${branchName}/`, payload);
+    const response = await axios.patch(
+      `/api/repos/${ownerId}/${repoName}/branches/${branchName}/`,
+      payload,
+    );
     return response.data;
   }
 
-  static async deleteBranch(ownerId: number, repoName: string, branchName: string): Promise<void> {
-    await axios.delete(`/api/repos/${ownerId}/${repoName}/branches/${branchName}/`);
+  static async deleteBranch(
+    ownerId: number,
+    repoName: string,
+    branchName: string,
+  ): Promise<void> {
+    await axios.delete(
+      `/api/repos/${ownerId}/${repoName}/branches/${branchName}/`,
+    );
   }
 
   // Commit Management
-  static async getCommits(ownerId: number, repoName: string): Promise<Commit[]> {
-    const response = await axios.get(`/api/repos/${ownerId}/${repoName}/commits/`);
+  static async getCommits(
+    ownerId: number,
+    repoName: string,
+  ): Promise<Commit[]> {
+    const response = await axios.get(
+      `/api/repos/${ownerId}/${repoName}/commits/`,
+    );
     return response.data;
   }
 
-  static async getCommit(ownerId: number, repoName: string, sha: string): Promise<Commit> {
-    const response = await axios.get(`/api/repos/${ownerId}/${repoName}/commits/${sha}/`);
+  static async getCommit(
+    ownerId: number,
+    repoName: string,
+    sha: string,
+  ): Promise<Commit> {
+    const response = await axios.get(
+      `/api/repos/${ownerId}/${repoName}/commits/${sha}/`,
+    );
     return response.data;
   }
 
   static async createCommit(
-    ownerId: number, 
-    repoName: string, 
-    payload: CreateCommitPayload
+    ownerId: number,
+    repoName: string,
+    payload: CreateCommitPayload,
   ): Promise<Commit> {
-    const response = await axios.post(`/api/repos/${ownerId}/${repoName}/commits/create/`, payload);
+    const response = await axios.post(
+      `/api/repos/${ownerId}/${repoName}/commits/create/`,
+      payload,
+    );
     return response.data;
   }
 
@@ -173,23 +234,47 @@ export class RepositoryService {
     return response.data;
   }
 
-  static async createTag(ownerId: number, repoName: string, payload: CreateTagPayload): Promise<Tag> {
-    const response = await axios.post(`/api/repos/${ownerId}/${repoName}/tags/create/`, payload);
+  static async createTag(
+    ownerId: number,
+    repoName: string,
+    payload: CreateTagPayload,
+  ): Promise<Tag> {
+    const response = await axios.post(
+      `/api/repos/${ownerId}/${repoName}/tags/create/`,
+      payload,
+    );
     return response.data;
   }
 
-  static async deleteTag(ownerId: number, repoName: string, tagName: string): Promise<void> {
+  static async deleteTag(
+    ownerId: number,
+    repoName: string,
+    tagName: string,
+  ): Promise<void> {
     await axios.delete(`/api/repos/${ownerId}/${repoName}/tags/${tagName}/`);
   }
 
   // Tree Management
-  static async getTree(ownerId: number, repoName: string, sha: string): Promise<Tree> {
-    const response = await axios.get(`/api/repos/${ownerId}/${repoName}/tree/${sha}/`);
+  static async getTree(
+    ownerId: number,
+    repoName: string,
+    sha: string,
+  ): Promise<Tree> {
+    const response = await axios.get(
+      `/api/repos/${ownerId}/${repoName}/tree/${sha}/`,
+    );
     return response.data;
   }
 
-  static async createTree(ownerId: number, repoName: string, payload: CreateTreePayload): Promise<Tree> {
-    const response = await axios.post(`/api/repos/${ownerId}/${repoName}/tree/create/`, payload);
+  static async createTree(
+    ownerId: number,
+    repoName: string,
+    payload: CreateTreePayload,
+  ): Promise<Tree> {
+    const response = await axios.post(
+      `/api/repos/${ownerId}/${repoName}/tree/create/`,
+      payload,
+    );
     return response.data;
   }
 
@@ -199,8 +284,15 @@ export class RepositoryService {
     return response.data;
   }
 
-  static async pushRepository(ownerId: number, repoName: string, payload: PushPayload): Promise<any> {
-    const response = await axios.post(`/api/repos/${ownerId}/${repoName}/push/`, payload);
+  static async pushRepository(
+    ownerId: number,
+    repoName: string,
+    payload: PushPayload,
+  ): Promise<any> {
+    const response = await axios.post(
+      `/api/repos/${ownerId}/${repoName}/push/`,
+      payload,
+    );
     return response.data;
   }
 }

@@ -12,7 +12,10 @@ interface ErrorResponse {
 const withCors = (response: NextResponse) => {
   response.headers.set("Access-Control-Allow-Origin", "*");
   response.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  response.headers.set(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization",
+  );
   return response;
 };
 
@@ -28,7 +31,10 @@ export async function POST(request: Request) {
     // Validate input
     if (!email || !password) {
       return withCors(
-        NextResponse.json({ error: "Email and password are required" }, { status: 400 })
+        NextResponse.json(
+          { error: "Email and password are required" },
+          { status: 400 },
+        ),
       );
     }
 
@@ -36,24 +42,43 @@ export async function POST(request: Request) {
     const response = await axios.post("/auth/login/", { email, password });
 
     // Return successful response
-    return withCors(new NextResponse(JSON.stringify(response.data), { status: 200 }));
+    return withCors(
+      new NextResponse(JSON.stringify(response.data), { status: 200 }),
+    );
   } catch (error: unknown) {
     console.error("Login error:", error);
 
     // Error from external API
     if (error && typeof error === "object" && "response" in error) {
-      const axiosError = error as AxiosError<ErrorResponse>;
+      const axiosError = error as AxiosError<any>;
+      const errorData = axiosError.response?.data;
+
+      let errorMessage = "Login error occurred";
+
+      // Handle various error response formats from backend
+      if (typeof errorData === "string") {
+        errorMessage = errorData;
+      } else if (errorData?.error) {
+        errorMessage = errorData.error;
+      } else if (errorData?.message) {
+        errorMessage = errorData.message;
+      } else if (errorData?.detail) {
+        errorMessage = errorData.detail;
+      }
+
+      console.error("Backend error details:", errorData);
+
       return withCors(
         NextResponse.json(
-          { error: axiosError.response?.data?.message || "Login error occurred" },
-          { status: axiosError.response?.status || 500 }
-        )
+          { error: errorMessage },
+          { status: axiosError.response?.status || 500 },
+        ),
       );
     }
 
     // Server error
     return withCors(
-      NextResponse.json({ error: "Server error occurred" }, { status: 500 })
+      NextResponse.json({ error: "Server error occurred" }, { status: 500 }),
     );
   }
 }
