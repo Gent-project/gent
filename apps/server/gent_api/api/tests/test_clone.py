@@ -31,7 +31,7 @@ class CloneAPITestCase(TestCase):
         Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 64)
         self.clone_url = reverse(
             'clone',
-            kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'},
+            kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'},
         )
 
     def test_clone_empty_repo(self):
@@ -354,7 +354,7 @@ class CloneMemberAccessTestCase(RepositoryAccessTestMixin, TestCase):
         super().setUp()
         self.clone_url = reverse(
             'clone',
-            kwargs={'owner_id': self.owner.id, 'repo_name': 'team-repo'},
+            kwargs={'owner_ref': self.owner.id, 'repo_name': 'team-repo'},
         )
 
     def test_clone_owner_success(self):

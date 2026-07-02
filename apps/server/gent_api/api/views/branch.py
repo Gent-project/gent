@@ -17,9 +17,9 @@ from api.permissions import CanWriteRepositoryByParams
 )
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def branch_list(request, owner_id, repo_name):
+def branch_list(request, owner_ref, repo_name):
     """List branches in a repository."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
     branches = Branch.objects.filter(repository=repository)
     serializer = BranchSerializer(branches, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -33,9 +33,9 @@ def branch_list(request, owner_id, repo_name):
 )
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
-def branch_create(request, owner_id, repo_name):
+def branch_create(request, owner_ref, repo_name):
     """Create a new branch."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
     write_denied = require_repo_write(request.user, repository)
     if write_denied:
@@ -90,9 +90,9 @@ def branch_create(request, owner_id, repo_name):
 )
 @api_view(['GET', 'PATCH', 'DELETE'])
 @permission_classes([permissions.IsAuthenticated])
-def branch_detail(request, owner_id, repo_name, branch_name):
+def branch_detail(request, owner_ref, repo_name, branch_name):
     """Get, update, or delete branch details."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
     branch = get_object_or_404(Branch, repository=repository, name=branch_name)
 
     if request.method == 'GET':

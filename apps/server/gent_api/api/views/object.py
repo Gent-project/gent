@@ -20,9 +20,9 @@ from api.permissions import CanWriteRepositoryByParams
 )
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
-def tree_create(request, owner_id, repo_name):
+def tree_create(request, owner_ref, repo_name):
     """Create a new tree."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
     write_denied = require_repo_write(request.user, repository)
     if write_denied:
@@ -63,9 +63,9 @@ def tree_create(request, owner_id, repo_name):
 )
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def tree_detail(request, owner_id, repo_name, sha):
+def tree_detail(request, owner_ref, repo_name, sha):
     """Get tree details."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
     tree = get_object_or_404(Tree, repository=repository, sha=sha)
     serializer = TreeSerializer(tree)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -79,9 +79,9 @@ def tree_detail(request, owner_id, repo_name, sha):
 )
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
-def blob_create(request, owner_id, repo_name):
+def blob_create(request, owner_ref, repo_name):
     """Create a new blob."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
     write_denied = require_repo_write(request.user, repository)
     if write_denied:
@@ -121,7 +121,7 @@ def blob_create(request, owner_id, repo_name):
 )
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def blob_detail(request, owner_id, repo_name, sha):
+def blob_detail(request, owner_ref, repo_name, sha):
     """Get blob details.
 
     Returns the blob's content as a string plus an `encoding` hint:
@@ -132,7 +132,7 @@ def blob_detail(request, owner_id, repo_name, sha):
     `errors='replace'`, which silently corrupted binary blobs (images, PDFs,
     etc.) on pull. The CLI side already accepts either encoding.
     """
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
     blob = get_object_or_404(Blob, repository=repository, sha=sha)
 
     payload = BlobSerializer(blob).data

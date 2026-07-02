@@ -20,9 +20,9 @@ from api.permissions import CanWriteRepositoryByParams
 )
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def commit_list(request, owner_id, repo_name):
+def commit_list(request, owner_ref, repo_name):
     """List commits in a repository."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
     commits = Commit.objects.filter(repository=repository)
     serializer = CommitSerializer(commits, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -36,9 +36,9 @@ def commit_list(request, owner_id, repo_name):
 )
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
-def commit_create(request, owner_id, repo_name):
+def commit_create(request, owner_ref, repo_name):
     """Create a new commit."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
     write_denied = require_repo_write(request.user, repository)
     if write_denied:
@@ -104,9 +104,9 @@ def commit_create(request, owner_id, repo_name):
 )
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def commit_detail(request, owner_id, repo_name, sha):
+def commit_detail(request, owner_ref, repo_name, sha):
     """Get commit details."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
     commit = get_object_or_404(Commit, repository=repository, sha=sha)
     serializer = CommitSerializer(commit)
     return Response(serializer.data, status=status.HTTP_200_OK)

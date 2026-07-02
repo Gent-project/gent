@@ -24,7 +24,7 @@ class CommitAPITestCase(TestCase):
         self.tree = Tree.objects.create(repository=self.repo, sha='tree123', entries=[])
 
     def test_create_commit(self):
-        url = reverse('commit-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('commit-create', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         commit_sha = 'a' * 64
         data = {
@@ -42,7 +42,7 @@ class CommitAPITestCase(TestCase):
         self.assertEqual(self.branch.commit_sha, commit_sha)
 
     def test_create_commit_rejects_invalid_sha(self):
-        url = reverse('commit-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('commit-create', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {
             'sha': 'not-a-valid-sha',
@@ -71,7 +71,7 @@ class CommitAPITestCase(TestCase):
             committed_at='2024-01-01T00:00:00Z'
         )
 
-        url = reverse('commit-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('commit-create', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {
             'sha': commit_sha,
@@ -95,7 +95,7 @@ class CommitAPITestCase(TestCase):
             author_email='user@example.com',
             committed_at='2024-01-01T00:00:00Z'
         )
-        url = reverse('commit-list', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('commit-list', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -113,7 +113,7 @@ class CommitAPITestCase(TestCase):
             committed_at='2024-01-01T00:00:00Z'
         )
         url = reverse('commit-detail', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'sha': 'abc123'
         })

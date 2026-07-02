@@ -35,6 +35,8 @@ class RepositoryAPITestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('repository', response.data)
         self.assertEqual(response.data['repository']['name'], 'test-repo')
+        self.assertEqual(response.data['repository']['owner_username'], self.user1.username)
+        self.assertEqual(response.data['repository']['owner_name'], self.user1.get_full_name())
         self.assertTrue(Repository.objects.filter(owner=self.user1, name='test-repo').exists())
         repo = Repository.objects.get(owner=self.user1, name='test-repo')
         self.assertTrue(Branch.objects.filter(repository=repo, name='main').exists())
@@ -84,15 +86,17 @@ class RepositoryAPITestCase(TestCase):
 
     def test_get_repository_detail(self):
         repo = Repository.objects.create(owner=self.user1, name='test-repo')
-        url = reverse('repository-detail', kwargs={'owner_id': self.user1.id, 'repo_name': 'test-repo'})
+        url = reverse('repository-detail', kwargs={'owner_ref': self.user1.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user1_token}')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['name'], 'test-repo')
+        self.assertEqual(response.data['owner_username'], self.user1.username)
+        self.assertEqual(response.data['owner_name'], self.user1.get_full_name())
 
     def test_update_repository(self):
         repo = Repository.objects.create(owner=self.user1, name='test-repo')
-        url = reverse('repository-detail', kwargs={'owner_id': self.user1.id, 'repo_name': 'test-repo'})
+        url = reverse('repository-detail', kwargs={'owner_ref': self.user1.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user1_token}')
         data = {'description': 'Updated description'}
         response = self.client.patch(url, data, format='json')
@@ -102,7 +106,7 @@ class RepositoryAPITestCase(TestCase):
 
     def test_delete_repository(self):
         repo = Repository.objects.create(owner=self.user1, name='test-repo')
-        url = reverse('repository-delete', kwargs={'owner_id': self.user1.id, 'repo_name': 'test-repo'})
+        url = reverse('repository-delete', kwargs={'owner_ref': self.user1.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user1_token}')
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -127,7 +131,7 @@ class RepositoryAPITestCase(TestCase):
         )
         url = reverse(
             'repository-detail',
-            kwargs={'owner_id': owner.id, 'repo_name': 'managed-repo'},
+            kwargs={'owner_ref': owner.id, 'repo_name': 'managed-repo'},
         )
         writer_token = str(RefreshToken.for_user(writer).access_token)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {writer_token}')
@@ -150,7 +154,7 @@ class RepositoryAPITestCase(TestCase):
         )
         url = reverse(
             'repository-detail',
-            kwargs={'owner_id': owner.id, 'repo_name': 'open-repo'},
+            kwargs={'owner_ref': owner.id, 'repo_name': 'open-repo'},
         )
         outsider_token = str(RefreshToken.for_user(outsider).access_token)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {outsider_token}')

@@ -22,43 +22,43 @@ urlpatterns = [
     # Repository endpoints
     path('repos/', views.repository_list, name='repository-list'),
     path('repos/create/', views.repository_create, name='repository-create'),
-    path('repos/<int:owner_id>/<str:repo_name>/', views.repository_detail, name='repository-detail'),
-    path('repos/<int:owner_id>/<str:repo_name>/delete/', views.repository_delete, name='repository-delete'),
-    path('repos/<int:owner_id>/<str:repo_name>/members/', views.member_list, name='member-list'),
+    path('repos/<str:owner_ref>/<str:repo_name>/', views.repository_detail, name='repository-detail'),
+    path('repos/<str:owner_ref>/<str:repo_name>/delete/', views.repository_delete, name='repository-delete'),
+    path('repos/<str:owner_ref>/<str:repo_name>/members/', views.member_list, name='member-list'),
     path(
-        'repos/<int:owner_id>/<str:repo_name>/members/<int:user_id>/',
+        'repos/<str:owner_ref>/<str:repo_name>/members/<int:user_id>/',
         views.member_remove,
         name='member-remove',
     ),
 
     # Branch endpoints
-    path('repos/<int:owner_id>/<str:repo_name>/branches/', views.branch_list, name='branch-list'),
-    path('repos/<int:owner_id>/<str:repo_name>/branches/create/', views.branch_create, name='branch-create'),
-    path('repos/<int:owner_id>/<str:repo_name>/branches/<str:branch_name>/', views.branch_detail, name='branch-detail'),
+    path('repos/<str:owner_ref>/<str:repo_name>/branches/', views.branch_list, name='branch-list'),
+    path('repos/<str:owner_ref>/<str:repo_name>/branches/create/', views.branch_create, name='branch-create'),
+    path('repos/<str:owner_ref>/<str:repo_name>/branches/<str:branch_name>/', views.branch_detail, name='branch-detail'),
 
     # Push endpoint
-    path('repos/<int:owner_id>/<str:repo_name>/push/', views.push, name='push'),
+    path('repos/<str:owner_ref>/<str:repo_name>/push/', views.push, name='push'),
 
     # Pull endpoint
-    path('repos/<int:owner_id>/<str:repo_name>/pull/', views.pull, name='pull'),
+    path('repos/<str:owner_ref>/<str:repo_name>/pull/', views.pull, name='pull'),
 
     # Clone endpoint
-    path('repos/<int:owner_id>/<str:repo_name>/clone/', views.clone, name='clone'),
+    path('repos/<str:owner_ref>/<str:repo_name>/clone/', views.clone, name='clone'),
 
     # Tag endpoints
-    path('repos/<int:owner_id>/<str:repo_name>/tags/', views.tag_list, name='tag-list'),
-    path('repos/<int:owner_id>/<str:repo_name>/tags/create/', views.tag_create, name='tag-create'),
-    path('repos/<int:owner_id>/<str:repo_name>/tags/<str:tag_name>/', views.tag_delete, name='tag-delete'),
+    path('repos/<str:owner_ref>/<str:repo_name>/tags/', views.tag_list, name='tag-list'),
+    path('repos/<str:owner_ref>/<str:repo_name>/tags/create/', views.tag_create, name='tag-create'),
+    path('repos/<str:owner_ref>/<str:repo_name>/tags/<str:tag_name>/', views.tag_delete, name='tag-delete'),
 
     # Commit endpoints
-    path('repos/<int:owner_id>/<str:repo_name>/commits/', views.commit_list, name='commit-list'),
-    path('repos/<int:owner_id>/<str:repo_name>/commits/create/', views.commit_create, name='commit-create'),
-    path('repos/<int:owner_id>/<str:repo_name>/commits/<str:sha>/diff/', views.commit_diff, name='commit-diff'),
-    path('repos/<int:owner_id>/<str:repo_name>/commits/<str:sha>/', views.commit_detail, name='commit-detail'),
+    path('repos/<str:owner_ref>/<str:repo_name>/commits/', views.commit_list, name='commit-list'),
+    path('repos/<str:owner_ref>/<str:repo_name>/commits/create/', views.commit_create, name='commit-create'),
+    path('repos/<str:owner_ref>/<str:repo_name>/commits/<str:sha>/diff/', views.commit_diff, name='commit-diff'),
+    path('repos/<str:owner_ref>/<str:repo_name>/commits/<str:sha>/', views.commit_detail, name='commit-detail'),
 
     # Object endpoints
-    path('repos/<int:owner_id>/<str:repo_name>/tree/create/', views.tree_create, name='tree-create'),
-    path('repos/<int:owner_id>/<str:repo_name>/tree/<str:sha>/', views.tree_detail, name='tree-detail'),
-    path('repos/<int:owner_id>/<str:repo_name>/blob/create/', views.blob_create, name='blob-create'),
-    path('repos/<int:owner_id>/<str:repo_name>/blob/<str:sha>/', views.blob_detail, name='blob-detail'),
+    path('repos/<str:owner_ref>/<str:repo_name>/tree/create/', views.tree_create, name='tree-create'),
+    path('repos/<str:owner_ref>/<str:repo_name>/tree/<str:sha>/', views.tree_detail, name='tree-detail'),
+    path('repos/<str:owner_ref>/<str:repo_name>/blob/create/', views.blob_create, name='blob-create'),
+    path('repos/<str:owner_ref>/<str:repo_name>/blob/<str:sha>/', views.blob_detail, name='blob-detail'),
 ]

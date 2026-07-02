@@ -20,7 +20,7 @@ class BlobAndTreeAPITestCase(TestCase):
         self.repo = Repository.objects.create(owner=self.user, name='test-repo')
 
     def test_create_blob(self):
-        url = reverse('blob-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('blob-create', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {'content': 'Hello, World!', 'encoding': 'utf-8'}
         response = self.client.post(url, data, format='json')
@@ -35,7 +35,7 @@ class BlobAndTreeAPITestCase(TestCase):
             content='Hello, World!'
         )
         url = reverse('blob-detail', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'sha': 'blob123'
         })
@@ -51,7 +51,7 @@ class BlobAndTreeAPITestCase(TestCase):
             size=13,
             content='Hello'
         )
-        url = reverse('tree-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('tree-create', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {
             'entries': [
@@ -69,7 +69,7 @@ class BlobAndTreeAPITestCase(TestCase):
             entries=[{'type': 'blob', 'mode': '100644', 'name': 'file.txt', 'sha': 'blob123'}]
         )
         url = reverse('tree-detail', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'sha': 'tree123'
         })

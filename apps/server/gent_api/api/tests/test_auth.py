@@ -133,6 +133,7 @@ class AuthenticationAPITestCase(TestCase):
         response = self.client.get(self.profile_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['email'], self.valid_user_data['email'])
+        self.assertEqual(response.data['username'], 'test')
 
     def test_get_profile_unauthenticated(self):
         response = self.client.get(self.profile_url)

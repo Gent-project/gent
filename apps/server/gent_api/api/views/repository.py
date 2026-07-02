@@ -92,9 +92,9 @@ def repository_create(request):
 )
 @api_view(['GET', 'PATCH'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
-def repository_detail(request, owner_id, repo_name):
+def repository_detail(request, owner_ref, repo_name):
     """Get or update repository details."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
     if request.method == 'GET':
         serializer = RepositorySerializer(repository, context={'request': request})
@@ -133,9 +133,9 @@ def repository_detail(request, owner_id, repo_name):
 )
 @api_view(['DELETE'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
-def repository_delete(request, owner_id, repo_name):
+def repository_delete(request, owner_ref, repo_name):
     """Delete a repository."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
     if not user_can_manage_repo(request.user, repository):
         return Response(

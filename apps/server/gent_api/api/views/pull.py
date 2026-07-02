@@ -28,8 +28,8 @@ PULL_DESCRIPTION = (
 )
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def pull(request, owner_id, repo_name):
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+def pull(request, owner_ref, repo_name):
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
     branch_name = request.query_params.get('branch')
     if not branch_name:
         return Response(

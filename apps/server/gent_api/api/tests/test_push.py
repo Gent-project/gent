@@ -36,7 +36,7 @@ class PushAPITestCase(TestCase):
 
         self.repo = Repository.objects.create(owner=self.user, name='test-repo')
         Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 64)
-        self.push_url = reverse('push', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        self.push_url = reverse('push', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
 
     def _build_pack(self, blobs=None, trees=None, commits=None, branch_updates=None):
         return {
@@ -554,7 +554,7 @@ class PushMemberAccessTestCase(RepositoryAccessTestMixin, TestCase):
         super().setUp()
         self.push_url = reverse(
             'push',
-            kwargs={'owner_id': self.owner.id, 'repo_name': 'team-repo'},
+            kwargs={'owner_ref': self.owner.id, 'repo_name': 'team-repo'},
         )
 
     def test_push_owner_success(self):

@@ -5,7 +5,7 @@ from pathlib import Path
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import PermissionDenied
-from api.models import Repository
+from api.models import Repository, User
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -35,11 +35,12 @@ def decode_push_blob_content(content, encoding='utf-8'):
     return content.encode('utf-8')
 
 
-def get_repository_or_404(owner_id, repo_name, user):
+def get_repository_or_404(owner_ref, repo_name, user):
     """Get repository or 404, checking permissions."""
+    owner = User.objects.resolve_public_ref(owner_ref)
     repository = get_object_or_404(
         Repository.objects.select_related('owner'),
-        owner_id=owner_id,
+        owner=owner,
         name=repo_name,
     )
 

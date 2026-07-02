@@ -27,7 +27,7 @@ CLONE_DESCRIPTION = (
 )
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def clone(request, owner_id, repo_name):
+def clone(request, owner_ref, repo_name):
     """Export full repository data for clone."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
     return Response(build_clone_payload(repository), status=status.HTTP_200_OK)

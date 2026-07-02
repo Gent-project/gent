@@ -53,7 +53,7 @@ class MemberAPITestCase(TestCase):
 
         self.members_url = reverse(
             'member-list',
-            kwargs={'owner_id': self.owner.id, 'repo_name': 'team-repo'},
+            kwargs={'owner_ref': self.owner.id, 'repo_name': 'team-repo'},
         )
 
     def _token_for(self, user):
@@ -135,7 +135,7 @@ class MemberAPITestCase(TestCase):
         remove_url = reverse(
             'member-remove',
             kwargs={
-                'owner_id': self.owner.id,
+                'owner_ref': self.owner.id,
                 'repo_name': 'team-repo',
                 'user_id': self.read_member.id,
             },
@@ -154,7 +154,7 @@ class MemberAPITestCase(TestCase):
         remove_url = reverse(
             'member-remove',
             kwargs={
-                'owner_id': self.owner.id,
+                'owner_ref': self.owner.id,
                 'repo_name': 'team-repo',
                 'user_id': self.read_member.id,
             },
@@ -167,7 +167,7 @@ class MemberAPITestCase(TestCase):
         remove_url = reverse(
             'member-remove',
             kwargs={
-                'owner_id': self.owner.id,
+                'owner_ref': self.owner.id,
                 'repo_name': 'team-repo',
                 'user_id': self.owner.id,
             },

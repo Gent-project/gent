@@ -58,7 +58,7 @@ class CommitDiffAPITestCase(TestCase):
 
     def _url(self, sha):
         return reverse('commit-diff', kwargs={
-            'owner_id': self.user.id, 'repo_name': 'diff-repo', 'sha': sha,
+            'owner_ref': self.user.id, 'repo_name': 'diff-repo', 'sha': sha,
         })
 
     def test_diff_against_parent(self):

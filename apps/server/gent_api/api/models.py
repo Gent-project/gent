@@ -1,18 +1,43 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.conf import settings
 from pathlib import Path
 
+from api.username_utils import generate_unique_username, validate_username
+
 
 class UserManager(BaseUserManager):
     """Custom user manager where email is the unique identifier."""
+
+    def resolve_public_ref(self, owner_ref):
+        """Resolve a public owner reference (numeric user id or username).
+
+        Usernames are never all-digit, so ``owner_ref.isdigit()`` unambiguously
+        selects lookup by primary key.
+        """
+        if owner_ref.isdigit():
+            return get_object_or_404(self.model, pk=int(owner_ref))
+        return get_object_or_404(self.model, username=owner_ref.lower())
     
     def create_user(self, email, password=None, **extra_fields):
         """Create and save a regular user with the given email and password."""
         if not email:
             raise ValueError('The Email field must be set')
         email = self.normalize_email(email)
+
+        username = extra_fields.pop('username', None)
+        if username:
+            extra_fields['username'] = validate_username(username)
+        else:
+            extra_fields['username'] = generate_unique_username(
+                email,
+                exists=lambda candidate: self.model.objects.filter(
+                    username=candidate,
+                ).exists(),
+            )
+
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -33,8 +58,9 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    """Custom user model that uses email instead of username."""
+    """Custom user model that uses email as login and username for public identity."""
     email = models.EmailField(unique=True, max_length=255)
+    username = models.CharField(max_length=150, unique=True)
     first_name = models.CharField(max_length=150, blank=True)
     last_name = models.CharField(max_length=150, blank=True)
     is_active = models.BooleanField(default=True)

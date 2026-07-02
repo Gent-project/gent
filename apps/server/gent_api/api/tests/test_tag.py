@@ -48,7 +48,7 @@ class TagAPITestCase(TestCase):
             tagger_name='Test User',
             tagger_email='user@example.com'
         )
-        url = reverse('tag-list', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('tag-list', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -56,7 +56,7 @@ class TagAPITestCase(TestCase):
         self.assertEqual(response.data[0]['name'], 'v1.0')
 
     def test_create_tag_success(self):
-        url = reverse('tag-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('tag-create', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {
             'name': 'v1.0',
@@ -71,7 +71,7 @@ class TagAPITestCase(TestCase):
         self.assertTrue(Tag.objects.filter(repository=self.repo, name='v1.0').exists())
 
     def test_create_tag_nonexistent_commit(self):
-        url = reverse('tag-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('tag-create', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {
             'name': 'v1.0',
@@ -82,7 +82,7 @@ class TagAPITestCase(TestCase):
         self.assertIn('error', response.data)
 
     def test_create_tag_non_owner(self):
-        url = reverse('tag-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('tag-create', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.other_token}')
         data = {
             'name': 'v1.0',
@@ -98,7 +98,7 @@ class TagAPITestCase(TestCase):
             commit_sha=self.commit.sha
         )
         url = reverse('tag-delete', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'tag_name': 'v1.0'
         })
@@ -115,7 +115,7 @@ class TagAPITestCase(TestCase):
             commit_sha=self.commit.sha
         )
         url = reverse('tag-delete', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'tag_name': 'v1.0'
         })
@@ -125,7 +125,7 @@ class TagAPITestCase(TestCase):
         self.assertTrue(Tag.objects.filter(id=tag.id).exists())
 
     def test_push_with_tags(self):
-        url = reverse('push', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('push', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {
             'pack': {

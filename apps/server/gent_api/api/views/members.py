@@ -28,9 +28,9 @@ from api.services.repository_access import user_can_manage_repo
 )
 @api_view(['GET', 'POST'])
 @permission_classes([permissions.IsAuthenticated])
-def member_list(request, owner_id, repo_name):
+def member_list(request, owner_ref, repo_name):
     """List or add repository members."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
     if request.method == 'GET':
         members = RepositoryMember.objects.filter(
@@ -88,9 +88,9 @@ def member_list(request, owner_id, repo_name):
 )
 @api_view(['DELETE'])
 @permission_classes([permissions.IsAuthenticated])
-def member_remove(request, owner_id, repo_name, user_id):
+def member_remove(request, owner_ref, repo_name, user_id):
     """Remove a repository member."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
     if not user_can_manage_repo(request.user, repository):
         return Response(

@@ -178,9 +178,9 @@ def _line_diff(old_text, new_text):
 )
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def commit_diff(request, owner_id, repo_name, sha):
+def commit_diff(request, owner_ref, repo_name, sha):
     """Compute and return the diff for a single commit."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
     commit = get_object_or_404(Commit, repository=repository, sha=sha)
 
     parent_sha = commit.parent_shas[0] if commit.parent_shas else None

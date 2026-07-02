@@ -5,6 +5,42 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from api.models import User
+from api.username_utils import validate_username as validate_username_value
+
+
+def _normalize_username_for_api(value):
+    """Validate username format and return normalized value, or None if blank."""
+    if value is None or not str(value).strip():
+        return None
+    try:
+        return validate_username_value(value)
+    except DjangoValidationError as exc:
+        raise serializers.ValidationError(exc.messages) from exc
+
+
+def _ensure_username_available(normalized, *, exclude_user=None):
+    queryset = User.objects.filter(username=normalized)
+    if exclude_user is not None:
+        queryset = queryset.exclude(pk=exclude_user.pk)
+    if queryset.exists():
+        raise serializers.ValidationError('This username is already taken.')
+
+
+class OptionalUsernameField(serializers.CharField):
+    """Optional username input with shared format and uniqueness checks."""
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('required', False)
+        kwargs.setdefault('allow_blank', True)
+        super().__init__(**kwargs)
+
+    def to_internal_value(self, data):
+        if data is None or (isinstance(data, str) and not data.strip()):
+            return None
+        normalized = _normalize_username_for_api(data)
+        exclude_user = self.parent.instance if getattr(self.parent, 'instance', None) else None
+        _ensure_username_available(normalized, exclude_user=exclude_user)
+        return normalized
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -18,10 +54,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         write_only=True,
         required=True
     )
+    username = OptionalUsernameField()
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'password_confirm', 'first_name', 'last_name']
+        fields = [
+            'email',
+            'username',
+            'password',
+            'password_confirm',
+            'first_name',
+            'last_name',
+        ]
         extra_kwargs = {
             'email': {'required': True},
             'first_name': {'required': False},
@@ -39,11 +83,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create a new user."""
         validated_data.pop('password_confirm')
+        username = validated_data.pop('username', None)
         user = User.objects.create_user(
             email=validated_data['email'],
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
+            **({'username': username} if username else {}),
         )
         return user
 
@@ -52,15 +98,30 @@ class UserSerializer(serializers.ModelSerializer):
     """Serializer for user profile."""
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'date_joined', 'is_active']
+        fields = [
+            'id',
+            'email',
+            'username',
+            'first_name',
+            'last_name',
+            'date_joined',
+            'is_active',
+        ]
         read_only_fields = ['id', 'email', 'date_joined', 'is_active']
 
 
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating user profile."""
+    username = OptionalUsernameField()
+
     class Meta:
         model = User
-        fields = ['first_name', 'last_name']
+        fields = ['first_name', 'last_name', 'username']
+
+    def validate(self, attrs):
+        if not attrs.get('username'):
+            attrs.pop('username', None)
+        return attrs
 
 
 class PasswordChangeSerializer(serializers.Serializer):

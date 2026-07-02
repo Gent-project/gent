@@ -31,9 +31,9 @@ from api.permissions import CanWriteRepositoryByParams
 )
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
-def push(request, owner_id, repo_name):
+def push(request, owner_ref, repo_name):
     """Push a pack of objects and update branches."""
-    repository = get_repository_or_404(owner_id, repo_name, request.user)
+    repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
     write_denied = require_repo_write(request.user, repository)
     if write_denied:

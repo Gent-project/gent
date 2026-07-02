@@ -43,7 +43,7 @@ class BranchAPITestCase(TestCase):
         )
 
     def test_list_branches(self):
-        url = reverse('branch-list', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('branch-list', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -51,7 +51,7 @@ class BranchAPITestCase(TestCase):
         self.assertEqual(response.data[0]['name'], 'main')
 
     def test_create_branch(self):
-        url = reverse('branch-create', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        url = reverse('branch-create', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         data = {'name': 'develop', 'commit_sha': 'a' * 64}
         response = self.client.post(url, data, format='json')
@@ -60,7 +60,7 @@ class BranchAPITestCase(TestCase):
 
     def test_get_branch_detail(self):
         url = reverse('branch-detail', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'branch_name': 'main'
         })
@@ -71,7 +71,7 @@ class BranchAPITestCase(TestCase):
 
     def test_update_branch_success(self):
         url = reverse('branch-detail', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'branch_name': 'main'
         })
@@ -85,7 +85,7 @@ class BranchAPITestCase(TestCase):
 
     def test_update_branch_nonexistent_commit(self):
         url = reverse('branch-detail', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'branch_name': 'main'
         })
@@ -97,7 +97,7 @@ class BranchAPITestCase(TestCase):
 
     def test_update_default_branch(self):
         url = reverse('branch-detail', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'branch_name': 'main'
         })
@@ -108,7 +108,7 @@ class BranchAPITestCase(TestCase):
 
     def test_update_branch_non_owner(self):
         url = reverse('branch-detail', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'branch_name': 'main'
         })
@@ -120,7 +120,7 @@ class BranchAPITestCase(TestCase):
     def test_delete_branch_success(self):
         branch = Branch.objects.create(repository=self.repo, name='feature', commit_sha='0' * 64)
         url = reverse('branch-detail', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'branch_name': 'feature'
         })
@@ -132,7 +132,7 @@ class BranchAPITestCase(TestCase):
 
     def test_delete_default_branch(self):
         url = reverse('branch-detail', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'branch_name': 'main'
         })
@@ -144,7 +144,7 @@ class BranchAPITestCase(TestCase):
     def test_delete_branch_non_owner(self):
         branch = Branch.objects.create(repository=self.repo, name='feature', commit_sha='0' * 64)
         url = reverse('branch-detail', kwargs={
-            'owner_id': self.user.id,
+            'owner_ref': self.user.id,
             'repo_name': 'test-repo',
             'branch_name': 'feature'
         })
@@ -161,7 +161,7 @@ class BranchMemberAccessTestCase(RepositoryAccessTestMixin, TestCase):
         super().setUp()
         self.branch_create_url = reverse(
             'branch-create',
-            kwargs={'owner_id': self.owner.id, 'repo_name': 'team-repo'},
+            kwargs={'owner_ref': self.owner.id, 'repo_name': 'team-repo'},
         )
 
     def test_branch_create_owner_success(self):

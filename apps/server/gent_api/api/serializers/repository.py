@@ -8,16 +8,20 @@ class RepositorySerializer(serializers.ModelSerializer):
     """Serializer for repository model."""
     owner_email = serializers.EmailField(source='owner.email', read_only=True)
     owner_id = serializers.IntegerField(source='owner.id', read_only=True)
+    owner_username = serializers.CharField(source='owner.username', read_only=True)
+    owner_name = serializers.CharField(source='owner.get_full_name', read_only=True)
     role = serializers.SerializerMethodField()
 
     class Meta:
         model = Repository
         fields = [
-            'id', 'owner_id', 'owner_email', 'name', 'description',
+            'id', 'owner_id', 'owner_email', 'owner_username', 'owner_name',
+            'name', 'description',
             'is_private', 'default_branch', 'role', 'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'owner_id', 'owner_email', 'role', 'created_at', 'updated_at'
+            'id', 'owner_id', 'owner_email', 'owner_username', 'owner_name',
+            'role', 'created_at', 'updated_at'
         ]
 
     def get_role(self, obj):

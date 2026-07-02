@@ -29,7 +29,7 @@ class PullAPITestCase(TestCase):
 
         self.repo = Repository.objects.create(owner=self.user, name='test-repo')
         Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 64)
-        self.pull_url = reverse('pull', kwargs={'owner_id': self.user.id, 'repo_name': 'test-repo'})
+        self.pull_url = reverse('pull', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
 
     def test_pull_empty_branch(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
@@ -333,7 +333,7 @@ class PullMemberAccessTestCase(RepositoryAccessTestMixin, TestCase):
         super().setUp()
         self.pull_url = reverse(
             'pull',
-            kwargs={'owner_id': self.owner.id, 'repo_name': 'team-repo'},
+            kwargs={'owner_ref': self.owner.id, 'repo_name': 'team-repo'},
         )
 
     def test_pull_owner_success(self):
