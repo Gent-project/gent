@@ -95,9 +95,15 @@ async function push(remoteName, branchName, options) {
 
         // Determine which commits to push (since last pushed ref)
         config.remoteRefs = config.remoteRefs || {};
-        const lastPushed = config.remoteRefs[`${remote}/${branch}`] || null;
+        // Everything reachable from any already-pushed ref of this remote is the
+        // boundary — a merge can pull in commits from a branch that was never
+        // pushed, so we can't bound by this branch's ref alone.
+        const remoteHave = Object.entries(config.remoteRefs)
+            .filter(([name]) => name.startsWith(`${remote}/`))
+            .map(([, sha]) => sha)
+            .filter(Boolean);
         const commits = repository.commits || [];
-        const commitsToPush = getCommitsSince(commits, localHead, lastPushed);
+        const commitsToPush = getCommitsSince(commits, localHead, remoteHave);
 
         if (commitsToPush.length === 0) {
             spinner.succeed(chalk.green('Everything up-to-date'));
@@ -257,25 +263,44 @@ async function push(remoteName, branchName, options) {
 }
 
 /**
- * Get commits from tip back to (but excluding) stopHash.
+ * Get commits reachable from tip (following BOTH parents, so merges are
+ * covered) that the remote doesn't already have. Post-order → parents precede
+ * children in the returned array.
  * @param {Array} allCommits
  * @param {String} tipHash
- * @param {String|null} stopHash
+ * @param {String[]} remoteHave - shas the remote already has (its ref tips)
  * @returns {Array}
  */
-function getCommitsSince(allCommits, tipHash, stopHash) {
+function getCommitsSince(allCommits, tipHash, remoteHave) {
     const commitMap = new Map(allCommits.map(c => [c.hash, c]));
-    const result = [];
-    let current = tipHash;
 
-    while (current && current !== stopHash) {
-        const commit = commitMap.get(current);
-        if (!commit) break;
-        result.push(commit);
-        current = commit.parent;
+    // Boundary = every commit reachable from a remote ref via both parents.
+    const have = new Set();
+    const stack = [...(remoteHave || [])].filter(Boolean);
+    while (stack.length) {
+        const sha = stack.pop();
+        if (!sha || have.has(sha)) continue;
+        const c = commitMap.get(sha);
+        if (!c) continue; // not local → treat as already-remote boundary
+        have.add(sha);
+        if (c.parent) stack.push(c.parent);
+        if (c.mergeParent) stack.push(c.mergeParent);
     }
 
-    return result.reverse(); // oldest first
+    const result = [];
+    const visited = new Set();
+    const visit = (sha) => {
+        if (!sha || visited.has(sha) || have.has(sha)) return;
+        const c = commitMap.get(sha);
+        if (!c) return;
+        visited.add(sha);
+        visit(c.parent);
+        visit(c.mergeParent);
+        result.push(c); // after both parents → oldest first
+    };
+    visit(tipHash);
+
+    return result;
 }
 
 module.exports = push;
