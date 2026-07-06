@@ -76,8 +76,8 @@ async function add(files, options) {
 
             // Check if changed vs last commit
             const prevHash = lastTreeMap.get(relPath);
-            if (prevHash === blobHash && stagedMap.has(relPath)) {
-                continue; // unchanged, already staged
+            if (prevHash === blobHash) {
+                continue; // identical to the last commit — nothing to stage
             }
 
             // Determine change status

@@ -25,8 +25,11 @@ Commands are grouped by purpose. Flags shown in `[brackets]` are optional.
 
 | Command | Description |
 |---|---|
+| `gent auto` | **Guided interactive flow.** Signs you in (or registers), inits the repo, links or creates a remote, then stages, commits, and pushes. Safe to re-run — each step no-ops when already done. Needs a terminal. |
 | `gent init [-y] [--remote [name]]` | Initialize a `.gent/` repository. `-y` skips prompts; `--remote` also creates the repo on the backend. |
-| `gent clone <url> [dir]` | Download a full repository from the backend. |
+| `gent clone [url] [dir]` | Download a full repository from the backend. Omit `url` in a terminal to be prompted. |
+
+> **Interactive by default:** in a terminal, `clone`, `checkout`, `merge`, `ask`, and `rm` prompt for what you didn't type (e.g. `gent checkout` shows a branch picker). In scripts / CI they behave exactly as before and print a usage error if a required argument is missing.
 
 ---
 

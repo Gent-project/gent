@@ -29,8 +29,10 @@ require('./utils/env-loader').load();
 const { program } = require('commander');
 const chalk = require('chalk');
 const packageJson = require('../package.json');
+const interactive = require('./utils/interactive');
 
 // Import core commands
+const autoCommand = require('./commands/auto');
 const initCommand = require('./commands/init');
 const cloneCommand = require('./commands/clone');
 const statusCommand = require('./commands/status');
@@ -86,6 +88,11 @@ program
 // ─── Repository Setup ───────────────────────────────────
 
 program
+    .command('auto')
+    .description('Guided flow: sign in → init → link remote → add → commit → push')
+    .action(autoCommand);
+
+program
     .command('init')
     .description('Initialize a new gent repository')
     .option('-y, --yes', 'Skip prompts and use defaults')
@@ -93,9 +100,18 @@ program
     .action(initCommand);
 
 program
-    .command('clone <url> [directory]')
+    .command('clone [url] [directory]')
     .description('Clone a remote repository')
-    .action(cloneCommand);
+    .action(async (url, directory, options) => {
+        if (!url && interactive.isInteractive()) {
+            ({ url, directory } = await interactive.promptClone());
+        }
+        if (!url) {
+            console.error(chalk.red('error: missing url — usage: gent clone <url> [directory]'));
+            process.exit(1);
+        }
+        return cloneCommand(url, directory, options);
+    });
 
 // ─── Staging & Working Tree ─────────────────────────────
 
@@ -118,10 +134,19 @@ program
     });
 
 program
-    .command('rm <files...>')
+    .command('rm [files...]')
     .description('Remove files from working tree and staging')
     .option('--cached', 'Only remove from staging, keep file on disk')
-    .action(rmCommand);
+    .action(async (files, options) => {
+        if ((!files || files.length === 0) && interactive.isInteractive()) {
+            files = await interactive.promptRm();
+        }
+        if (!files || files.length === 0) {
+            console.error('error: specify files to remove');
+            process.exit(1);
+        }
+        return rmCommand(files, options);
+    });
 
 program
     .command('reset [files...]')
@@ -192,16 +217,46 @@ program
     .action(branchCommand);
 
 program
-    .command('checkout <branch>')
+    .command('checkout [branch]')
     .description('Switch branches or restore working tree files')
     .option('-b, --create', 'Create a new branch')
-    .action(checkoutCommand);
+    .action(async (branch, options) => {
+        if (!branch && interactive.isInteractive()) {
+            const picked = await interactive.promptCheckout();
+            branch = picked.branch;
+            options.create = picked.create; // picker decides: existing branch ⇒ switch, not create
+        }
+        if (!branch) {
+            console.error(chalk.red('error: missing branch — usage: gent checkout <branch>'));
+            process.exit(1);
+        }
+        return checkoutCommand(branch, options);
+    });
 
 program
-    .command('merge <branch>')
+    .command('merge [branch]')
     .description('Merge a branch into the current branch (3-way smart merge)')
     .option('-m, --message <message>', 'Merge commit message')
-    .action(mergeCommand);
+    .action(async (branch, options) => {
+        if (!branch && interactive.isInteractive()) {
+            const picked = await interactive.promptMerge();
+            if (!picked.branch) {
+                // In a repo with only one branch → nothing to merge; otherwise
+                // fall through so mergeCommand reports "Not a gent repository".
+                if (picked.current) {
+                    console.log(chalk.yellow('No other branches to merge.'));
+                    return;
+                }
+            } else {
+                branch = picked.branch;
+            }
+        }
+        if (!branch && !interactive.isInteractive()) {
+            console.error(chalk.red('error: missing branch — usage: gent merge <branch>'));
+            process.exit(1);
+        }
+        return mergeCommand(branch, options);
+    });
 
 program
     .command('resolve')
@@ -286,9 +341,14 @@ program
 // ─── Platform-special (AI-powered) ──────────────────────
 
 program
-    .command('ask <question>')
+    .command('ask [question]')
     .description('Ask Claude a question about this repo (needs AI key)')
-    .action(askCommand);
+    .action(async (question, options) => {
+        if (!question && interactive.isInteractive()) {
+            question = await interactive.promptAsk();
+        }
+        return askCommand(question, options);
+    });
 
 program
     .command('review [ref]')
@@ -384,6 +444,54 @@ program
         }
     });
 
+// ─── Grouped help ───────────────────────────────────────
+// Commander's default lists all ~45 commands in one flat block, which reads as
+// noise. Group them by purpose instead, and render our own list after Options.
+const HELP_GROUPS = [
+    ['Start here', ['auto', 'setup', 'init', 'clone']],
+    ['Work on changes', ['status', 'add', 'rm', 'reset', 'diff', 'commit']],
+    ['History', ['log', 'show', 'tag', 'explain', 'summary']],
+    ['Branches & merging', ['branch', 'checkout', 'merge', 'resolve', 'stash', 'undo', 'redo']],
+    ['Remote & sync', ['remote', 'repos', 'members', 'push', 'pull', 'search', 'web', 'share']],
+    ['Account', ['register', 'login', 'logout', 'whoami', 'password']],
+    ['AI', ['ask', 'review', 'docs', 'changelog', 'ai']],
+    ['Config & tools', ['config', 'doctor', 'template', 'help']],
+];
+
+function configureGroupedHelp(program) {
+    // Hide the default flat "Commands:" block…
+    program.configureHelp({ visibleCommands: () => [] });
+
+    // …and print a grouped one in its place.
+    program.addHelpText('after', () => {
+        const byName = new Map(program.commands.map(c => [c.name(), c]));
+        const pad = 13;
+        const listed = new Set();
+        const lines = ['Commands:', ''];
+
+        const row = (name) =>
+            `  ${chalk.cyan(name.padEnd(pad))}${chalk.gray(byName.get(name).description())}`;
+
+        for (const [title, names] of HELP_GROUPS) {
+            const rows = names.filter(n => byName.has(n));
+            if (!rows.length) continue;
+            rows.forEach(n => listed.add(n));
+            lines.push(chalk.bold(title), ...rows.map(row), '');
+        }
+
+        // Anything not placed in a group still shows up, so help stays complete.
+        const leftovers = [...byName.keys()].filter(n => !listed.has(n));
+        if (leftovers.length) {
+            lines.push(chalk.bold('Other'), ...leftovers.map(row), '');
+        }
+
+        lines.push(chalk.gray('Run ') + chalk.cyan('gent help <command>') + chalk.gray(' for details.'));
+        return '\n' + lines.join('\n');
+    });
+}
+
+configureGroupedHelp(program);
+
 // Friendlier global error mapping. Per-command handlers still own their own
 // errors; this catches anything that bubbles up (e.g. unknown command).
 function explainError(err) {
@@ -402,7 +510,8 @@ function showQuickstart() {
     console.log(chalk.bold.cyan('Gent CLI ') + chalk.gray(`v${packageJson.version}`));
     console.log(chalk.gray('A Git-like VCS with cloud sync + AI superpowers.\n'));
     console.log(chalk.bold('First time? Try:'));
-    console.log(`  ${chalk.cyan('gent setup')}              ${chalk.gray('interactive walkthrough (login + AI key + remote)')}`);
+    console.log(`  ${chalk.cyan('gent auto')}               ${chalk.gray('guided init → commit → push (interactive)')}`);
+    console.log(`  ${chalk.cyan('gent setup')}              ${chalk.gray('configure login + AI key + remote')}`);
     console.log(`  ${chalk.cyan('gent doctor')}             ${chalk.gray('check everything is wired up')}`);
     console.log(`  ${chalk.cyan('gent template list')}      ${chalk.gray('scaffold a starter project')}`);
     console.log();
