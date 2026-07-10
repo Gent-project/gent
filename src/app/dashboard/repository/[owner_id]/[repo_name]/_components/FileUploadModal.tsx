@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { X, Upload, File, Plus, Save, AlertCircle } from "lucide-react";
 import { useCreateBlob, useCreateTree } from "@/hooks/use-files";

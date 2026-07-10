@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
-import { GitBranch, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import axios from "@/lib/axios";
 import { parseAuthResponse } from "@/lib/auth-session";
@@ -13,6 +12,12 @@ import { setAuth } from "@/store/slices/auth-slice";
 import { RootState } from "@/store";
 import { AUTH_PATH, DASHBOARD_PATH } from "@/routes/path";
 import SharedNavigation from "@/app/components/SharedNavigation";
+<<<<<<< HEAD
+=======
+import ForgotPasswordModal from "@/app/components/ForgotPasswordModal";
+import InputField from "@/app/components/InputField";
+import TerminalPreview from "@/app/components/TerminalPreview";
+>>>>>>> b3abf1f (fix build)
 
 export default function LoginPage() {
   const router = useRouter();
@@ -41,7 +46,11 @@ export default function LoginPage() {
     }
   }, []);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
     setError("");
     setIsLoading(true);
 
@@ -86,94 +95,103 @@ export default function LoginPage() {
     }
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        staggerChildren: 0.1,
+        duration: 0.5,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  };
+
   if (!isHydrated) return null;
 
   return (
-    <div className={`min-h-screen ${
-      isDark ? "bg-[#0d1117]" : "bg-[#f6f8fa]"
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${
+      isDark 
+        ? "bg-gradient-to-br from-[#0f1419] via-[#1a1f2e] to-[#151b28]" 
+        : "bg-gradient-to-br from-[#bed19e] via-[#a8c88a] to-[#9bc07a]"
     }`}>
       <SharedNavigation />
       
-      <div className="flex min-h-screen items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md space-y-8">
-          
-          {/* Header */}
-          <div className="text-center">
-            <div className="flex justify-center mb-6">
-              <div className={`p-3 rounded-lg ${
-                isDark 
-                  ? "bg-[#21262d] border border-[#30363d]" 
-                  : "bg-white border border-[#d1d9e0]"
-              }`}>
-                <GitBranch className={`w-8 h-8 ${
-                  isDark ? "text-[#f0f6fc]" : "text-[#24292f]"
-                }`} />
-              </div>
-            </div>
-            <h2 className={`text-2xl font-semibold ${
-              isDark ? "text-[#f0f6fc]" : "text-[#24292f]"
+      <div className="flex-1 flex items-center justify-center py-8 px-4 mt-20">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="w-full max-w-md"
+        >
+          <div className={`w-full rounded-2xl shadow-2xl p-6 sm:p-8 border transition-all ${
+            isDark
+              ? "border-white/20 bg-[#0f1419]/95 backdrop-blur-md"
+              : "border-[#5A7863]/30 bg-white/95 backdrop-blur-md"
+          }`}>
+            <h1 className={`text-2xl sm:text-3xl font-bold text-center mb-2 ${
+              isDark ? "text-white" : "text-[#2d3e2d]"
             }`}>
-              Sign in to Gent
-            </h2>
-          </div>
+              Sign In
+            </h1>
+            <p className={`text-center text-sm mb-8 ${
+              isDark ? "text-white/60" : "text-[#2d3e2d]/60"
+            }`}>
+              Welcome back to Gent
+            </p>
 
-          {/* Form Container */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className={`rounded-lg border p-8 shadow-sm ${
-              isDark
-                ? "bg-[#21262d] border-[#30363d]"
-                : "bg-white border-[#d1d9e0]"
-            }`}
-          >
-            {/* Success Message */}
-            {successMessage && (
-              <div className={`mb-6 flex items-center gap-3 text-sm p-3 rounded-md border ${
-                isDark
-                  ? "bg-[#0d4a2c] border-[#238636] text-[#2ea043]"
-                  : "bg-[#dcfce7] border-[#22c55e] text-[#15803d]"
-              }`}>
-                <span>{successMessage}</span>
-              </div>
-            )}
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="space-y-4"
+            >
+              {/* Success Message */}
+              {successMessage && (
+                <motion.div
+                  className={`text-sm p-3 rounded-md border ${
+                    isDark
+                      ? "bg-green-500/20 border-green-500/30 text-green-400"
+                      : "bg-green-50 border-green-200 text-green-600"
+                  }`}
+                  variants={itemVariants}
+                >
+                  {successMessage}
+                </motion.div>
+              )}
 
-            {/* Error Message */}
-            {error && (
-              <div className={`mb-6 flex items-center gap-3 text-sm p-3 rounded-md border ${
-                isDark
-                  ? "bg-[#ffeef0] border-[#f85149] text-[#d1242f]"
-                  : "bg-[#fff1f3] border-[#d1242f] text-[#cf222e]"
-              }`}>
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
+              {/* Error Message */}
+              {error && (
+                <motion.div
+                  className={`text-sm p-3 rounded-md border ${
+                    isDark
+                      ? "bg-red-500/20 border-red-500/30 text-red-400"
+                      : "bg-red-50 border-red-200 text-red-600"
+                  }`}
+                  variants={itemVariants}
+                >
+                  {error}
+                </motion.div>
+              )}
 
-            <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-5">
-              {/* Email Field */}
-              <div className="space-y-2">
-                <label className={`text-sm font-medium block ${
-                  isDark ? "text-[#f0f6fc]" : "text-[#24292f]"
-                }`}>
-                  Email address
-                </label>
-                <input
+              <motion.div variants={itemVariants}>
+                <InputField
+                  label="Email"
                   type="email"
+                  name="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
-                  placeholder="Enter your email"
-                  className={`w-full px-3 py-2 text-sm rounded-md border transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    isDark
-                      ? "border-[#30363d] bg-[#21262d] text-[#f0f6fc] placeholder:text-[#8d96a0] focus:border-[#1f6feb] focus:ring-[#1f6feb]/25"
-                      : "border-[#d1d9e0] bg-[#ffffff] text-[#24292f] placeholder:text-[#656d76] focus:border-[#0969da] focus:ring-[#0969da]/25"
-                  }`}
+                  placeholder="user@example.com"
                   required
                 />
-              </div>
+              </motion.div>
 
+<<<<<<< HEAD
               {/* Password Field */}
               <div className="space-y-2">
                 <label className={`text-sm font-medium block ${
@@ -206,40 +224,128 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
+=======
+              <motion.div className="relative" variants={itemVariants}>
+                <InputField
+                  label="Password"
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className={`absolute right-3 top-9 cursor-pointer transition-colors ${
+                    isDark ? "text-white/60 hover:text-white" : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
+                  }`}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <AiFillEyeInvisible size={20} />
+                  ) : (
+                    <AiFillEye size={20} />
+                  )}
+                </button>
+              </motion.div>
 
-              {/* Submit Button */}
+              <motion.div 
+                className="flex items-center justify-end" 
+                variants={itemVariants}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPasswordModal(true)}
+                  className={`text-xs hover:underline cursor-pointer ${
+                    isDark ? "text-[#7dd3fc] hover:text-white" : "text-[#5A7863] hover:text-[#2d3e2d]"
+                  }`}
+                >
+                  Forgot password?
+                </button>
+              </motion.div>
+>>>>>>> b3abf1f (fix build)
+
               <motion.button
-                type="submit"
-                disabled={isLoading}
-                className={`w-full font-medium py-2.5 px-4 rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                type="button"
+                onClick={() => handleLogin()}
+                className={`w-full font-bold py-2 px-4 rounded-lg transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${
                   isDark
-                    ? "bg-[#238636] text-white hover:bg-[#2ea043] disabled:bg-[#238636]"
-                    : "bg-[#1f883d] text-white hover:bg-[#1a7f37] disabled:bg-[#1f883d]"
+                    ? "bg-gradient-to-r from-[#7dd3fc] to-[#06b6d4] text-[#0f1419] hover:shadow-lg hover:shadow-cyan-500/50"
+                    : "bg-gradient-to-r from-[#5A7863] to-[#4a6853] text-white hover:shadow-lg hover:shadow-green-500/50"
                 }`}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                disabled={isLoading}
+                variants={itemVariants}
               >
-                {isLoading ? "Signing in..." : "Sign in"}
+                {isLoading ? "Signing in..." : "Sign In"}
               </motion.button>
-            </form>
 
-            {/* Sign Up Link */}
-            <div className={`text-center text-sm mt-6 ${
-              isDark ? "text-[#8d96a0]" : "text-[#656d76]"
-            }`}>
-              New to Gent?{" "}
-              <Link
-                href={AUTH_PATH.SIGNIN}
-                className={`font-medium hover:underline ${
-                  isDark ? "text-[#58a6ff]" : "text-[#0969da]"
+              <motion.div 
+                className={`text-center text-sm mt-4 ${
+                  isDark ? "text-white/70" : "text-[#2d3e2d]/70"
                 }`}
+                variants={itemVariants}
               >
-                Create an account
-              </Link>
-            </div>
-          </motion.div>
-        </div>
+                Don&apos;t have an account?{" "}
+                <Link
+                  href={AUTH_PATH.SIGNIN}
+                  className={`font-medium hover:underline transition-colors ${
+                    isDark ? "text-[#7dd3fc] hover:text-white" : "text-[#5A7863] hover:text-[#2d3e2d]"
+                  }`}
+                >
+                  create one
+                </Link>
+              </motion.div>
+            </motion.div>
+          </div>
+        </motion.div>
       </div>
+<<<<<<< HEAD
+=======
+
+      {/* Footer */}
+      <footer className={`w-full py-4 border-t transition-colors duration-300 ${
+        isDark
+          ? "border-white/10 bg-[#0f1419]/50"
+          : "border-[#5A7863]/20 bg-white/50"
+      }`}>
+        <div className="flex flex-wrap justify-center gap-6 text-xs sm:text-sm">
+          <Link
+            href="/privacy"
+            className={`transition-colors ${
+              isDark
+                ? "text-white/60 hover:text-white"
+                : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
+            }`}
+          >
+            Privacy Policy
+          </Link>
+          <Link
+            href="/terms"
+            className={`transition-colors ${
+              isDark
+                ? "text-white/60 hover:text-white"
+                : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
+            }`}
+          >
+            Terms of Service
+          </Link>
+          <span className={isDark ? "text-white/30" : "text-[#2d3e2d]/30"}>•</span>
+          <span className={`text-xs ${isDark ? "text-white/50" : "text-[#2d3e2d]/50"}`}>
+            © 2026 Gent. All rights reserved.
+          </span>
+        </div>
+      </footer>
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        isOpen={showForgotPasswordModal}
+        onClose={() => setShowForgotPasswordModal(false)}
+      />
+>>>>>>> b3abf1f (fix build)
     </div>
   );
 }
