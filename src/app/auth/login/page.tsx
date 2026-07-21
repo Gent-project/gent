@@ -12,12 +12,10 @@ import { setAuth } from "@/store/slices/auth-slice";
 import { RootState } from "@/store";
 import { AUTH_PATH, DASHBOARD_PATH } from "@/routes/path";
 import SharedNavigation from "@/app/components/SharedNavigation";
-<<<<<<< HEAD
-=======
+
 import ForgotPasswordModal from "@/app/components/ForgotPasswordModal";
 import InputField from "@/app/components/InputField";
 import TerminalPreview from "@/app/components/TerminalPreview";
->>>>>>> b3abf1f (fix build)
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,19 +28,21 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   useEffect(() => {
     setIsHydrated(true);
-    
+
     // فحص إذا كان المستخدم قادم من صفحة التسجيل
     const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get('signup') === 'success') {
-      setSuccessMessage("Account created successfully! Please sign in with your credentials.");
-      
+    if (searchParams.get("signup") === "success") {
+      setSuccessMessage(
+        "Account created successfully! Please sign in with your credentials.",
+      );
+
       // إزالة معامل URL بعد عرض الرسالة
       const url = new URL(window.location.href);
-      url.searchParams.delete('signup');
-      window.history.replaceState({}, '', url.pathname);
+      url.searchParams.delete("signup");
+      window.history.replaceState({}, "", url.pathname);
     }
   }, []);
 
@@ -50,7 +50,7 @@ export default function LoginPage() {
     if (e) {
       e.preventDefault();
     }
-    
+
     setError("");
     setIsLoading(true);
 
@@ -72,20 +72,22 @@ export default function LoginPage() {
       }
 
       // حفظ التوكن في localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('token', token);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("token", token);
         if (refreshToken) {
-          localStorage.setItem('refreshToken', refreshToken);
+          localStorage.setItem("refreshToken", refreshToken);
         }
-        console.log('✅ Token saved to localStorage:', {
-          token: token.substring(0, 20) + '...',
-          refreshToken: refreshToken ? refreshToken.substring(0, 20) + '...' : 'none'
+        console.log("✅ Token saved to localStorage:", {
+          token: token.substring(0, 20) + "...",
+          refreshToken: refreshToken
+            ? refreshToken.substring(0, 20) + "..."
+            : "none",
         });
       }
 
       // حفظ في Redux store
       dispatch(setAuth({ token, user, refreshToken }));
-      
+
       // توجيه للـ Dashboard
       router.replace(DASHBOARD_PATH.ROOT);
     } catch (err: any) {
@@ -115,13 +117,15 @@ export default function LoginPage() {
   if (!isHydrated) return null;
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${
-      isDark 
-        ? "bg-gradient-to-br from-[#0f1419] via-[#1a1f2e] to-[#151b28]" 
-        : "bg-gradient-to-br from-[#bed19e] via-[#a8c88a] to-[#9bc07a]"
-    }`}>
+    <div
+      className={`min-h-screen flex flex-col transition-colors duration-300 ${
+        isDark
+          ? "bg-gradient-to-br from-[#0f1419] via-[#1a1f2e] to-[#151b28]"
+          : "bg-gradient-to-br from-[#bed19e] via-[#a8c88a] to-[#9bc07a]"
+      }`}
+    >
       <SharedNavigation />
-      
+
       <div className="flex-1 flex items-center justify-center py-8 px-4 mt-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -129,19 +133,25 @@ export default function LoginPage() {
           transition={{ duration: 0.6 }}
           className="w-full max-w-md"
         >
-          <div className={`w-full rounded-2xl shadow-2xl p-6 sm:p-8 border transition-all ${
-            isDark
-              ? "border-white/20 bg-[#0f1419]/95 backdrop-blur-md"
-              : "border-[#5A7863]/30 bg-white/95 backdrop-blur-md"
-          }`}>
-            <h1 className={`text-2xl sm:text-3xl font-bold text-center mb-2 ${
-              isDark ? "text-white" : "text-[#2d3e2d]"
-            }`}>
+          <div
+            className={`w-full rounded-2xl shadow-2xl p-6 sm:p-8 border transition-all ${
+              isDark
+                ? "border-white/20 bg-[#0f1419]/95 backdrop-blur-md"
+                : "border-[#5A7863]/30 bg-white/95 backdrop-blur-md"
+            }`}
+          >
+            <h1
+              className={`text-2xl sm:text-3xl font-bold text-center mb-2 ${
+                isDark ? "text-white" : "text-[#2d3e2d]"
+              }`}
+            >
               Sign In
             </h1>
-            <p className={`text-center text-sm mb-8 ${
-              isDark ? "text-white/60" : "text-[#2d3e2d]/60"
-            }`}>
+            <p
+              className={`text-center text-sm mb-8 ${
+                isDark ? "text-white/60" : "text-[#2d3e2d]/60"
+              }`}
+            >
               Welcome back to Gent
             </p>
 
@@ -191,40 +201,6 @@ export default function LoginPage() {
                 />
               </motion.div>
 
-<<<<<<< HEAD
-              {/* Password Field */}
-              <div className="space-y-2">
-                <label className={`text-sm font-medium block ${
-                  isDark ? "text-[#f0f6fc]" : "text-[#24292f]"
-                }`}>
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading}
-                    placeholder="Enter your password"
-                    className={`w-full px-3 py-2 pr-10 text-sm rounded-md border transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                      isDark
-                        ? "border-[#30363d] bg-[#21262d] text-[#f0f6fc] placeholder:text-[#8d96a0] focus:border-[#1f6feb] focus:ring-[#1f6feb]/25"
-                        : "border-[#d1d9e0] bg-[#ffffff] text-[#24292f] placeholder:text-[#656d76] focus:border-[#0969da] focus:ring-[#0969da]/25"
-                    }`}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className={`absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer transition-colors ${
-                      isDark ? "text-[#8d96a0] hover:text-[#f0f6fc]" : "text-[#656d76] hover:text-[#24292f]"
-                    }`}
-                  >
-                    {showPassword ? <AiFillEyeInvisible size={16} /> : <AiFillEye size={16} />}
-                  </button>
-                </div>
-              </div>
-=======
               <motion.div className="relative" variants={itemVariants}>
                 <InputField
                   label="Password"
@@ -239,7 +215,9 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className={`absolute right-3 top-9 cursor-pointer transition-colors ${
-                    isDark ? "text-white/60 hover:text-white" : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
+                    isDark
+                      ? "text-white/60 hover:text-white"
+                      : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
                   }`}
                   tabIndex={-1}
                 >
@@ -251,21 +229,22 @@ export default function LoginPage() {
                 </button>
               </motion.div>
 
-              <motion.div 
-                className="flex items-center justify-end" 
+              <motion.div
+                className="flex items-center justify-end"
                 variants={itemVariants}
               >
                 <button
                   type="button"
                   onClick={() => setShowForgotPasswordModal(true)}
                   className={`text-xs hover:underline cursor-pointer ${
-                    isDark ? "text-[#7dd3fc] hover:text-white" : "text-[#5A7863] hover:text-[#2d3e2d]"
+                    isDark
+                      ? "text-[#7dd3fc] hover:text-white"
+                      : "text-[#5A7863] hover:text-[#2d3e2d]"
                   }`}
                 >
                   Forgot password?
                 </button>
               </motion.div>
->>>>>>> b3abf1f (fix build)
 
               <motion.button
                 type="button"
@@ -283,7 +262,7 @@ export default function LoginPage() {
                 {isLoading ? "Signing in..." : "Sign In"}
               </motion.button>
 
-              <motion.div 
+              <motion.div
                 className={`text-center text-sm mt-4 ${
                   isDark ? "text-white/70" : "text-[#2d3e2d]/70"
                 }`}
@@ -293,7 +272,9 @@ export default function LoginPage() {
                 <Link
                   href={AUTH_PATH.SIGNIN}
                   className={`font-medium hover:underline transition-colors ${
-                    isDark ? "text-[#7dd3fc] hover:text-white" : "text-[#5A7863] hover:text-[#2d3e2d]"
+                    isDark
+                      ? "text-[#7dd3fc] hover:text-white"
+                      : "text-[#5A7863] hover:text-[#2d3e2d]"
                   }`}
                 >
                   create one
@@ -303,15 +284,15 @@ export default function LoginPage() {
           </div>
         </motion.div>
       </div>
-<<<<<<< HEAD
-=======
 
       {/* Footer */}
-      <footer className={`w-full py-4 border-t transition-colors duration-300 ${
-        isDark
-          ? "border-white/10 bg-[#0f1419]/50"
-          : "border-[#5A7863]/20 bg-white/50"
-      }`}>
+      <footer
+        className={`w-full py-4 border-t transition-colors duration-300 ${
+          isDark
+            ? "border-white/10 bg-[#0f1419]/50"
+            : "border-[#5A7863]/20 bg-white/50"
+        }`}
+      >
         <div className="flex flex-wrap justify-center gap-6 text-xs sm:text-sm">
           <Link
             href="/privacy"
@@ -333,8 +314,12 @@ export default function LoginPage() {
           >
             Terms of Service
           </Link>
-          <span className={isDark ? "text-white/30" : "text-[#2d3e2d]/30"}>•</span>
-          <span className={`text-xs ${isDark ? "text-white/50" : "text-[#2d3e2d]/50"}`}>
+          <span className={isDark ? "text-white/30" : "text-[#2d3e2d]/30"}>
+            •
+          </span>
+          <span
+            className={`text-xs ${isDark ? "text-white/50" : "text-[#2d3e2d]/50"}`}
+          >
             © 2026 Gent. All rights reserved.
           </span>
         </div>
@@ -345,7 +330,6 @@ export default function LoginPage() {
         isOpen={showForgotPasswordModal}
         onClose={() => setShowForgotPasswordModal(false)}
       />
->>>>>>> b3abf1f (fix build)
     </div>
   );
 }
