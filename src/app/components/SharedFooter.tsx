@@ -1,6 +1,16 @@
 "use client";
 
-import { GitBranch, Mail, Phone, Github, Linkedin, Twitter } from "lucide-react";
+import {
+  GitBranch,
+  Mail,
+  Github,
+  Linkedin,
+  Twitter,
+  Terminal,
+  Code2,
+  Zap,
+  Shield,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
@@ -14,91 +24,224 @@ export default function SharedFooter() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   };
 
+  const productLinks = [
+    { href: "/services", label: "Solutions", icon: Code2 },
+    { href: "/how-it-works", label: "Insights", icon: Zap },
+    { href: "/faq", label: "FAQ", icon: Shield },
+  ];
+
+  const legalLinks = [
+    { href: "/terms", label: "Terms of Service" },
+    { href: "/privacy", label: "Privacy Policy" },
+  ];
+
+  const socialLinks = [
+    { href: "#", icon: Github, label: "GitHub" },
+    { href: "#", icon: Linkedin, label: "LinkedIn" },
+    { href: "#", icon: Twitter, label: "Twitter" },
+  ];
+
   return (
-    <motion.footer 
-      className={`bottom-0 left-0 right-0 border-t transition-colors duration-300  ${
-        isDark
-          ? "border-white/20 bg-[#0f1419]/95 backdrop-blur-xl"
-          : "border-[#2d3e2d]/20 bg-[#bed19e]/95 backdrop-blur-xl"
+    <motion.footer
+      className={`relative border-t transition-colors duration-300 ${
+        isDark ? "border-white/5 bg-[#0f1419]" : "border-gray-200 bg-white"
       }`}
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
       viewport={{ once: true }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid md:grid-cols-4 gap-6 mb-4">
-          <motion.div variants={itemVariants}>
-            <div className="flex items-center gap-2 mb-3">
-              <GitBranch className={`w-5 h-5 ${isDark ? "text-[#7dd3fc]" : "text-[#5A7863]"}`} />
-              <span className={`font-bold text-sm ${isDark ? "text-white" : "text-[#5A7863]"}`}>Gent</span>
-            </div>
-            <p className={`text-xs ${isDark ? "text-white/60" : "text-[#2d3e2d]/60"}`}>
-              Lightweight version control for modern developers.
+      {/* Gradient overlay */}
+      <div
+        className={`absolute inset-0 opacity-50 ${
+          isDark
+            ? "bg-gradient-to-b from-transparent via-[#7dd3fc]/5 to-transparent"
+            : "bg-gradient-to-b from-transparent via-[#5A7863]/5 to-transparent"
+        }`}
+      ></div>
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid md:grid-cols-12 gap-8 mb-8">
+          {/* Brand Section */}
+          <motion.div className="md:col-span-4" variants={itemVariants}>
+            <Link
+              href="/home"
+              className="inline-flex items-center gap-3 mb-4 group"
+            >
+              <motion.div
+                className={`p-2.5 rounded-xl transition-all ${
+                  isDark
+                    ? "bg-gradient-to-br from-[#7dd3fc]/10 to-[#06b6d4]/10 group-hover:from-[#7dd3fc]/20 group-hover:to-[#06b6d4]/20"
+                    : "bg-gradient-to-br from-[#5A7863]/10 to-[#4a6853]/10 group-hover:from-[#5A7863]/20 group-hover:to-[#4a6853]/20"
+                }`}
+                whileHover={{ scale: 1.05, rotate: 5 }}
+              >
+                <GitBranch
+                  className={`w-5 h-5 ${isDark ? "text-[#7dd3fc]" : "text-[#5A7863]"}`}
+                />
+              </motion.div>
+              <div>
+                <span
+                  className={`text-xl font-bold block ${isDark ? "text-white" : "text-gray-900"}`}
+                >
+                  Gent
+                </span>
+                <span
+                  className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
+                >
+                  Version Control
+                </span>
+              </div>
+            </Link>
+            <p
+              className={`text-sm leading-relaxed mb-4 ${isDark ? "text-gray-400" : "text-gray-600"}`}
+            >
+              Modern version control that speaks your language. Git-compatible
+              CLI with a powerful web dashboard.
             </p>
+            {/* CLI Command Box */}
+            <div
+              className={`p-3 rounded-lg border font-mono text-sm ${
+                isDark
+                  ? "bg-[#1a1f2e]/50 border-[#7dd3fc]/20 text-[#7dd3fc]"
+                  : "bg-gray-50 border-gray-200 text-[#5A7863]"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4" />
+                <span>$ npm install -g gent-cli</span>
+              </div>
+            </div>
           </motion.div>
-          <motion.div variants={itemVariants}>
-            <h4 className={`font-semibold mb-2 text-xs ${isDark ? "text-white" : "text-[#2d3e2d]"}`}>Product</h4>
-            <ul className={`space-y-1 text-xs ${isDark ? "text-white/60" : "text-[#2d3e2d]/60"}`}>
-              <li><Link href="/services" className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-[#2d3e2d]"}`}>Services</Link></li>
-              <li><Link href="/faq" className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-[#2d3e2d]"}`}>FAQ</Link></li>
-              <li><Link href="/terms" className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-[#2d3e2d]"}`}>Terms</Link></li>
-              <li><Link href="/privacy" className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-[#2d3e2d]"}`}>Privacy</Link></li>
+
+          {/* Product Links */}
+          <motion.div className="md:col-span-2" variants={itemVariants}>
+            <h4
+              className={`font-semibold mb-4 text-sm ${isDark ? "text-white" : "text-gray-900"}`}
+            >
+              Product
+            </h4>
+            <ul className="space-y-3">
+              {productLinks.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={`flex items-center gap-2 text-sm transition-colors group ${
+                      isDark
+                        ? "text-gray-400 hover:text-[#7dd3fc]"
+                        : "text-gray-600 hover:text-[#5A7863]"
+                    }`}
+                  >
+                    <link.icon className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </motion.div>
-          <motion.div variants={itemVariants}>
-            <h4 className={`font-semibold mb-2 text-xs ${isDark ? "text-white" : "text-[#2d3e2d]"}`}>Contact</h4>
-            <ul className={`space-y-1 text-xs ${isDark ? "text-white/60" : "text-[#2d3e2d]/60"}`}>
-              <li className="flex items-center gap-2">
-                <Mail className="w-3 h-3" />
-                <a href="mailto:info@Gent.com" className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-[#2d3e2d]"}`}>info@Gent.com</a>
-              </li>
-              <li className="flex items-center gap-2">
-                <Phone className="w-3 h-3" />
-                <a href="tel:+96346789032" className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-[#2d3e2d]"}`}>+963 46789032</a>
-              </li>
+
+          {/* Legal Links */}
+          <motion.div className="md:col-span-2" variants={itemVariants}>
+            <h4
+              className={`font-semibold mb-4 text-sm ${isDark ? "text-white" : "text-gray-900"}`}
+            >
+              Legal
+            </h4>
+            <ul className="space-y-3">
+              {legalLinks.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={`text-sm transition-colors hover:translate-x-1 inline-block ${
+                      isDark
+                        ? "text-gray-400 hover:text-[#7dd3fc]"
+                        : "text-gray-600 hover:text-[#5A7863]"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </motion.div>
-          <motion.div variants={itemVariants}>
-            <h4 className={`font-semibold mb-2 text-xs ${isDark ? "text-white" : "text-[#2d3e2d]"}`}>Follow Us</h4>
+
+          {/* Contact & Social */}
+          <motion.div className="md:col-span-4" variants={itemVariants}>
+            <h4
+              className={`font-semibold mb-4 text-sm ${isDark ? "text-white" : "text-gray-900"}`}
+            >
+              Connect
+            </h4>
+            <div className="space-y-3 mb-6">
+              <a
+                href="mailto:info@gent.com"
+                className={`flex items-center gap-3 text-sm transition-colors group ${
+                  isDark
+                    ? "text-gray-400 hover:text-[#7dd3fc]"
+                    : "text-gray-600 hover:text-[#5A7863]"
+                }`}
+              >
+                <div
+                  className={`p-2 rounded-lg ${
+                    isDark
+                      ? "bg-white/5 group-hover:bg-white/10"
+                      : "bg-gray-100 group-hover:bg-gray-200"
+                  }`}
+                >
+                  <Mail className="w-4 h-4" />
+                </div>
+                info@gent.com
+              </a>
+            </div>
+
             <div className="flex gap-3">
-              <motion.a
-                href="#"
-                className={`transition-colors ${isDark ? "text-white/60 hover:text-white" : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"}`}
-                whileHover={{ scale: 1.2 }}
-              >
-                <Github className="w-4 h-4" />
-              </motion.a>
-              <motion.a
-                href="#"
-                className={`transition-colors ${isDark ? "text-white/60 hover:text-white" : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"}`}
-                whileHover={{ scale: 1.2 }}
-              >
-                <Linkedin className="w-4 h-4" />
-              </motion.a>
-              <motion.a
-                href="#"
-                className={`transition-colors ${isDark ? "text-white/60 hover:text-white" : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"}`}
-                whileHover={{ scale: 1.2 }}
-              >
-                <Twitter className="w-4 h-4" />
-              </motion.a>
+              {socialLinks.map((social) => (
+                <motion.a
+                  key={social.label}
+                  href={social.href}
+                  className={`p-3 rounded-lg transition-all ${
+                    isDark
+                      ? "bg-white/5 hover:bg-white/10 text-gray-400 hover:text-[#7dd3fc]"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-[#5A7863]"
+                  }`}
+                  whileHover={{ scale: 1.1, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  title={social.label}
+                >
+                  <social.icon className="w-5 h-5" />
+                </motion.a>
+              ))}
             </div>
           </motion.div>
         </div>
-        <motion.div 
-          className={`border-t pt-3 transition-colors ${
-            isDark
-              ? "border-white/20"
-              : "border-[#2d3e2d]/20"
+
+        {/* Bottom Bar */}
+        <motion.div
+          className={`pt-6 border-t ${
+            isDark ? "border-white/5" : "border-gray-200"
           }`}
           variants={itemVariants}
         >
-          <p className={`text-center text-xs mb-2 ${isDark ? "text-white/70" : "text-[#2d3e2d]/70"}`}>
-            Gent is a lightweight, modern version control system designed to simplify code management and collaboration for developers worldwide.
-          </p>
-          <p className={`text-center text-xs ${isDark ? "text-white/50" : "text-[#2d3e2d]/50"}`}>
-            &copy; 2026 Gent. All rights reserved. Built with passion for developers.
-          </p>
+          <div className="flex flex-col items-center gap-3 text-center">
+            <p
+              className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}
+            >
+              © 2026 Gent Technologies Inc. All rights reserved.
+            </p>
+            <div
+              className={`flex flex-wrap items-center justify-center gap-4 text-xs ${isDark ? "text-gray-500" : "text-gray-500"}`}
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-2 h-2 rounded-full animate-pulse ${isDark ? "bg-emerald-400" : "bg-emerald-500"}`}
+                ></div>
+                <span>All Systems Operational</span>
+              </div>
+              <span>•</span>
+              <span>Version 1.0.0</span>
+              <span>•</span>
+              <span>Built with Gent</span>
+            </div>
+          </div>
         </motion.div>
       </div>
     </motion.footer>

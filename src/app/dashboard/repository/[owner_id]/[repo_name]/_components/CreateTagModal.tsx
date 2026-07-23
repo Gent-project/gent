@@ -16,22 +16,22 @@ interface CreateTagModalProps {
   userEmail: string;
 }
 
-export default function CreateTagModal({ 
-  isOpen, 
-  onClose, 
-  ownerId, 
-  repoName, 
+export default function CreateTagModal({
+  isOpen,
+  onClose,
+  ownerId,
+  repoName,
   isDark,
   branches,
-  userEmail 
+  userEmail,
 }: CreateTagModalProps) {
-  const [tagName, setTagName] = useState('');
-  const [message, setMessage] = useState('');
-  const [sourceBranch, setSourceBranch] = useState(branches[0]?.name || 'main');
+  const [tagName, setTagName] = useState("");
+  const [message, setMessage] = useState("");
+  const [sourceBranch, setSourceBranch] = useState(branches[0]?.name || "main");
   const [isAnnotated, setIsAnnotated] = useState(true);
-  const [taggerName, setTaggerName] = useState('');
-  const [error, setError] = useState('');
-  
+  const [taggerName, setTaggerName] = useState("");
+  const [error, setError] = useState("");
+
   const createTag = useCreateTag();
   const t = getDashboardTheme(isDark);
 
@@ -41,41 +41,54 @@ export default function CreateTagModal({
   const isRepoEmpty = !branches || branches.length === 0;
 
   const validateTagName = (name: string) => {
-    if (!name.trim()) return 'Tag name is required';
-    if (name.includes(' ')) return 'Tag name cannot contain spaces';
-    if (name.includes('..')) return 'Tag name cannot contain ".."';
-    if (name.length > 100) return 'Tag name is too long';
-    return '';
+    if (!name.trim()) return "Tag name is required";
+    if (name.includes(" ")) return "Tag name cannot contain spaces";
+    if (name.includes("..")) return 'Tag name cannot contain ".."';
+    if (name.length > 100) return "Tag name is too long";
+    return "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    
+    setError("");
+
     if (isRepoEmpty) {
-      setError('Cannot create tags in an empty repository. Create your first commit first.');
+      setError(
+        "Cannot create tags in an empty repository. Create your first commit first.",
+      );
       return;
     }
-    
+
     const validationError = validateTagName(tagName);
     if (validationError) {
       setError(validationError);
       return;
     }
 
-    const sourceBranchData = branches.find(b => b.name === sourceBranch);
+    const sourceBranchData = branches.find((b) => b.name === sourceBranch);
     if (!sourceBranchData) {
-      setError('Source branch not found');
+      setError("Source branch not found");
+      return;
+    }
+
+    // Check if branch has a valid commit SHA
+    if (
+      !sourceBranchData.commit_sha ||
+      sourceBranchData.commit_sha ===
+        "0000000000000000000000000000000000000000000000000000000000000000" ||
+      sourceBranchData.commit_sha.length === 0
+    ) {
+      setError("Selected branch has no commits yet. Push some commits first.");
       return;
     }
 
     if (isAnnotated && !message.trim()) {
-      setError('Message is required for annotated tags');
+      setError("Message is required for annotated tags");
       return;
     }
 
     if (isAnnotated && !taggerName.trim()) {
-      setError('Tagger name is required for annotated tags');
+      setError("Tagger name is required for annotated tags");
       return;
     }
 
@@ -86,20 +99,25 @@ export default function CreateTagModal({
         data: {
           name: tagName.trim(),
           commit_sha: sourceBranchData.commit_sha,
-          message: message.trim(),
+          message: message.trim() || tagName.trim(),
           annotated: isAnnotated,
-          tagger_name: taggerName.trim(),
-          tagger_email: userEmail
-        }
+          tagger_name: taggerName.trim() || "Unknown",
+          tagger_email: userEmail,
+        },
       });
-      
-      setTagName('');
-      setMessage('');
-      setTaggerName('');
-      setError('');
+
+      setTagName("");
+      setMessage("");
+      setTaggerName("");
+      setError("");
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create tag');
+      const errorMsg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Failed to create tag";
+      setError(errorMsg);
+      console.error("Create tag error:", err.response?.data);
     }
   };
 
@@ -136,7 +154,10 @@ export default function CreateTagModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Tag name */}
           <div>
-            <label className="block text-sm font-medium mb-2" style={{ color: t.text }}>
+            <label
+              className="block text-sm font-medium mb-2"
+              style={{ color: t.text }}
+            >
               Tag name
             </label>
             <input
@@ -144,13 +165,13 @@ export default function CreateTagModal({
               value={tagName}
               onChange={(e) => {
                 setTagName(e.target.value);
-                setError('');
+                setError("");
               }}
               placeholder="v1.0.0"
               className="w-full px-3 py-2 text-sm rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               style={{
                 backgroundColor: t.inputBg,
-                borderColor: error ? '#ef4444' : t.border,
+                borderColor: error ? "#ef4444" : t.border,
                 color: t.text,
               }}
               autoFocus
@@ -159,11 +180,14 @@ export default function CreateTagModal({
 
           {/* Source branch */}
           <div>
-            <label className="block text-sm font-medium mb-2" style={{ color: t.text }}>
+            <label
+              className="block text-sm font-medium mb-2"
+              style={{ color: t.text }}
+            >
               Target branch
             </label>
             {isRepoEmpty ? (
-              <div 
+              <div
                 className="w-full px-3 py-2 text-sm rounded-lg border"
                 style={{
                   backgroundColor: t.inputBg,
@@ -207,7 +231,8 @@ export default function CreateTagModal({
               </span>
             </label>
             <p className="text-xs mt-1" style={{ color: t.textMuted }}>
-              Recommended for releases. Contains metadata about the tagger and message.
+              Recommended for releases. Contains metadata about the tagger and
+              message.
             </p>
           </div>
 
@@ -215,7 +240,10 @@ export default function CreateTagModal({
           {isAnnotated && (
             <>
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: t.text }}>
+                <label
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: t.text }}
+                >
                   Tagger name
                 </label>
                 <input
@@ -233,7 +261,10 @@ export default function CreateTagModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: t.text }}>
+                <label
+                  className="block text-sm font-medium mb-2"
+                  style={{ color: t.text }}
+                >
                   Message
                 </label>
                 <textarea
@@ -254,11 +285,11 @@ export default function CreateTagModal({
 
           {/* Error message */}
           {error && (
-            <div 
+            <div
               className="flex items-center gap-2 p-3 text-sm rounded-lg"
               style={{
-                backgroundColor: isDark ? '#fef2f2' : '#fef2f2',
-                color: '#dc2626',
+                backgroundColor: isDark ? "#fef2f2" : "#fef2f2",
+                color: "#dc2626",
               }}
             >
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -288,7 +319,7 @@ export default function CreateTagModal({
                 color: t.successText,
               }}
             >
-              {createTag.isPending ? 'Creating...' : 'Create tag'}
+              {createTag.isPending ? "Creating..." : "Create tag"}
             </button>
           </div>
         </form>

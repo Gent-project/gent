@@ -51,7 +51,7 @@ export default function NewRepositoryModal({
       setErrors({});
       return;
     }
-    
+
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -63,11 +63,12 @@ export default function NewRepositoryModal({
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.name.trim()) {
       newErrors.name = "Repository name is required";
     } else if (!/^[a-zA-Z0-9_.-]+$/.test(formData.name)) {
-      newErrors.name = "Repository name can only contain letters, numbers, hyphens, underscores, and periods";
+      newErrors.name =
+        "Repository name can only contain letters, numbers, hyphens, underscores, and periods";
     } else if (formData.name.length < 2) {
       newErrors.name = "Repository name must be at least 2 characters";
     } else if (formData.name.length > 100) {
@@ -84,7 +85,7 @@ export default function NewRepositoryModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     try {
@@ -139,7 +140,10 @@ export default function NewRepositoryModal({
               </div>
 
               {/* Form Content with Scroll */}
-              <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <form
+                onSubmit={handleSubmit}
+                className="flex flex-col flex-1 min-h-0"
+              >
                 <div className="px-5 py-4 space-y-4 overflow-y-auto">
                   {/* Error Alert */}
                   {createRepository.error && (
@@ -155,7 +159,8 @@ export default function NewRepositoryModal({
                       <div>
                         <strong>Failed to create repository</strong>
                         <p className="mt-1">
-                          {createRepository.error?.message || "An unexpected error occurred"}
+                          {createRepository.error?.message ||
+                            "An unexpected error occurred"}
                         </p>
                       </div>
                     </div>
@@ -172,11 +177,15 @@ export default function NewRepositoryModal({
                     <input
                       type="text"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
                       placeholder="my-awesome-repo"
                       disabled={createRepository.isPending}
                       className={`w-full px-3 py-2 text-sm rounded-md border outline-none transition-colors focus:ring-2 ${
-                        errors.name ? "border-red-500 focus:ring-red-500/20" : "focus:ring-blue-500/20"
+                        errors.name
+                          ? "border-red-500 focus:ring-red-500/20"
+                          : "focus:ring-blue-500/20"
                       }`}
                       style={{
                         backgroundColor: t.inputBg,
@@ -196,18 +205,28 @@ export default function NewRepositoryModal({
                       style={{ color: t.text }}
                     >
                       Description{" "}
-                      <span className="font-normal" style={{ color: t.textMuted }}>
+                      <span
+                        className="font-normal"
+                        style={{ color: t.textMuted }}
+                      >
                         (optional)
                       </span>
                     </label>
                     <textarea
                       value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
+                      }
                       placeholder="A short description of your repository"
                       rows={2}
                       disabled={createRepository.isPending}
                       className={`w-full px-3 py-2 text-sm rounded-md border outline-none transition-colors focus:ring-2 resize-none ${
-                        errors.description ? "border-red-500 focus:ring-red-500/20" : "focus:ring-blue-500/20"
+                        errors.description
+                          ? "border-red-500 focus:ring-red-500/20"
+                          : "focus:ring-blue-500/20"
                       }`}
                       style={{
                         backgroundColor: t.inputBg,
@@ -216,12 +235,17 @@ export default function NewRepositoryModal({
                       }}
                     />
                     {errors.description && (
-                      <p className="text-xs text-red-500 mt-1">{errors.description}</p>
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.description}
+                      </p>
                     )}
                   </div>
 
                   {/* Visibility */}
-                  <fieldset className="space-y-2" disabled={createRepository.isPending}>
+                  <fieldset
+                    className="space-y-2"
+                    disabled={createRepository.isPending}
+                  >
                     <legend
                       className="text-sm font-medium mb-2"
                       style={{ color: t.text }}
@@ -232,16 +256,22 @@ export default function NewRepositoryModal({
                       className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                         !formData.is_private ? "ring-2 ring-blue-500/20" : ""
                       }`}
-                      style={{ 
-                        borderColor: !formData.is_private ? "#0969da" : t.border, 
-                        backgroundColor: !formData.is_private ? t.accentMuted : "transparent"
+                      style={{
+                        borderColor: !formData.is_private
+                          ? "#0969da"
+                          : t.border,
+                        backgroundColor: !formData.is_private
+                          ? t.accentMuted
+                          : "transparent",
                       }}
                     >
                       <input
                         type="radio"
                         name="visibility"
                         checked={!formData.is_private}
-                        onChange={() => setFormData({ ...formData, is_private: false })}
+                        onChange={() =>
+                          setFormData({ ...formData, is_private: false })
+                        }
                         className="mt-1 cursor-pointer"
                       />
                       <div>
@@ -252,7 +282,10 @@ export default function NewRepositoryModal({
                           <Globe className="w-4 h-4" />
                           Public
                         </div>
-                        <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>
+                        <p
+                          className="text-xs mt-0.5"
+                          style={{ color: t.textMuted }}
+                        >
                           Anyone can see this repository
                         </p>
                       </div>
@@ -261,17 +294,21 @@ export default function NewRepositoryModal({
                       className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                         formData.is_private ? "ring-2 ring-blue-500/20" : ""
                       }`}
-                      style={{ 
+                      style={{
                         borderColor: formData.is_private ? "#0969da" : t.border,
-                        backgroundColor: formData.is_private ? t.accentMuted : "transparent"
+                        backgroundColor: formData.is_private
+                          ? t.accentMuted
+                          : "transparent",
                       }}
                     >
-                      <input 
-                        type="radio" 
-                        name="visibility" 
+                      <input
+                        type="radio"
+                        name="visibility"
                         checked={formData.is_private}
-                        onChange={() => setFormData({ ...formData, is_private: true })}
-                        className="mt-1 cursor-pointer" 
+                        onChange={() =>
+                          setFormData({ ...formData, is_private: true })
+                        }
+                        className="mt-1 cursor-pointer"
                       />
                       <div>
                         <div
@@ -281,7 +318,10 @@ export default function NewRepositoryModal({
                           <Lock className="w-4 h-4" />
                           Private
                         </div>
-                        <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>
+                        <p
+                          className="text-xs mt-0.5"
+                          style={{ color: t.textMuted }}
+                        >
                           You choose who can see this repository
                         </p>
                       </div>
@@ -308,15 +348,21 @@ export default function NewRepositoryModal({
                   </button>
                   <button
                     type="submit"
-                    disabled={createRepository.isPending || !formData.name.trim()}
+                    disabled={
+                      createRepository.isPending || !formData.name.trim()
+                    }
                     className="px-4 py-2 text-sm font-semibold rounded-lg transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
                     style={{
                       background: t.accentGradient,
                       color: t.successText,
                     }}
                   >
-                    {createRepository.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {createRepository.isPending ? "Creating..." : "Create repository"}
+                    {createRepository.isPending && (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    )}
+                    {createRepository.isPending
+                      ? "Creating..."
+                      : "Create repository"}
                   </button>
                 </div>
               </form>

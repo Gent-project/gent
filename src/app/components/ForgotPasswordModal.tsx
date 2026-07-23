@@ -6,8 +6,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useMutation } from "@tanstack/react-query";
-import axios from "@/lib/axios";
+import { usePasswordResetRequest } from "@/hooks/use-password-reset";
 import { AxiosError } from "axios";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
@@ -17,72 +16,83 @@ interface ForgotPasswordModalProps {
   onClose: () => void;
 }
 
-interface ForgotPasswordPayload {
-  email: string;
-}
-
 interface ApiError {
-  error: string;
+  error?: string;
+  detail?: string;
 }
 
-export default function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordModalProps) {
+export default function ForgotPasswordModal({
+  isOpen,
+  onClose,
+}: ForgotPasswordModalProps) {
   const isDark = useSelector((state: RootState) => state.theme.isDark);
   const [email, setEmail] = useState("");
   const router = useRouter();
 
   // Handle body overflow and modal state
   useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : 'unset';
+    document.body.style.overflow = isOpen ? "hidden" : "unset";
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [isOpen]);
 
-  const mutation = useMutation({
-    mutationFn: async (payload: ForgotPasswordPayload) => {
-      const { data } = await axios.post("/auth/forgot-password", payload);
-      return data;
-    },
-    onSuccess: () => {
-      toast.success('Password reset link has been sent to your email', {
-        duration: 5000,
-        position: 'top-center',
-        style: {
-          backgroundColor: '#f0fdf4',
-          color: '#166534',
-          border: '1px solid #bbf7d0',
-          borderRadius: '0.5rem',
-          padding: '1rem',
-          fontSize: '0.875rem',
-          textAlign: 'left',
-        }
-      });
-      onClose();
-      setTimeout(() => router.push('/auth/login'), 300);
-    },
-    onError: (err: AxiosError<ApiError>) => {
-      toast.error(err.response?.data?.error || 'An error occurred while sending the email', {
-        duration: 5000,
-        position: 'top-center',
-        style: {
-          backgroundColor: '#fef2f2',
-          color: '#b91c1c',
-          border: '1px solid #fecaca',
-          borderRadius: '0.5rem',
-          padding: '1rem',
-          fontSize: '0.875rem',
-          textAlign: 'left',
-        }
-      });
-      onClose();
-      setTimeout(() => router.push('/auth/login'), 300);
-    }
-  });
+  const mutation = usePasswordResetRequest();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    mutation.mutate({ email });
+
+    mutation.mutate(
+      { email },
+      {
+        onSuccess: (data) => {
+          // Display the message from backend
+          const message =
+            data?.message ||
+            data?.detail ||
+            "If an account with that email exists, a password reset link has been sent.";
+
+          toast.success(message, {
+            duration: 6000,
+            position: "top-center",
+            style: {
+              backgroundColor: "#f0fdf4",
+              color: "#166534",
+              border: "1px solid #bbf7d0",
+              borderRadius: "0.5rem",
+              padding: "1rem",
+              fontSize: "0.875rem",
+              textAlign: "left",
+              maxWidth: "500px",
+            },
+          });
+          setEmail("");
+          onClose();
+        },
+        onError: (err: Error) => {
+          const axiosErr = err as AxiosError<ApiError>;
+          const errorMessage =
+            axiosErr.response?.data?.error ||
+            axiosErr.response?.data?.detail ||
+            "An error occurred while sending the email. Please try again.";
+
+          toast.error(errorMessage, {
+            duration: 5000,
+            position: "top-center",
+            style: {
+              backgroundColor: "#fef2f2",
+              color: "#b91c1c",
+              border: "1px solid #fecaca",
+              borderRadius: "0.5rem",
+              padding: "1rem",
+              fontSize: "0.875rem",
+              textAlign: "left",
+            },
+          });
+        },
+      },
+    );
   };
 
   if (!isOpen) return null;
@@ -97,7 +107,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordM
           className={`absolute inset-0 ${isDark ? "bg-black/70" : "bg-black/30"}`}
           onClick={onClose}
         />
-        
+
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -113,7 +123,9 @@ export default function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordM
           <button
             onClick={onClose}
             className={`absolute right-4 top-4 transition-colors ${
-              isDark ? "text-white/60 hover:text-white" : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
+              isDark
+                ? "text-white/60 hover:text-white"
+                : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
             }`}
             aria-label="Close"
           >
@@ -121,23 +133,31 @@ export default function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordM
           </button>
 
           <div className="text-center mb-6">
-            <h2 className={`text-2xl font-bold mb-2 ${
-              isDark ? "text-white" : "text-[#2d3e2d]"
-            }`}>
+            <h2
+              className={`text-2xl font-bold mb-2 ${
+                isDark ? "text-white" : "text-[#2d3e2d]"
+              }`}
+            >
               Reset Password
             </h2>
-            <p className={`text-sm ${
-              isDark ? "text-white/70" : "text-[#2d3e2d]/70"
-            }`}>
-              Enter your email and we&apos;ll send you a link to reset your password.
+            <p
+              className={`text-sm ${
+                isDark ? "text-white/70" : "text-[#2d3e2d]/70"
+              }`}
+            >
+              Enter your email and we&apos;ll send you a link to reset your
+              password.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className={`block text-sm font-medium ${
-                isDark ? "text-white/80" : "text-[#2d3e2d]/80"
-              }`}>
+              <label
+                htmlFor="email"
+                className={`block text-sm font-medium ${
+                  isDark ? "text-white/80" : "text-[#2d3e2d]/80"
+                }`}
+              >
                 Email Address
               </label>
               <input
@@ -166,7 +186,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }: ForgotPasswordM
                 }`}
                 disabled={mutation.isPending}
               >
-                {mutation.isPending ? 'Sending...' : 'Send Reset Link'}
+                {mutation.isPending ? "Sending..." : "Send Reset Link"}
               </Button>
             </div>
           </form>

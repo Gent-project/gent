@@ -11,8 +11,8 @@ export interface GitPack {
       email: string;
     };
     timestamp: string;
-    parent: string;
-    mergeParent?: string;
+    parent: string | null; // Can be null for initial commit
+    mergeParent?: string | null;
     treeHash: string;
     tree: Array<{
       mode: string;
@@ -20,17 +20,17 @@ export interface GitPack {
       path: string;
       hash: string;
       sha: string;
-      type: 'blob' | 'tree';
+      type: "blob" | "tree";
     }>;
     files: Array<{
       path: string;
       hash: string;
     }>;
-    stats: Record<string, string>;
+    stats: Record<string, any>;
   }>;
   objects: Array<{
     hash: string;
-    type: 'blob' | 'tree' | 'commit';
+    type: "blob" | "tree" | "commit";
     data: string;
   }>;
   branch_updates: Array<{
@@ -45,19 +45,34 @@ export interface GitPack {
 // Push pack to repository
 export const usePushPack = () => {
   const queryClient = useQueryClient();
-  
-  return useMutation<any, Error, { ownerId: number; repoName: string; pack: GitPack }>({
+
+  return useMutation<
+    any,
+    Error,
+    { ownerId: number; repoName: string; pack: GitPack }
+  >({
     mutationFn: async ({ ownerId, repoName, pack }) => {
-      const response = await axios.post(`/repos/${ownerId}/${repoName}/push/`, pack);
+      const response = await axios.post(
+        `/repos/${ownerId}/${repoName}/push/`,
+        pack,
+      );
       return response.data;
     },
     onSuccess: (data, variables) => {
       // Invalidate all related queries after push
-      queryClient.invalidateQueries({ queryKey: ['branches', variables.ownerId, variables.repoName] });
-      queryClient.invalidateQueries({ queryKey: ['commits', variables.ownerId, variables.repoName] });
-      queryClient.invalidateQueries({ queryKey: ['tags', variables.ownerId, variables.repoName] });
-      queryClient.invalidateQueries({ queryKey: ['tree', variables.ownerId, variables.repoName] });
-    }
+      queryClient.invalidateQueries({
+        queryKey: ["branches", variables.ownerId, variables.repoName],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["commits", variables.ownerId, variables.repoName],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["tags", variables.ownerId, variables.repoName],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["tree", variables.ownerId, variables.repoName],
+      });
+    },
   });
 };
 
@@ -67,17 +82,21 @@ export const usePullRepository = () => {
     mutationFn: async ({ ownerId, repoName }) => {
       const response = await axios.get(`/repos/${ownerId}/${repoName}/pull/`);
       return response.data;
-    }
+    },
   });
 };
 
 // Get repository clone URL
-export const getCloneUrl = (ownerEmail: string, repoName: string, protocol: 'https' | 'ssh' = 'https') => {
-  const ownerName = ownerEmail.split('@')[0];
-  
-  if (protocol === 'ssh') {
+export const getCloneUrl = (
+  ownerEmail: string,
+  repoName: string,
+  protocol: "https" | "ssh" = "https",
+) => {
+  const ownerName = ownerEmail.split("@")[0];
+
+  if (protocol === "ssh") {
     return `git@gent.dev:${ownerName}/${repoName}.git`;
   }
-  
+
   return `https://gent.dev/${ownerName}/${repoName}.git`;
 };

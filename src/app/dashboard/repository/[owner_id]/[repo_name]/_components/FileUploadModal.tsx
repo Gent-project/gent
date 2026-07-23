@@ -2,10 +2,17 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { X, Upload, File, Plus, Save, AlertCircle } from "lucide-react";
-import { useCreateBlob, useCreateTree } from "@/hooks/use-files";
-import { useCreateCommit, useCommits } from "@/hooks/use-commits";
+import { X, Upload, AlertCircle, CheckCircle, Plus } from "lucide-react";
+import { usePushPack } from "@/hooks/use-git-operations";
+import { useCommits } from "@/hooks/use-commits";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  calculateBlobSHA,
+  calculateTreeSHA,
+  calculateCommitSHA,
+  formatGitPerson,
+} from "@/utils/git-hash";
 
 interface FileUploadModalProps {
   isOpen: boolean;
@@ -34,13 +41,15 @@ export default function FileUploadModal({
   const [authorName, setAuthorName] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
+  const pushPack = usePushPack();
   const queryClient = useQueryClient();
-  const createBlob = useCreateBlob();
-  const createTree = useCreateTree();
-  const createCommit = useCreateCommit();
+
+  // Get latest commit for parent
   const { data: commits = [] } = useCommits(ownerId, repoName);
-  const parentShas = commits.length > 0 ? [commits[0].sha] : [];
+  const latestCommit = commits.length > 0 ? commits[0] : null;
+
   const t = getDashboardTheme(isDark);
 
   console.log("FileUploadModal render: isOpen=", isOpen, "mode=", mode);
@@ -55,6 +64,7 @@ export default function FileUploadModal({
   const handleCreateFile = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess(false);
 
     if (!fileName.trim()) {
       setError("File name is required");
@@ -77,84 +87,142 @@ export default function FileUploadModal({
     }
 
     try {
-      // Create blob first
-      const blob = await createBlob.mutateAsync({
-        ownerId,
-        repoName,
-        data: {
-          content: fileContent,
-          encoding: "utf-8",
-        },
-      });
-      console.log("BLOB RESPONSE:", blob);
-      const blobSha = blob?.sha;
-      if (!blobSha) {
-        throw new Error("Blob SHA not found");
-      }
+      const now = new Date();
+      const authorString = formatGitPerson(authorName.trim(), userEmail, now);
 
-      const tree = await createTree.mutateAsync({
-        ownerId,
-        repoName,
-        data: {
-          entries: [
-            {
-              mode: "100644",
-              name: fileName.trim(),
-              sha: blobSha,
-              type: "blob",
-            },
-          ],
-        },
-      });
-      const treeSha = tree?.sha;
-      if (!treeSha) {
-        throw new Error("Tree SHA not found");
-      }
+      // Step 1: Calculate blob SHA
+      const blobSHA = await calculateBlobSHA(fileContent);
+      console.log("Blob SHA:", blobSHA);
 
-      // Then create commit with this tree
-      const commitData: any = {
+      // Step 2: Build tree entries (include existing files if any + new file)
+      const treeEntries = [
+        {
+          mode: "100644", // Regular file
+          name: fileName.trim(),
+          sha: blobSHA,
+        },
+      ];
+
+      // Step 3: Calculate tree SHA
+      const treeSHA = await calculateTreeSHA(treeEntries);
+      console.log("Tree SHA:", treeSHA);
+
+      // Step 4: Calculate commit SHA
+      const commitSHA = await calculateCommitSHA({
+        treeSHA: treeSHA,
+        parentSHAs: latestCommit ? [latestCommit.sha] : [],
+        author: authorString,
+        committer: authorString,
         message: commitMessage.trim(),
-        tree_sha: treeSha,
-        sha: treeSha,
-        author_name: authorName.trim(),
-        author_email: userEmail,
+      });
+      console.log("Commit SHA:", commitSHA);
+
+      // Step 5: Encode content as base64
+      const base64Content = btoa(unescape(encodeURIComponent(fileContent)));
+
+      // Step 6: Build Git pack
+      const pack = {
         branch: defaultBranch,
+        force: false,
+        commits: [
+          {
+            hash: commitSHA,
+            message: commitMessage.trim(),
+            author: {
+              name: authorName.trim(),
+              email: userEmail,
+            },
+            timestamp: now.toISOString(),
+            parent: latestCommit ? latestCommit.sha : null,
+            mergeParent: null,
+            treeHash: treeSHA,
+            tree: treeEntries.map((entry) => ({
+              mode: entry.mode,
+              name: entry.name,
+              path: entry.name,
+              hash: entry.sha,
+              sha: entry.sha,
+              type: "blob" as const,
+            })),
+            files: treeEntries.map((entry) => ({
+              path: entry.name,
+              hash: entry.sha,
+            })),
+            stats: {},
+          },
+        ],
+        objects: [
+          {
+            hash: blobSHA,
+            type: "blob" as const,
+            data: base64Content,
+          },
+        ],
+        branch_updates: [
+          {
+            name: defaultBranch,
+            commit_sha: commitSHA,
+          },
+        ],
+        tags: {},
       };
-      if (parentShas.length > 0) {
-        commitData.parent_shas = parentShas;
-      }
-      const commitResponse = await createCommit.mutateAsync({
+
+      console.log("Pushing pack:", JSON.stringify(pack, null, 2));
+
+      await pushPack.mutateAsync({
         ownerId,
         repoName,
-        data: commitData,
+        pack,
       });
-      console.log("COMMIT RESPONSE:", commitResponse, commitData);
 
-      // Refresh repository data after commit
+      setSuccess(true);
+
+      // Invalidate queries
       queryClient.invalidateQueries({
         queryKey: ["commits", ownerId, repoName],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["branches", ownerId, repoName],
+      });
       queryClient.invalidateQueries({ queryKey: ["tree", ownerId, repoName] });
-      queryClient.invalidateQueries({ queryKey: ["blob", ownerId, repoName] });
 
-      // Reset form
-      setFileName("");
-      setFileContent("");
-      setCommitMessage("");
-      setAuthorName("");
-      setError("");
-      onClose();
+      setTimeout(() => {
+        setFileName("");
+        setFileContent("");
+        setCommitMessage("");
+        setAuthorName("");
+        setError("");
+        setSuccess(false);
+        onClose();
+      }, 2000);
     } catch (err: any) {
-      console.error("Create file error:", err);
-      setError(
-        err?.response?.data?.message || err?.message || "Failed to create file",
-      );
+      const errorData = err.response?.data;
+      let errorMsg = "Failed to create file";
+
+      if (errorData) {
+        console.error(
+          "Full error response:",
+          JSON.stringify(errorData, null, 2),
+        );
+
+        if (typeof errorData === "string") {
+          errorMsg = errorData;
+        } else if (errorData.error) {
+          errorMsg = errorData.error;
+        } else if (errorData.message) {
+          errorMsg = errorData.message;
+        }
+      }
+
+      setError(errorMsg);
+      console.error("Create file error:", errorData);
     }
   };
 
   const handleUploadFiles = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess(false);
 
     if (!selectedFiles || selectedFiles.length === 0) {
       setError("Please select files to upload");
@@ -172,80 +240,150 @@ export default function FileUploadModal({
     }
 
     try {
-      const blobs = [];
+      const now = new Date();
+      const authorString = formatGitPerson(authorName.trim(), userEmail, now);
+
+      // Step 1: Process all files and calculate blob SHAs
+      const fileData: Array<{
+        name: string;
+        content: string;
+        sha: string;
+        base64: string;
+      }> = [];
 
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
         const content = await file.text();
+        const blobSHA = await calculateBlobSHA(content);
+        const base64Content = btoa(unescape(encodeURIComponent(content)));
 
-        const blob = await createBlob.mutateAsync({
-          ownerId,
-          repoName,
-          data: {
-            content,
-            encoding: "utf-8",
-          },
+        fileData.push({
+          name: file.name,
+          content,
+          sha: blobSHA,
+          base64: base64Content,
         });
-        blobs.push(blob);
       }
 
-      const tree = await createTree.mutateAsync({
+      console.log(
+        "Processed files:",
+        fileData.map((f) => ({ name: f.name, sha: f.sha })),
+      );
+
+      // Step 2: Build tree entries
+      const treeEntries = fileData.map((file) => ({
+        mode: "100644",
+        name: file.name,
+        sha: file.sha,
+      }));
+
+      // Step 3: Calculate tree SHA
+      const treeSHA = await calculateTreeSHA(treeEntries);
+      console.log("Tree SHA:", treeSHA);
+
+      // Step 4: Calculate commit SHA
+      const commitSHA = await calculateCommitSHA({
+        treeSHA: treeSHA,
+        parentSHAs: latestCommit ? [latestCommit.sha] : [],
+        author: authorString,
+        committer: authorString,
+        message: commitMessage.trim(),
+      });
+      console.log("Commit SHA:", commitSHA);
+
+      // Step 5: Build Git pack
+      const pack = {
+        branch: defaultBranch,
+        force: false,
+        commits: [
+          {
+            hash: commitSHA,
+            message: commitMessage.trim(),
+            author: {
+              name: authorName.trim(),
+              email: userEmail,
+            },
+            timestamp: now.toISOString(),
+            parent: latestCommit ? latestCommit.sha : null,
+            mergeParent: null,
+            treeHash: treeSHA,
+            tree: treeEntries.map((entry) => ({
+              mode: entry.mode,
+              name: entry.name,
+              path: entry.name,
+              hash: entry.sha,
+              sha: entry.sha,
+              type: "blob" as const,
+            })),
+            files: treeEntries.map((entry) => ({
+              path: entry.name,
+              hash: entry.sha,
+            })),
+            stats: {},
+          },
+        ],
+        objects: fileData.map((file) => ({
+          hash: file.sha,
+          type: "blob" as const,
+          data: file.base64,
+        })),
+        branch_updates: [
+          {
+            name: defaultBranch,
+            commit_sha: commitSHA,
+          },
+        ],
+        tags: {},
+      };
+
+      console.log("Pushing pack with", fileData.length, "files");
+
+      await pushPack.mutateAsync({
         ownerId,
         repoName,
-        data: {
-          entries: blobs.map((blob, index) => ({
-            mode: "100644",
-            name: selectedFiles?.[index]?.name ?? `file-${index}`,
-            sha: blob.sha,
-            type: "blob",
-          })),
-        },
+        pack,
       });
-      const treeSha = tree?.sha;
-      if (!treeSha) {
-        throw new Error("Tree SHA not found");
-      }
 
-      // Create commit with all blobs (simplified)
+      setSuccess(true);
 
-      if (blobs.length > 0) {
-        const commitData: any = {
-          message: commitMessage.trim(),
-          tree_sha: treeSha,
-          sha: treeSha,
-          author_name: authorName.trim(),
-          author_email: userEmail,
-          branch: defaultBranch,
-        };
-        if (parentShas.length > 0) {
-          commitData.parent_shas = parentShas;
-        }
-        const commitResponse = await createCommit.mutateAsync({
-          ownerId,
-          repoName,
-          data: commitData,
-        });
-        console.log("COMMIT RESPONSE:", commitResponse, commitData);
-      }
-
+      // Invalidate queries
       queryClient.invalidateQueries({
         queryKey: ["commits", ownerId, repoName],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["branches", ownerId, repoName],
+      });
       queryClient.invalidateQueries({ queryKey: ["tree", ownerId, repoName] });
-      queryClient.invalidateQueries({ queryKey: ["blob", ownerId, repoName] });
 
-      setSelectedFiles(null);
-      setCommitMessage("");
-      setAuthorName("");
-      setError("");
-      onClose();
+      setTimeout(() => {
+        setSelectedFiles(null);
+        setCommitMessage("");
+        setAuthorName("");
+        setError("");
+        setSuccess(false);
+        onClose();
+      }, 2000);
     } catch (err: any) {
-      console.error("Upload files error:", err);
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Failed to upload files",
-      );
+      const errorData = err.response?.data;
+      let errorMsg = "Failed to upload files";
+
+      if (errorData) {
+        console.error(
+          "Full error response:",
+          JSON.stringify(errorData, null, 2),
+        );
+
+        if (typeof errorData === "string") {
+          errorMsg = errorData;
+        } else if (errorData.error) {
+          errorMsg = errorData.error;
+        } else if (errorData.message) {
+          errorMsg = errorData.message;
+        }
+      }
+
+      setError(errorMsg);
+      console.error("Upload files error:", errorData);
     }
   };
 
@@ -291,6 +429,16 @@ export default function FileUploadModal({
           onSubmit={mode === "create" ? handleCreateFile : handleUploadFiles}
           className="p-6 space-y-4  max-h-[70vh] overflow-y-auto"
         >
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm">
+            <p style={{ color: t.text }} className="font-semibold mb-1">
+              📝 Web-based file upload
+            </p>
+            <p style={{ color: t.textMuted }} className="text-xs">
+              This feature uses the Git Push API with proper SHA-1 hashing. Make
+              sure you have at least one commit in the repository before
+              uploading files.
+            </p>
+          </div>
           {mode === "create" ? (
             <>
               {/* File name */}
@@ -445,6 +593,22 @@ export default function FileUploadModal({
             />
           </div>
 
+          {/* Success message */}
+          {success && (
+            <div
+              className="flex items-center gap-2 p-3 text-sm rounded-lg"
+              style={{
+                backgroundColor: isDark ? "#dcfce7" : "#dcfce7",
+                color: "#166534",
+              }}
+            >
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              {mode === "create"
+                ? "File created successfully!"
+                : "Files uploaded successfully!"}
+            </div>
+          )}
+
           {/* Error message */}
           {error && (
             <div
@@ -474,20 +638,22 @@ export default function FileUploadModal({
             </button>
             <button
               type="submit"
-              disabled={createBlob.isPending || createCommit.isPending}
+              disabled={pushPack.isPending || success}
               className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
               style={{
                 backgroundColor: t.accent,
                 color: t.successText,
               }}
             >
-              {createBlob.isPending || createCommit.isPending
+              {pushPack.isPending
                 ? mode === "create"
                   ? "Creating..."
                   : "Uploading..."
-                : mode === "create"
-                  ? "Create file"
-                  : "Upload files"}
+                : success
+                  ? "Success!"
+                  : mode === "create"
+                    ? "Create file"
+                    : "Upload files"}
             </button>
           </div>
         </form>

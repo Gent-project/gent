@@ -7,6 +7,9 @@ const API_ROUTES = {
     PROFILE: "auth/profile/",
     TOKEN_REFRESH: "auth/token/refresh/",
     REFRESH_TOKEN: "auth/token/refresh/",
+    PASSWORD_CHANGE: "auth/password/change/",
+    PASSWORD_RESET: "auth/password/reset/",
+    PASSWORD_RESET_CONFIRM: "auth/password/reset/confirm/",
   },
   REPOS: {
     LIST: "repos/",

@@ -35,6 +35,24 @@ export const useCommit = (ownerId: number, repoName: string, sha: string) => {
   });
 };
 
+// Get commit diff
+export const useCommitDiff = (
+  ownerId: number,
+  repoName: string,
+  sha: string,
+) => {
+  return useQuery<any>({
+    queryKey: ["commit-diff", ownerId, repoName, sha],
+    queryFn: async () => {
+      const response = await axios.get(
+        `/repos/${ownerId}/${repoName}/commits/${sha}/diff/`,
+      );
+      return response.data;
+    },
+    enabled: !!ownerId && !!repoName && !!sha,
+  });
+};
+
 interface CreateCommitData {
   sha?: string;
   message: string;

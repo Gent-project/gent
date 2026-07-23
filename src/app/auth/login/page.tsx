@@ -12,7 +12,6 @@ import { setAuth } from "@/store/slices/auth-slice";
 import { RootState } from "@/store";
 import { AUTH_PATH, DASHBOARD_PATH } from "@/routes/path";
 import SharedNavigation from "@/app/components/SharedNavigation";
-
 import ForgotPasswordModal from "@/app/components/ForgotPasswordModal";
 import InputField from "@/app/components/InputField";
 import TerminalPreview from "@/app/components/TerminalPreview";
@@ -29,6 +28,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+
   useEffect(() => {
     setIsHydrated(true);
 
@@ -127,162 +127,197 @@ export default function LoginPage() {
       <SharedNavigation />
 
       <div className="flex-1 flex items-center justify-center py-8 px-4 mt-20">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-md"
-        >
-          <div
-            className={`w-full rounded-2xl shadow-2xl p-6 sm:p-8 border transition-all ${
-              isDark
-                ? "border-white/20 bg-[#0f1419]/95 backdrop-blur-md"
-                : "border-[#5A7863]/30 bg-white/95 backdrop-blur-md"
-            }`}
+        <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-8 items-center">
+          {/* Left Side - Terminal Preview */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="hidden lg:block"
           >
-            <h1
-              className={`text-2xl sm:text-3xl font-bold text-center mb-2 ${
-                isDark ? "text-white" : "text-[#2d3e2d]"
-              }`}
-            >
-              Sign In
-            </h1>
-            <p
-              className={`text-center text-sm mb-8 ${
-                isDark ? "text-white/60" : "text-[#2d3e2d]/60"
-              }`}
-            >
-              Welcome back to Gent
-            </p>
+            <TerminalPreview
+              title="Quick Start with Git"
+              commands={[
+                {
+                  command: "git clone https://gent.dev/username/repo.git",
+                  comment: "Clone your repository",
+                },
+                { command: "cd repo" },
+                {
+                  command: "git checkout -b feature/new-feature",
+                  comment: "Create new branch",
+                },
+                { command: "git add .", comment: "Stage your changes" },
+                {
+                  command: 'git commit -m "Add new feature"',
+                  comment: "Commit your work",
+                },
+                {
+                  command: "git push origin feature/new-feature",
+                  comment: "Push to remote",
+                },
+              ]}
+            />
+          </motion.div>
 
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="space-y-4"
+          {/* Right Side - Login Form */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+            className="w-full"
+          >
+            <div
+              className={`w-full rounded-2xl shadow-2xl p-6 sm:p-8 border transition-all ${
+                isDark
+                  ? "border-white/20 bg-[#0f1419]/95 backdrop-blur-md"
+                  : "border-[#5A7863]/30 bg-white/95 backdrop-blur-md"
+              }`}
             >
-              {/* Success Message */}
-              {successMessage && (
+              <h1
+                className={`text-2xl sm:text-3xl font-bold text-center mb-2 ${
+                  isDark ? "text-white" : "text-[#2d3e2d]"
+                }`}
+              >
+                Sign In
+              </h1>
+              <p
+                className={`text-center text-sm mb-8 ${
+                  isDark ? "text-white/60" : "text-[#2d3e2d]/60"
+                }`}
+              >
+                Welcome back to Gent
+              </p>
+
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="space-y-4"
+              >
+                {/* Success Message */}
+                {successMessage && (
+                  <motion.div
+                    className={`text-sm p-3 rounded-md border ${
+                      isDark
+                        ? "bg-green-500/20 border-green-500/30 text-green-400"
+                        : "bg-green-50 border-green-200 text-green-600"
+                    }`}
+                    variants={itemVariants}
+                  >
+                    {successMessage}
+                  </motion.div>
+                )}
+
+                {/* Error Message */}
+                {error && (
+                  <motion.div
+                    className={`text-sm p-3 rounded-md border ${
+                      isDark
+                        ? "bg-red-500/20 border-red-500/30 text-red-400"
+                        : "bg-red-50 border-red-200 text-red-600"
+                    }`}
+                    variants={itemVariants}
+                  >
+                    {error}
+                  </motion.div>
+                )}
+
+                <motion.div variants={itemVariants}>
+                  <InputField
+                    label="Email"
+                    type="email"
+                    name="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    required
+                  />
+                </motion.div>
+
+                <motion.div className="relative" variants={itemVariants}>
+                  <InputField
+                    label="Password"
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className={`absolute right-3 top-9 cursor-pointer transition-colors ${
+                      isDark
+                        ? "text-white/60 hover:text-white"
+                        : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
+                    }`}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <AiFillEyeInvisible size={20} />
+                    ) : (
+                      <AiFillEye size={20} />
+                    )}
+                  </button>
+                </motion.div>
+
                 <motion.div
-                  className={`text-sm p-3 rounded-md border ${
+                  className="flex items-center justify-end"
+                  variants={itemVariants}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPasswordModal(true)}
+                    className={`text-xs hover:underline cursor-pointer ${
+                      isDark
+                        ? "text-[#7dd3fc] hover:text-white"
+                        : "text-[#5A7863] hover:text-[#2d3e2d]"
+                    }`}
+                  >
+                    Forgot password?
+                  </button>
+                </motion.div>
+
+                <motion.button
+                  type="button"
+                  onClick={() => handleLogin()}
+                  className={`w-full font-bold py-2 px-4 rounded-lg transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${
                     isDark
-                      ? "bg-green-500/20 border-green-500/30 text-green-400"
-                      : "bg-green-50 border-green-200 text-green-600"
+                      ? "bg-gradient-to-r from-[#7dd3fc] to-[#06b6d4] text-[#0f1419] hover:shadow-lg hover:shadow-cyan-500/50"
+                      : "bg-gradient-to-r from-[#5A7863] to-[#4a6853] text-white hover:shadow-lg hover:shadow-green-500/50"
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  disabled={isLoading}
+                  variants={itemVariants}
+                >
+                  {isLoading ? "Signing in..." : "Sign In"}
+                </motion.button>
+
+                <motion.div
+                  className={`text-center text-sm mt-4 ${
+                    isDark ? "text-white/70" : "text-[#2d3e2d]/70"
                   }`}
                   variants={itemVariants}
                 >
-                  {successMessage}
+                  Don&apos;t have an account?{" "}
+                  <Link
+                    href={AUTH_PATH.SIGNIN}
+                    className={`font-medium hover:underline transition-colors ${
+                      isDark
+                        ? "text-[#7dd3fc] hover:text-white"
+                        : "text-[#5A7863] hover:text-[#2d3e2d]"
+                    }`}
+                  >
+                    create one
+                  </Link>
                 </motion.div>
-              )}
-
-              {/* Error Message */}
-              {error && (
-                <motion.div
-                  className={`text-sm p-3 rounded-md border ${
-                    isDark
-                      ? "bg-red-500/20 border-red-500/30 text-red-400"
-                      : "bg-red-50 border-red-200 text-red-600"
-                  }`}
-                  variants={itemVariants}
-                >
-                  {error}
-                </motion.div>
-              )}
-
-              <motion.div variants={itemVariants}>
-                <InputField
-                  label="Email"
-                  type="email"
-                  name="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="user@example.com"
-                  required
-                />
               </motion.div>
-
-              <motion.div className="relative" variants={itemVariants}>
-                <InputField
-                  label="Password"
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className={`absolute right-3 top-9 cursor-pointer transition-colors ${
-                    isDark
-                      ? "text-white/60 hover:text-white"
-                      : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
-                  }`}
-                  tabIndex={-1}
-                >
-                  {showPassword ? (
-                    <AiFillEyeInvisible size={20} />
-                  ) : (
-                    <AiFillEye size={20} />
-                  )}
-                </button>
-              </motion.div>
-
-              <motion.div
-                className="flex items-center justify-end"
-                variants={itemVariants}
-              >
-                <button
-                  type="button"
-                  onClick={() => setShowForgotPasswordModal(true)}
-                  className={`text-xs hover:underline cursor-pointer ${
-                    isDark
-                      ? "text-[#7dd3fc] hover:text-white"
-                      : "text-[#5A7863] hover:text-[#2d3e2d]"
-                  }`}
-                >
-                  Forgot password?
-                </button>
-              </motion.div>
-
-              <motion.button
-                type="button"
-                onClick={() => handleLogin()}
-                className={`w-full font-bold py-2 px-4 rounded-lg transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${
-                  isDark
-                    ? "bg-gradient-to-r from-[#7dd3fc] to-[#06b6d4] text-[#0f1419] hover:shadow-lg hover:shadow-cyan-500/50"
-                    : "bg-gradient-to-r from-[#5A7863] to-[#4a6853] text-white hover:shadow-lg hover:shadow-green-500/50"
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                disabled={isLoading}
-                variants={itemVariants}
-              >
-                {isLoading ? "Signing in..." : "Sign In"}
-              </motion.button>
-
-              <motion.div
-                className={`text-center text-sm mt-4 ${
-                  isDark ? "text-white/70" : "text-[#2d3e2d]/70"
-                }`}
-                variants={itemVariants}
-              >
-                Don&apos;t have an account?{" "}
-                <Link
-                  href={AUTH_PATH.SIGNIN}
-                  className={`font-medium hover:underline transition-colors ${
-                    isDark
-                      ? "text-[#7dd3fc] hover:text-white"
-                      : "text-[#5A7863] hover:text-[#2d3e2d]"
-                  }`}
-                >
-                  create one
-                </Link>
-              </motion.div>
-            </motion.div>
-          </div>
-        </motion.div>
+            </div>
+          </motion.div>
+        </div>
       </div>
 
       {/* Footer */}
