@@ -1,40 +1,39 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { 
-  GitBranch, 
-  GitCommit, 
-  Tag, 
-  Upload, 
+import {
+  GitBranch,
+  GitCommit,
+  Tag,
+  Upload,
   Download,
   Plus,
-  Trash2,
   Clock,
   User,
-  ExternalLink
+  ExternalLink,
 } from "lucide-react";
-import { useNotifications } from "@/hooks/use-notifications";
+import { useActivities } from "@/hooks/use-activities";
 import { getDashboardTheme } from "./dashboard-theme";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 
 export default function ActivityFeed() {
   const isDark = useSelector((state: RootState) => state.theme.isDark);
-  const { data: notifications = [], isLoading } = useNotifications();
+  const { data: activities = [], isLoading, isError } = useActivities();
   const t = getDashboardTheme(isDark);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'push':
+      case "push":
         return <Upload className="w-4 h-4" style={{ color: t.accent }} />;
-      case 'pull_request':
+      case "pull_request":
         return <Download className="w-4 h-4" style={{ color: t.accent }} />;
-      case 'branch_created':
-        return <GitBranch className="w-4 h-4" style={{ color: '#10b981' }} />;
-      case 'tag_created':
-        return <Tag className="w-4 h-4" style={{ color: '#f59e0b' }} />;
-      case 'repository_created':
-        return <Plus className="w-4 h-4" style={{ color: '#06b6d4' }} />;
+      case "branch_created":
+        return <GitBranch className="w-4 h-4" style={{ color: "#10b981" }} />;
+      case "tag_created":
+        return <Tag className="w-4 h-4" style={{ color: "#f59e0b" }} />;
+      case "repository_created":
+        return <Plus className="w-4 h-4" style={{ color: "#06b6d4" }} />;
       default:
         return <GitCommit className="w-4 h-4" style={{ color: t.textMuted }} />;
     }
@@ -44,12 +43,15 @@ export default function ActivityFeed() {
     const date = new Date(dateString);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
+    if (diffInSeconds < 86400)
+      return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 2592000)
+      return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    if (diffInSeconds < 31536000)
+      return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
     return `${Math.floor(diffInSeconds / 31536000)}y ago`;
   };
 
@@ -80,7 +82,7 @@ export default function ActivityFeed() {
     );
   }
 
-  if (notifications.length === 0) {
+  if (isError) {
     return (
       <div
         className="rounded-lg border p-6 text-center"
@@ -92,9 +94,32 @@ export default function ActivityFeed() {
         <h3 className="text-lg font-semibold mb-2" style={{ color: t.text }}>
           Recent Activity
         </h3>
-        <Clock className="w-12 h-12 mx-auto mb-3 opacity-40" style={{ color: t.textMuted }} />
         <p className="text-sm" style={{ color: t.textMuted }}>
-          No recent activity to show. Start by creating a repository or making some commits.
+          Unable to load recent activity right now.
+        </p>
+      </div>
+    );
+  }
+
+  if (activities.length === 0) {
+    return (
+      <div
+        className="rounded-lg border p-6 text-center"
+        style={{
+          backgroundColor: t.elevated,
+          borderColor: t.border,
+        }}
+      >
+        <h3 className="text-lg font-semibold mb-2" style={{ color: t.text }}>
+          Recent Activity
+        </h3>
+        <Clock
+          className="w-12 h-12 mx-auto mb-3 opacity-40"
+          style={{ color: t.textMuted }}
+        />
+        <p className="text-sm" style={{ color: t.textMuted }}>
+          No recent activity to show. Start by creating a repository or making
+          some commits.
         </p>
       </div>
     );
@@ -112,34 +137,30 @@ export default function ActivityFeed() {
         <h3 className="text-lg font-semibold" style={{ color: t.text }}>
           Recent Activity
         </h3>
-        <button
-          className="text-sm hover:underline"
-          style={{ color: t.accent }}
-        >
-          View all
-        </button>
       </div>
 
       <div className="space-y-3">
-        {notifications.slice(0, 10).map((notification, index) => (
+        {activities.slice(0, 10).map((activity, index) => (
           <motion.div
-            key={notification.id}
+            key={activity.id}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.05 }}
             className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
           >
-            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" 
-                 style={{ backgroundColor: t.surface }}>
-              {getActivityIcon(notification.type)}
+            <div
+              className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: t.surface }}
+            >
+              {getActivityIcon(activity.type)}
             </div>
-            
+
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-medium text-sm" style={{ color: t.text }}>
-                  {notification.title}
+                  {activity.title}
                 </span>
-                {notification.repository && (
+                {activity.repository && (
                   <span
                     className="px-2 py-0.5 text-xs rounded-full"
                     style={{
@@ -147,27 +168,32 @@ export default function ActivityFeed() {
                       color: t.accent,
                     }}
                   >
-                    {notification.repository.name}
+                    {activity.repository.name}
                   </span>
                 )}
               </div>
-              
+
               <p className="text-xs mb-1" style={{ color: t.textMuted }}>
-                {notification.message}
+                {activity.message}
               </p>
-              
-              <div className="flex items-center gap-3 text-xs" style={{ color: t.textMuted }}>
-                {notification.actor && (
+
+              <div
+                className="flex items-center gap-3 text-xs"
+                style={{ color: t.textMuted }}
+              >
+                {activity.actor && (
                   <span className="flex items-center gap-1">
                     <User className="w-3 h-3" />
-                    {notification.actor.name}
+                    {activity.actor.name}
                   </span>
                 )}
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  {formatRelativeTime(notification.created_at)}
+                  {formatRelativeTime(
+                    activity.created_at || activity.createdAt || "",
+                  )}
                 </span>
-                {notification.url && (
+                {activity.url && (
                   <button className="flex items-center gap-1 hover:underline">
                     <ExternalLink className="w-3 h-3" />
                     View

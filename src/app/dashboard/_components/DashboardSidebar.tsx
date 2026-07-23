@@ -10,6 +10,7 @@ import { logout } from "@/store/slices/auth-slice";
 import { getDashboardTheme } from "./dashboard-theme";
 import { DASHBOARD_PATH } from "@/routes/path";
 import { useRouter } from "next/navigation";
+import { useRepositories } from "@/hooks/use-repositories";
 
 interface DashboardSidebarProps {
   isDark: boolean;
@@ -34,16 +35,14 @@ export default function DashboardSidebar({
 
   const handleLogout = () => {
     dispatch(logout());
-    router.push('/auth/login');
+    router.push("/auth/login");
   };
+  const { data: repositories = [] } = useRepositories();
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div
-        className="p-4 border-b"
-        style={{ borderColor: t.border }}
-      >
+      <div className="p-4 border-b" style={{ borderColor: t.border }}>
         {onMobileClose && (
           <button
             onClick={onMobileClose}
@@ -53,7 +52,7 @@ export default function DashboardSidebar({
             <X className="w-5 h-5" />
           </button>
         )}
-        
+
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
@@ -62,14 +61,17 @@ export default function DashboardSidebar({
               color: t.successText,
             }}
           >
-            {user?.name?.charAt(0).toUpperCase() || 'U'}
+            {user?.name?.charAt(0).toUpperCase() || "U"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate" style={{ color: t.text }}>
-              {user?.name || 'User'}
+            <p
+              className="text-sm font-semibold truncate"
+              style={{ color: t.text }}
+            >
+              {user?.name || "User"}
             </p>
             <p className="text-xs truncate" style={{ color: t.textMuted }}>
-              {user?.email || 'user@example.com'}
+              {user?.email || "user@example.com"}
             </p>
           </div>
         </div>
@@ -82,7 +84,10 @@ export default function DashboardSidebar({
           onClick={onMobileClose}
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
           style={{
-            backgroundColor: pathname === DASHBOARD_PATH.ROOT ? t.sidebarActive : 'transparent',
+            backgroundColor:
+              pathname === DASHBOARD_PATH.ROOT
+                ? t.sidebarActive
+                : "transparent",
             color: pathname === DASHBOARD_PATH.ROOT ? t.text : t.textSecondary,
           }}
         >
@@ -95,8 +100,12 @@ export default function DashboardSidebar({
           onClick={onMobileClose}
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
           style={{
-            backgroundColor: pathname === DASHBOARD_PATH.SETTINGS ? t.sidebarActive : 'transparent',
-            color: pathname === DASHBOARD_PATH.SETTINGS ? t.text : t.textSecondary,
+            backgroundColor:
+              pathname === DASHBOARD_PATH.SETTINGS
+                ? t.sidebarActive
+                : "transparent",
+            color:
+              pathname === DASHBOARD_PATH.SETTINGS ? t.text : t.textSecondary,
           }}
         >
           <Settings className="w-4 h-4" />
@@ -121,20 +130,29 @@ export default function DashboardSidebar({
           <Plus className="w-4 h-4" />
           New Repository
         </button>
+        <div className="mt-2 space-y-1">
+          {repositories.map((repo) => (
+            <Link
+              key={repo.id}
+              href={`/repo/${repo.owner_id}/${repo.name}`}
+              className="block px-3 py-2 rounded-lg text-sm truncate"
+              style={{ color: t.textSecondary }}
+            >
+              {repo.name}
+            </Link>
+          ))}
+        </div>
       </nav>
 
       {/* Footer */}
-      <div
-        className="p-3 border-t space-y-2"
-        style={{ borderColor: t.border }}
-      >
+      <div className="p-3 border-t space-y-2" style={{ borderColor: t.border }}>
         <button
           onClick={onToggleTheme}
           className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
           style={{ color: t.textSecondary }}
         >
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          {isDark ? 'Light Mode' : 'Dark Mode'}
+          {isDark ? "Light Mode" : "Dark Mode"}
         </button>
 
         <button
