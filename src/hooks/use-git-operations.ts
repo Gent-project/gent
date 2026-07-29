@@ -1,6 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 
+interface PushPackPayload {
+  branch: string;
+  pack: Record<string, unknown>;
+}
+
 // Git pack structure for push operations
 export interface GitPack {
   commits: Array<{
@@ -52,9 +57,14 @@ export const usePushPack = () => {
     { ownerId: number; repoName: string; pack: GitPack }
   >({
     mutationFn: async ({ ownerId, repoName, pack }) => {
-      const response = await axios.post(
+      const payload = await axios.post(
         `/repos/${ownerId}/${repoName}/push/`,
         pack,
+      );
+
+      const response = await axios.post(
+        `/repos/${ownerId}/${repoName}/push/`,
+        payload,
       );
       return response.data;
     },
