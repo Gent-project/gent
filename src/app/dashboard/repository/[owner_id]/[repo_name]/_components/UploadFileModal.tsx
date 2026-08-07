@@ -11,7 +11,9 @@ import {
   calculateBlobSHA,
   calculateTreeSHA,
   calculateCommitSHA,
+  encodeContentToBase64,
   formatGitPerson,
+  getUtf8ByteLength,
 } from "@/utils/git-hash";
 
 interface UploadFileModalProps {
@@ -83,6 +85,7 @@ export default function UploadFileModal({
         name: string;
         content: string;
         sha: string;
+        size: number;
         base64: string;
       }> = [];
 
@@ -90,13 +93,15 @@ export default function UploadFileModal({
         const file = selectedFiles[i];
         const content = await file.text();
         const blobSHA = await calculateBlobSHA(content);
-        const base64Content = btoa(unescape(encodeURIComponent(content)));
+        const base64Content = encodeContentToBase64(content);
+        const contentSize = getUtf8ByteLength(content);
         const relativePath = [...currentPath, file.name].join("/");
 
         fileData.push({
           name: relativePath,
           content,
           sha: blobSHA,
+          size: contentSize,
           base64: base64Content,
         });
       }
@@ -148,6 +153,7 @@ export default function UploadFileModal({
         ],
         objects: fileData.map((file) => ({
           hash: file.sha,
+          size: file.size,
           type: "blob" as const,
           data: file.base64,
         })),

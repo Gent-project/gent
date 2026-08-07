@@ -1,17 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X, FileText, Plus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import axios from "@/lib/axios";
 import { usePushPack } from "@/hooks/use-git-operations";
 import { useCommits } from "@/hooks/use-commits";
+import { useTree } from "@/hooks/use-files";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 import {
   calculateBlobSHA,
   calculateTreeSHA,
   calculateCommitSHA,
+  encodeContentToBase64,
   formatGitPerson,
+  getUtf8ByteLength,
 } from "@/utils/git-hash";
 
 interface CreateFileModalProps {
@@ -23,6 +27,7 @@ interface CreateFileModalProps {
   defaultBranch: string;
   userEmail: string;
   currentPath: string[];
+  currentTreeSha: string | null;
 }
 
 export default function CreateFileModal({
@@ -34,6 +39,7 @@ export default function CreateFileModal({
   defaultBranch,
   userEmail,
   currentPath,
+  currentTreeSha,
 }: CreateFileModalProps) {
   const [fileName, setFileName] = useState("");
   const [fileContent, setFileContent] = useState("");
@@ -44,7 +50,16 @@ export default function CreateFileModal({
   const pushPack = usePushPack();
   const queryClient = useQueryClient();
   const { data: commits = [] } = useCommits(ownerId, repoName);
-  const latestCommit = commits.length > 0 ? commits[0] : null;
+  const { data: currentTree } = useTree(ownerId, repoName, currentTreeSha || "", {
+    enabled: !!currentTreeSha,
+  });
+  const latestCommit = useMemo(() => {
+    return [...commits].sort((a, b) => {
+      const aTime = new Date(a.committed_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.committed_at || b.created_at || 0).getTime();
+      return bTime - aTime;
+    })[0] ?? null;
+  }, [commits]);
   const t = getDashboardTheme(isDark);
 
   const resetForm = () => {
@@ -90,17 +105,32 @@ export default function CreateFileModal({
         safeUserEmail,
         now,
       );
-      const normalizedPath = [...currentPath, fileName.trim()]
-        .filter(Boolean)
-        .join("/");
-      const blobSHA = await calculateBlobSHA(fileContent);
+      const normalizedFileName = fileName.trim();
+      const normalizedContent = fileContent.replace(/\r\n/g, "\n");
+      const blobSHA = await calculateBlobSHA(normalizedContent);
+      const freshTreeResponse = currentTreeSha
+        ? await axios.get(`/repos/${ownerId}/${repoName}/tree/${currentTreeSha}/`)
+        : null;
+      const freshTreeEntries = freshTreeResponse?.data?.entries ?? currentTree?.entries ?? [];
+      const existingEntries = freshTreeEntries.filter(
+        (entry: { name: string }) => entry.name !== normalizedFileName,
+      );
       const treeEntries = [
+        ...existingEntries,
         {
           mode: "100644",
-          name: fileName.trim(),
+          name: normalizedFileName,
           sha: blobSHA,
         },
       ];
+      console.log("[CreateFileModal] Latest commit:", latestCommit);
+      console.log("[CreateFileModal] Current tree SHA:", currentTreeSha);
+      console.log("[CreateFileModal] Tree response:", freshTreeResponse?.data);
+      console.log("[CreateFileModal] Tree entries:", freshTreeEntries);
+      console.log("[CreateFileModal] Rendered files:", treeEntries);
+      console.log({
+        fileName: normalizedFileName,
+      });
       const treeSHA = await calculateTreeSHA(treeEntries);
       const commitSHA = await calculateCommitSHA({
         treeSHA,
@@ -109,8 +139,14 @@ export default function CreateFileModal({
         committer: authorString,
         message: commitMessage.trim(),
       });
-      const base64Content = btoa(unescape(encodeURIComponent(fileContent)));
-
+      const base64Content = encodeContentToBase64(normalizedContent);
+      const contentSize = getUtf8ByteLength(normalizedContent);
+      console.log("fileContent:", JSON.stringify(normalizedContent));
+      console.log("blobHash:", blobSHA);
+      console.log("base64:", base64Content);
+      console.log("treeSHA:", treeSHA);
+      console.log("commitSHA:", commitSHA);
+      console.log("treeEntries:", treeEntries);
       const pack = {
         branch: defaultBranch,
         force: false,
@@ -129,23 +165,25 @@ export default function CreateFileModal({
             tree: treeEntries.map((entry) => ({
               mode: entry.mode,
               name: entry.name,
-              path: normalizedPath,
+              path: entry.name,
               hash: entry.sha,
               sha: entry.sha,
               type: "blob" as const,
             })),
             files: treeEntries.map((entry) => ({
-              path: normalizedPath,
+              path: entry.name,
               hash: entry.sha,
             })),
             stats: {},
           },
         ],
+
         objects: [
           {
             hash: blobSHA,
+            size: contentSize,
             type: "blob" as const,
-            data: base64Content,
+            data: encodeContentToBase64(normalizedContent),
           },
         ],
         branch_updates: [{ name: defaultBranch, commit_sha: commitSHA }],
@@ -155,13 +193,17 @@ export default function CreateFileModal({
       await pushPack.mutateAsync({ ownerId, repoName, pack });
       setSuccess(true);
       resetForm();
-      queryClient.invalidateQueries({
-        queryKey: ["commits", ownerId, repoName],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["branches", ownerId, repoName],
-      });
-      queryClient.invalidateQueries({ queryKey: ["tree", ownerId, repoName] });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["commits", ownerId, repoName],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["branches", ownerId, repoName],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["tree", ownerId, repoName],
+        }),
+      ]);
 
       setTimeout(() => {
         setSuccess(false);

@@ -29,7 +29,11 @@ export const useTree = (
       const response = await axios.get(
         `/repos/${ownerId}/${repoName}/tree/${sha}/`,
       );
-      return response.data;
+      const treeResponse = response.data;
+      console.log("[useTree] sha:", sha);
+      console.log("[useTree] treeResponse:", treeResponse);
+      console.log("[useTree] tree entries:", treeResponse?.entries);
+      return treeResponse;
     },
     enabled:
       options?.enabled !== undefined

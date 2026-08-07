@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   File,
@@ -11,9 +12,18 @@ import {
   Edit,
   Copy,
 } from "lucide-react";
-import { useTree, useBlob } from "@/hooks/use-files";
+import { useTree, useBlob, type TreeEntry } from "@/hooks/use-files";
+import { usePushPack } from "@/hooks/use-git-operations";
 import { useCommits } from "@/hooks/use-commits";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
+import {
+  calculateBlobSHA,
+  calculateCommitSHA,
+  calculateTreeSHA,
+  encodeContentToBase64,
+  formatGitPerson,
+  getUtf8ByteLength,
+} from "@/utils/git-hash";
 import FileToolbar from "./FileToolbar";
 import CreateFileModal from "./CreateFileModal";
 import UploadFileModal from "./UploadFileModal";
@@ -34,32 +44,52 @@ export default function FileBrowserTab({
   userEmail,
 }: FileBrowserTabProps) {
   const [currentPath, setCurrentPath] = useState<string[]>([]);
+  const [treePath, setTreePath] = useState<Array<{ name: string; sha: string }>>(
+    [],
+  );
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"tree" | "file">("tree");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  const [editError, setEditError] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   useEffect(() => {
-    const resetPath = () => setCurrentPath([]);
+    const resetPath = () => {
+      setCurrentPath([]);
+      setTreePath([]);
+    };
     window.addEventListener("repo:reset-path", resetPath);
     return () => window.removeEventListener("repo:reset-path", resetPath);
   }, []);
 
   const t = getDashboardTheme(isDark);
+  const queryClient = useQueryClient();
+  const pushPack = usePushPack();
 
-  // Get latest commit SHA for the default branch
+  // Get the latest commit and its tree SHA from the backend.
   const { data: commits = [], isLoading: commitsLoading } = useCommits(
     ownerId,
     repoName,
   );
-  const latestCommitSha = commits.length > 0 ? commits[0].sha : null;
+  const latestCommit = useMemo(() => {
+    return [...commits].sort((a, b) => {
+      const aTime = new Date(a.committed_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.committed_at || b.created_at || 0).getTime();
+      return bTime - aTime;
+    })[0] ?? null;
+  }, [commits]);
+  const latestTreeSha = latestCommit?.tree_sha ?? null;
+  const activeTreeSha = treePath[treePath.length - 1]?.sha ?? latestTreeSha ?? "";
 
-  // Get current directory tree - ONLY if we have commits
+  // Get the current directory tree using the active tree SHA.
   const { data: tree, isLoading: treeLoading } = useTree(
     ownerId,
     repoName,
-    latestCommitSha || "HEAD",
-    { enabled: !!latestCommitSha }, // Disable query if no commits
+    activeTreeSha,
+    { enabled: !!activeTreeSha },
   );
 
   // Get file content if a file is selected
@@ -69,34 +99,28 @@ export default function FileBrowserTab({
     selectedFile || "",
   );
 
+  console.log("[FileBrowserTab] Latest commit:", latestCommit);
+  console.log("[FileBrowserTab] Current tree SHA:", activeTreeSha);
+  console.log("[FileBrowserTab] Tree response:", tree);
+  console.log("[FileBrowserTab] Tree entries:", tree?.entries);
+
   const currentEntries = useMemo(() => {
     if (!tree?.entries) return [];
+    return tree.entries;
+  }, [tree?.entries]);
 
-    const normalizedPath = currentPath.join("/");
+  console.log("[FileBrowserTab] Rendered files:", currentEntries);
 
-    if (!normalizedPath) {
-      return tree.entries;
-    }
+  const selectedEntry = useMemo(() => {
+    if (!tree?.entries || !selectedFile) return null;
+    return tree.entries.find((entry) => entry.sha === selectedFile) ?? null;
+  }, [selectedFile, tree?.entries]);
 
-    return tree.entries.filter((entry) => {
-      const entryPath = (entry.path || entry.name).replace(/^\//, "");
-      const segments = entryPath.split("/");
-      const currentSegments = currentPath;
-
-      if (segments.length !== currentSegments.length + 1) {
-        return false;
-      }
-
-      return (
-        segments.slice(0, currentSegments.length).join("/") ===
-        currentSegments.join("/")
-      );
-    });
-  }, [currentPath, tree?.entries]);
-
-  const handleItemClick = (item: any) => {
+  const handleItemClick = (item: TreeEntry) => {
     if (item.type === "tree") {
-      setCurrentPath([...currentPath, item.name]);
+      const nextTreePath = [...treePath, { name: item.name, sha: item.sha }];
+      setTreePath(nextTreePath);
+      setCurrentPath(nextTreePath.map((entry) => entry.name));
       setViewMode("tree");
       setSelectedFile(null);
     } else {
@@ -109,8 +133,139 @@ export default function FileBrowserTab({
     if (viewMode === "file") {
       setViewMode("tree");
       setSelectedFile(null);
+    } else if (treePath.length > 0) {
+      const nextTreePath = treePath.slice(0, -1);
+      setTreePath(nextTreePath);
+      setCurrentPath(nextTreePath.map((entry) => entry.name));
     } else if (currentPath.length > 0) {
       setCurrentPath(currentPath.slice(0, -1));
+    }
+  };
+
+  const handleDownloadFile = () => {
+    if (!fileBlob || !selectedEntry) return;
+
+    const fileName = selectedEntry.name || selectedEntry.path || "download.txt";
+    const blob = new Blob([fileBlob.content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName.split("/").pop() || "download.txt";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopyFile = async () => {
+    if (!fileBlob) return;
+    try {
+      await navigator.clipboard.writeText(fileBlob.content);
+    } catch {
+      setEditError("Unable to copy file content.");
+    }
+  };
+
+  const handleEditFile = () => {
+    setEditContent(fileBlob?.content || "");
+    setEditError("");
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedEntry || !tree?.entries) return;
+
+    setIsSavingEdit(true);
+    setEditError("");
+
+    try {
+      const safeUserEmail = userEmail?.trim() || "user@example.com";
+      const resolvedAuthorName =
+        safeUserEmail.split("@")[0].replace(/[._-]+/g, " ").trim() || "User";
+      const authorString = formatGitPerson(resolvedAuthorName, safeUserEmail, new Date());
+      const normalizedContent = editContent.replace(/\r\n/g, "\n");
+      const newBlobSha = await calculateBlobSHA(normalizedContent);
+      const nextTreeEntries = [...tree.entries]
+        .filter((entry) => entry.sha !== selectedEntry.sha)
+        .concat({
+          mode: "100644",
+          name: selectedEntry.name,
+          path: selectedEntry.path || selectedEntry.name,
+          sha: newBlobSha,
+          hash: newBlobSha,
+          type: "blob" as const,
+        });
+      const nextTreeSha = await calculateTreeSHA(
+        nextTreeEntries.map((entry) => ({
+          mode: entry.mode,
+          name: entry.name,
+          sha: entry.sha,
+        })),
+      );
+      const commitSha = await calculateCommitSHA({
+        treeSHA: nextTreeSha,
+        parentSHAs: latestCommit ? [latestCommit.sha] : [],
+        author: authorString,
+        committer: authorString,
+        message: `Update ${selectedEntry.name}`,
+      });
+      const base64Content = encodeContentToBase64(normalizedContent);
+      const contentSize = getUtf8ByteLength(normalizedContent);
+
+      const pack = {
+        branch: defaultBranch,
+        force: false,
+        commits: [
+          {
+            hash: commitSha,
+            message: `Update ${selectedEntry.name}`,
+            author: {
+              name: resolvedAuthorName,
+              email: safeUserEmail,
+            },
+            timestamp: new Date().toISOString(),
+            parent: latestCommit ? latestCommit.sha : null,
+            mergeParent: null,
+            treeHash: nextTreeSha,
+            tree: nextTreeEntries.map((entry) => ({
+              mode: entry.mode,
+              name: entry.name,
+              path: entry.path || entry.name,
+              hash: entry.sha,
+              sha: entry.sha,
+              type: entry.type || "blob",
+            })),
+            files: nextTreeEntries.map((entry) => ({
+              path: entry.path || entry.name,
+              hash: entry.sha,
+            })),
+            stats: {},
+          },
+        ],
+        objects: [
+          {
+            hash: newBlobSha,
+            size: contentSize,
+            type: "blob" as const,
+            data: base64Content,
+          },
+        ],
+        branch_updates: [{ name: defaultBranch, commit_sha: commitSha }],
+        tags: {},
+      };
+
+      await pushPack.mutateAsync({ ownerId, repoName, pack });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["commits", ownerId, repoName] }),
+        queryClient.invalidateQueries({ queryKey: ["branches", ownerId, repoName] }),
+        queryClient.invalidateQueries({ queryKey: ["tree", ownerId, repoName] }),
+      ]);
+      setSelectedFile(newBlobSha);
+      setIsEditModalOpen(false);
+      setEditContent("");
+      setEditError("");
+    } catch {
+      setEditError("Unable to save the updated file.");
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -149,7 +304,7 @@ export default function FileBrowserTab({
   if (
     (commitsLoading || treeLoading) &&
     viewMode === "tree" &&
-    latestCommitSha !== null
+    latestTreeSha !== null
   ) {
     return (
       <>
@@ -181,6 +336,7 @@ export default function FileBrowserTab({
           defaultBranch={defaultBranch}
           userEmail={userEmail}
           currentPath={currentPath}
+          currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
           isOpen={showUploadModal}
@@ -196,8 +352,8 @@ export default function FileBrowserTab({
     );
   }
 
-  // Empty repository view - show immediately if no commits
-  if (!latestCommitSha || !tree || !tree.entries || tree.entries.length === 0) {
+  // Empty repository view - show immediately if no tree is available yet
+  if (!latestTreeSha || !tree || !tree.entries || tree.entries.length === 0) {
     return (
       <>
         <div className="space-y-4">
@@ -246,10 +402,10 @@ export default function FileBrowserTab({
                   color: t.text,
                 }}
               >
-                <div>echo "# {repoName}" &gt;&gt; README.md</div>
+                <div>echo &#34;# {repoName}&#34; &gt;&gt; README.md</div>
                 <div>git init</div>
                 <div>git add README.md</div>
-                <div>git commit -m "Initial commit"</div>
+                <div>git commit -m &#34;Initial commit&#34;</div>
                 <div>git branch -M {defaultBranch}</div>
                 <div>
                   git remote add origin https://gent.dev/
@@ -289,6 +445,7 @@ git push -u origin ${defaultBranch}`;
           defaultBranch={defaultBranch}
           userEmail={userEmail}
           currentPath={currentPath}
+          currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
           isOpen={showUploadModal}
@@ -330,6 +487,7 @@ git push -u origin ${defaultBranch}`;
 
             <div className="flex items-center gap-2">
               <button
+                onClick={handleDownloadFile}
                 className="p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                 style={{ color: t.textMuted }}
                 title="Download file"
@@ -337,6 +495,7 @@ git push -u origin ${defaultBranch}`;
                 <Download className="w-4 h-4" />
               </button>
               <button
+                onClick={handleCopyFile}
                 className="p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                 style={{ color: t.textMuted }}
                 title="Copy content"
@@ -344,6 +503,7 @@ git push -u origin ${defaultBranch}`;
                 <Copy className="w-4 h-4" />
               </button>
               <button
+                onClick={handleEditFile}
                 className="p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                 style={{ color: t.textMuted }}
                 title="Edit file"
@@ -412,6 +572,7 @@ git push -u origin ${defaultBranch}`;
           defaultBranch={defaultBranch}
           userEmail={userEmail}
           currentPath={currentPath}
+          currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
           isOpen={showUploadModal}
@@ -423,6 +584,68 @@ git push -u origin ${defaultBranch}`;
           userEmail={userEmail}
           currentPath={currentPath}
         />
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+            <div
+              className="w-full max-w-2xl rounded-lg border p-4 shadow-xl"
+              style={{
+                backgroundColor: t.surface,
+                borderColor: t.border,
+              }}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-lg font-semibold" style={{ color: t.text }}>
+                  Edit file
+                </h3>
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="rounded-lg p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                  style={{ color: t.textMuted }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="min-h-64 w-full rounded-lg border p-3 text-sm"
+                style={{
+                  backgroundColor: t.inputBg,
+                  color: t.text,
+                  borderColor: t.border,
+                }}
+              />
+
+              {editError ? (
+                <p className="mt-2 text-sm" style={{ color: "#ef4444" }}>
+                  {editError}
+                </p>
+              ) : null}
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="rounded-lg px-3 py-2 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                  style={{ color: t.textMuted }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={isSavingEdit}
+                  className="rounded-lg px-3 py-2 text-sm transition-colors disabled:opacity-60"
+                  style={{
+                    backgroundColor: t.accent,
+                    color: t.successText,
+                  }}
+                >
+                  {isSavingEdit ? "Saving..." : "Save changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }
@@ -463,10 +686,10 @@ git push -u origin ${defaultBranch}`;
               className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               {item.type === "tree" ? (
-                <Folder className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                <Folder className="w-5 h-5 text-blue-500 shrink-0" />
               ) : (
                 <File
-                  className="w-5 h-5 flex-shrink-0"
+                  className="w-5 h-5 shrink-0"
                   style={{ color: t.textMuted }}
                 />
               )}
@@ -500,6 +723,7 @@ git push -u origin ${defaultBranch}`;
         defaultBranch={defaultBranch}
         userEmail={userEmail}
         currentPath={currentPath}
+        currentTreeSha={activeTreeSha}
       />
       <UploadFileModal
         isOpen={showUploadModal}

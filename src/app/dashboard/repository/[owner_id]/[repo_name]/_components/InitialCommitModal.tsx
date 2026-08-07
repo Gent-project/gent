@@ -6,6 +6,14 @@ import { X, Upload, AlertCircle, CheckCircle } from "lucide-react";
 import { usePushPack } from "@/hooks/use-git-operations";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  calculateBlobSHA,
+  calculateCommitSHA,
+  calculateTreeSHA,
+  encodeContentToBase64,
+  formatGitPerson,
+  getUtf8ByteLength,
+} from "@/utils/git-hash";
 
 interface InitialCommitModalProps {
   isOpen: boolean;
@@ -41,20 +49,6 @@ export default function InitialCommitModal({
 
   if (!isOpen) return null;
 
-  const generateBlobSHA = async (content: string): Promise<string> => {
-    // Git blob format: "blob <size>\0<content>"
-    const nullChar = String.fromCharCode(0);
-    const blobContent = `blob ${content.length}${nullChar}${content}`;
-    const encoder = new TextEncoder();
-    const data = encoder.encode(blobContent);
-    const hashBuffer = await crypto.subtle.digest("SHA-1", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    return hashHex;
-  };
-
   const handleCreateInitialCommit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -82,17 +76,32 @@ export default function InitialCommitModal({
 
     try {
       const timestamp = new Date().toISOString();
-      const nullChar = String.fromCharCode(0);
+      const authorString = formatGitPerson(
+        authorName.trim(),
+        userEmail,
+        new Date(timestamp),
+      );
 
       // Generate real Git SHA-1 hashes
-      const blobHash = await generateBlobSHA(fileContent);
-      const treeContent = `tree${nullChar}100644 ${fileName.trim()}${nullChar}${blobHash}`;
-      const treeHash = await generateBlobSHA(treeContent);
-      const commitContent = `commit${nullChar}tree ${treeHash}\nauthor ${authorName.trim()} <${userEmail}> ${timestamp}\ncommitter ${authorName.trim()} <${userEmail}> ${timestamp}\n\n${commitMessage.trim()}\n`;
-      const commitHash = await generateBlobSHA(commitContent);
+      const blobHash = await calculateBlobSHA(fileContent);
+      const treeHash = await calculateTreeSHA([
+        {
+          mode: "100644",
+          name: fileName.trim(),
+          sha: blobHash,
+        },
+      ]);
+      const commitHash = await calculateCommitSHA({
+        treeSHA: treeHash,
+        parentSHAs: [],
+        author: authorString,
+        committer: authorString,
+        message: commitMessage.trim(),
+      });
 
       // Encode content as base64
-      const base64Content = btoa(unescape(encodeURIComponent(fileContent)));
+      const base64Content = encodeContentToBase64(fileContent);
+      const contentSize = getUtf8ByteLength(fileContent);
 
       // Build simplified git pack - only include blob in objects
       // Backend likely generates tree and commit internally
@@ -133,6 +142,7 @@ export default function InitialCommitModal({
         objects: [
           {
             hash: blobHash,
+            size: contentSize,
             type: "blob" as const,
             data: base64Content,
           },
