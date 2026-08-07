@@ -44,9 +44,9 @@ export default function FileBrowserTab({
   userEmail,
 }: FileBrowserTabProps) {
   const [currentPath, setCurrentPath] = useState<string[]>([]);
-  const [treePath, setTreePath] = useState<Array<{ name: string; sha: string }>>(
-    [],
-  );
+  const [treePath, setTreePath] = useState<
+    Array<{ name: string; sha: string }>
+  >([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"tree" | "file">("tree");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -75,14 +75,17 @@ export default function FileBrowserTab({
     repoName,
   );
   const latestCommit = useMemo(() => {
-    return [...commits].sort((a, b) => {
-      const aTime = new Date(a.committed_at || a.created_at || 0).getTime();
-      const bTime = new Date(b.committed_at || b.created_at || 0).getTime();
-      return bTime - aTime;
-    })[0] ?? null;
+    return (
+      [...commits].sort((a, b) => {
+        const aTime = new Date(a.committed_at || a.created_at || 0).getTime();
+        const bTime = new Date(b.committed_at || b.created_at || 0).getTime();
+        return bTime - aTime;
+      })[0] ?? null
+    );
   }, [commits]);
   const latestTreeSha = latestCommit?.tree_sha ?? null;
-  const activeTreeSha = treePath[treePath.length - 1]?.sha ?? latestTreeSha ?? "";
+  const activeTreeSha =
+    treePath[treePath.length - 1]?.sha ?? latestTreeSha ?? "";
 
   // Get the current directory tree using the active tree SHA.
   const { data: tree, isLoading: treeLoading } = useTree(
@@ -146,7 +149,9 @@ export default function FileBrowserTab({
     if (!fileBlob || !selectedEntry) return;
 
     const fileName = selectedEntry.name || selectedEntry.path || "download.txt";
-    const blob = new Blob([fileBlob.content], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([fileBlob.content], {
+      type: "text/plain;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -179,8 +184,15 @@ export default function FileBrowserTab({
     try {
       const safeUserEmail = userEmail?.trim() || "user@example.com";
       const resolvedAuthorName =
-        safeUserEmail.split("@")[0].replace(/[._-]+/g, " ").trim() || "User";
-      const authorString = formatGitPerson(resolvedAuthorName, safeUserEmail, new Date());
+        safeUserEmail
+          .split("@")[0]
+          .replace(/[._-]+/g, " ")
+          .trim() || "User";
+      const authorString = formatGitPerson(
+        resolvedAuthorName,
+        safeUserEmail,
+        new Date(),
+      );
       const normalizedContent = editContent.replace(/\r\n/g, "\n");
       const newBlobSha = await calculateBlobSHA(normalizedContent);
       const nextTreeEntries = [...tree.entries]
@@ -254,9 +266,15 @@ export default function FileBrowserTab({
 
       await pushPack.mutateAsync({ ownerId, repoName, pack });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["commits", ownerId, repoName] }),
-        queryClient.invalidateQueries({ queryKey: ["branches", ownerId, repoName] }),
-        queryClient.invalidateQueries({ queryKey: ["tree", ownerId, repoName] }),
+        queryClient.invalidateQueries({
+          queryKey: ["commits", ownerId, repoName],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["branches", ownerId, repoName],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["tree", ownerId, repoName],
+        }),
       ]);
       setSelectedFile(newBlobSha);
       setIsEditModalOpen(false);

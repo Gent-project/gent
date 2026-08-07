@@ -50,15 +50,22 @@ export default function CreateFileModal({
   const pushPack = usePushPack();
   const queryClient = useQueryClient();
   const { data: commits = [] } = useCommits(ownerId, repoName);
-  const { data: currentTree } = useTree(ownerId, repoName, currentTreeSha || "", {
-    enabled: !!currentTreeSha,
-  });
+  const { data: currentTree } = useTree(
+    ownerId,
+    repoName,
+    currentTreeSha || "",
+    {
+      enabled: !!currentTreeSha,
+    },
+  );
   const latestCommit = useMemo(() => {
-    return [...commits].sort((a, b) => {
-      const aTime = new Date(a.committed_at || a.created_at || 0).getTime();
-      const bTime = new Date(b.committed_at || b.created_at || 0).getTime();
-      return bTime - aTime;
-    })[0] ?? null;
+    return (
+      [...commits].sort((a, b) => {
+        const aTime = new Date(a.committed_at || a.created_at || 0).getTime();
+        const bTime = new Date(b.committed_at || b.created_at || 0).getTime();
+        return bTime - aTime;
+      })[0] ?? null
+    );
   }, [commits]);
   const t = getDashboardTheme(isDark);
 
@@ -109,9 +116,12 @@ export default function CreateFileModal({
       const normalizedContent = fileContent.replace(/\r\n/g, "\n");
       const blobSHA = await calculateBlobSHA(normalizedContent);
       const freshTreeResponse = currentTreeSha
-        ? await axios.get(`/repos/${ownerId}/${repoName}/tree/${currentTreeSha}/`)
+        ? await axios.get(
+            `/repos/${ownerId}/${repoName}/tree/${currentTreeSha}/`,
+          )
         : null;
-      const freshTreeEntries = freshTreeResponse?.data?.entries ?? currentTree?.entries ?? [];
+      const freshTreeEntries =
+        freshTreeResponse?.data?.entries ?? currentTree?.entries ?? [];
       const existingEntries = freshTreeEntries.filter(
         (entry: { name: string }) => entry.name !== normalizedFileName,
       );
