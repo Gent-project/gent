@@ -1,8 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
 import axios from "@/lib/axios";
+import API_ROUTES from "@/constant/api-routes";
 
 interface PasswordChangePayload {
-  old_password: string;
+  current_password: string;
   new_password: string;
   new_password_confirm: string;
 }
@@ -12,11 +13,11 @@ interface PasswordChangeResponse {
   message?: string;
 }
 
-// Change password for authenticated user
 export const usePasswordChange = () => {
   return useMutation<PasswordChangeResponse, Error, PasswordChangePayload>({
     mutationFn: async (data) => {
-      const response = await axios.post("/auth/password/change/", data);
+      const response = await axios.post(API_ROUTES.AUTH.PASSWORD_CHANGE, data);
+
       return response.data;
     },
   });

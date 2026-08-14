@@ -3,20 +3,35 @@
 import { Bell, Shield, Key, Palette } from "lucide-react";
 import { useDashboard } from "../_components/DashboardContext";
 import ProfileSettingsForm from "../_components/ProfileSettingsForm";
+import ChangePasswordForm from "../_components/ChangePasswordForm";
 import { getDashboardTheme } from "../_components/dashboard-theme";
 
+// const placeholderSections = [
+//   {
+//     id: "notifications",
+//     icon: Bell,
+//     title: "Notifications",
+//     description: "Email and in-app alerts for repository activity.",
+//   },
+//   {
+//     id: "security",
+//     icon: Shield,
+//     title: "Security",
+//     description: "Password and session management.",
+//   },
+//   {
+//     id: "tokens",
+//     icon: Key,
+//     title: "Access tokens",
+//     description: "Personal tokens for CLI and API.",
+//   },
+// ];
 const placeholderSections = [
   {
     id: "notifications",
     icon: Bell,
     title: "Notifications",
     description: "Email and in-app alerts for repository activity.",
-  },
-  {
-    id: "security",
-    icon: Shield,
-    title: "Security",
-    description: "Password and session management.",
   },
   {
     id: "tokens",
@@ -46,7 +61,7 @@ export default function DashboardSettingsPage() {
 
       <div className="space-y-6">
         <ProfileSettingsForm isDark={isDark} />
-
+        <ChangePasswordForm isDark={isDark} />
         {placeholderSections.map((section) => (
           <section
             key={section.id}
@@ -65,7 +80,10 @@ export default function DashboardSettingsPage() {
                 style={{ color: t.textMuted }}
               />
               <div>
-                <h2 className="text-base font-semibold" style={{ color: t.text }}>
+                <h2
+                  className="text-base font-semibold"
+                  style={{ color: t.text }}
+                >
                   {section.title}
                 </h2>
                 <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>
@@ -85,8 +103,8 @@ export default function DashboardSettingsPage() {
         >
           <Palette className="w-5 h-5 shrink-0" style={{ color: t.accent }} />
           <p className="text-sm" style={{ color: t.textSecondary }}>
-            Theme: <strong>{isDark ? "Dark" : "Light"}</strong> — toggle from the
-            sidebar profile menu.
+            Theme: <strong>{isDark ? "Dark" : "Light"}</strong> — toggle from
+            the sidebar profile menu.
           </p>
         </section>
       </div>
