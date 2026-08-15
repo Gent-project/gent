@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 import { Commit } from "@/types/repository";
-
+import { RepositoryService } from "@/services/repository.service";
 // Get all commits for a repository
 export const useCommits = (
   ownerId: number,
@@ -43,16 +43,10 @@ export const useCommitDiff = (
 ) => {
   return useQuery<any>({
     queryKey: ["commit-diff", ownerId, repoName, sha],
-    queryFn: async () => {
-      const response = await axios.get(
-        `/repos/${ownerId}/${repoName}/commits/${sha}/diff/`,
-      );
-      return response.data;
-    },
+    queryFn: () => RepositoryService.getCommitDiff(ownerId, repoName, sha),
     enabled: !!ownerId && !!repoName && !!sha,
   });
 };
-
 interface CreateCommitData {
   sha?: string;
   message: string;

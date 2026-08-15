@@ -215,6 +215,16 @@ export class RepositoryService {
     );
     return response.data;
   }
+  static async getCommitDiff(
+    ownerId: number,
+    repoName: string,
+    sha: string,
+  ): Promise<any> {
+    const response = await axios.get(
+      `/repos/${ownerId}/${repoName}/commits/${sha}/diff/`,
+    );
+    return response.data;
+  }
 
   static async createCommit(
     ownerId: number,
