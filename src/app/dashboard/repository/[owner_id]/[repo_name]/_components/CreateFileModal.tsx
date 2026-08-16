@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X, FileText, Plus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 import { usePushPack } from "@/hooks/use-git-operations";
 import { useCommits } from "@/hooks/use-commits";
-import { useTree } from "@/hooks/use-files";
+import { useBranches } from "@/hooks/use-branches";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 import {
   calculateBlobSHA,
@@ -41,40 +41,48 @@ export default function CreateFileModal({
   currentPath,
   currentTreeSha,
 }: CreateFileModalProps) {
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedBranch(defaultBranch);
+    }
+  }, [isOpen, defaultBranch]);
   const [fileName, setFileName] = useState("");
   const [fileContent, setFileContent] = useState("");
   const [commitMessage, setCommitMessage] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-
+  const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
   const pushPack = usePushPack();
   const queryClient = useQueryClient();
   const { data: commits = [] } = useCommits(ownerId, repoName);
-  const { data: currentTree } = useTree(
+  const { data: branches = [], isLoading: branchesLoading } = useBranches(
     ownerId,
     repoName,
-    currentTreeSha || "",
-    {
-      enabled: !!currentTreeSha,
-    },
   );
-  const latestCommit = useMemo(() => {
-    return (
-      [...commits].sort((a, b) => {
-        const aTime = new Date(a.committed_at || a.created_at || 0).getTime();
-        const bTime = new Date(b.committed_at || b.created_at || 0).getTime();
-        return bTime - aTime;
-      })[0] ?? null
-    );
-  }, [commits]);
-  const t = getDashboardTheme(isDark);
 
+  const selectedBranchData = useMemo(() => {
+    return branches.find((branch) => branch.name === selectedBranch) ?? null;
+  }, [branches, selectedBranch]);
+
+  const selectedBranchCommit = useMemo(() => {
+    if (!selectedBranchData?.commit_sha) return null;
+
+    return (
+      commits.find((commit) => commit.sha === selectedBranchData.commit_sha) ??
+      null
+    );
+  }, [commits, selectedBranchData]);
+
+  const selectedBranchTreeSha = selectedBranchCommit?.tree_sha ?? null;
+  const t = getDashboardTheme(isDark);
+  type PushPackPayload = Parameters<typeof pushPack.mutateAsync>[0];
   const resetForm = () => {
     setFileName("");
     setFileContent("");
     setCommitMessage("");
     setError("");
     setSuccess(false);
+    setSelectedBranch(defaultBranch);
   };
 
   if (!isOpen) return null;
@@ -115,36 +123,98 @@ export default function CreateFileModal({
       const normalizedFileName = fileName.trim();
       const normalizedContent = fileContent.replace(/\r\n/g, "\n");
       const blobSHA = await calculateBlobSHA(normalizedContent);
-      const freshTreeResponse = currentTreeSha
-        ? await axios.get(
-            `/repos/${ownerId}/${repoName}/tree/${currentTreeSha}/`,
-          )
-        : null;
-      const freshTreeEntries =
-        freshTreeResponse?.data?.entries ?? currentTree?.entries ?? [];
-      const existingEntries = freshTreeEntries.filter(
-        (entry: { name: string }) => entry.name !== normalizedFileName,
-      );
+
+      if (!selectedBranchCommit?.tree_sha) {
+        throw new Error(
+          `Unable to find the tree for branch "${selectedBranch}"`,
+        );
+      }
+
+      let targetTreeSha = selectedBranchCommit.tree_sha;
+
+      // Walk through the current directory path starting from
+      // the selected branch root tree.
+      for (const pathSegment of currentPath) {
+        const response = await axios.get<{
+          entries: Array<{
+            name: string;
+            type: "blob" | "tree";
+            sha: string;
+            path?: string;
+            mode?: string;
+          }>;
+        }>(`/repos/${ownerId}/${repoName}/tree/${targetTreeSha}/`);
+
+        const entries = response.data?.entries ?? [];
+
+        const entry = entries.find(
+          (item) => item.name === pathSegment && item.type === "tree",
+        );
+
+        if (!entry) {
+          throw new Error(
+            `Directory "${currentPath.join("/")}" does not exist on branch "${selectedBranch}"`,
+          );
+        }
+
+        targetTreeSha = entry.sha;
+      }
+
+      const freshTreeResponse = await axios.get<{
+        entries: Array<{
+          name: string;
+          type: "blob" | "tree";
+          sha: string;
+          path?: string;
+          mode?: string;
+        }>;
+      }>(`/repos/${ownerId}/${repoName}/tree/${targetTreeSha}/`);
+
+      const freshTreeEntries = freshTreeResponse.data?.entries ?? [];
+      const existingEntries = freshTreeEntries
+        .filter((entry) => entry.name !== normalizedFileName)
+        .map((entry) => ({
+          mode: entry.mode ?? (entry.type === "tree" ? "040000" : "100644"),
+          name: entry.name,
+          path: entry.path ?? entry.name,
+          sha: entry.sha,
+          hash: entry.sha,
+          type: entry.type,
+        }));
+
       const treeEntries = [
         ...existingEntries,
         {
           mode: "100644",
           name: normalizedFileName,
+          path: normalizedFileName,
           sha: blobSHA,
+          hash: blobSHA,
+          type: "blob" as const,
         },
       ];
-      console.log("[CreateFileModal] Latest commit:", latestCommit);
-      console.log("[CreateFileModal] Current tree SHA:", currentTreeSha);
-      console.log("[CreateFileModal] Tree response:", freshTreeResponse?.data);
+
+      console.log("[CreateFileModal] Selected branch:", selectedBranch);
+      console.log(
+        "[CreateFileModal] Selected branch data:",
+        selectedBranchData,
+      );
+      console.log(
+        "[CreateFileModal] Selected branch commit:",
+        selectedBranchCommit,
+      );
+      console.log(
+        "[CreateFileModal] Selected branch root tree:",
+        selectedBranchCommit.tree_sha,
+      );
+      console.log("[CreateFileModal] Target directory tree:", targetTreeSha);
+      console.log("[CreateFileModal] Tree response:", freshTreeResponse.data);
       console.log("[CreateFileModal] Tree entries:", freshTreeEntries);
       console.log("[CreateFileModal] Rendered files:", treeEntries);
-      console.log({
-        fileName: normalizedFileName,
-      });
       const treeSHA = await calculateTreeSHA(treeEntries);
       const commitSHA = await calculateCommitSHA({
         treeSHA,
-        parentSHAs: latestCommit ? [latestCommit.sha] : [],
+        parentSHAs: selectedBranchCommit ? [selectedBranchCommit.sha] : [],
         author: authorString,
         committer: authorString,
         message: commitMessage.trim(),
@@ -157,8 +227,8 @@ export default function CreateFileModal({
       console.log("treeSHA:", treeSHA);
       console.log("commitSHA:", commitSHA);
       console.log("treeEntries:", treeEntries);
-      const pack = {
-        branch: defaultBranch,
+      const pack: PushPackPayload["pack"] = {
+        branch: selectedBranch,
         force: false,
         commits: [
           {
@@ -169,19 +239,19 @@ export default function CreateFileModal({
               email: safeUserEmail,
             },
             timestamp: now.toISOString(),
-            parent: latestCommit ? latestCommit.sha : null,
+            parent: selectedBranchCommit ? selectedBranchCommit.sha : null,
             mergeParent: null,
             treeHash: treeSHA,
             tree: treeEntries.map((entry) => ({
               mode: entry.mode,
               name: entry.name,
-              path: entry.name,
+              path: entry.path || entry.name,
               hash: entry.sha,
               sha: entry.sha,
-              type: "blob" as const,
+              type: entry.type || "blob",
             })),
             files: treeEntries.map((entry) => ({
-              path: entry.name,
+              path: entry.path || entry.name,
               hash: entry.sha,
             })),
             stats: {},
@@ -193,10 +263,15 @@ export default function CreateFileModal({
             hash: blobSHA,
             size: contentSize,
             type: "blob" as const,
-            data: encodeContentToBase64(normalizedContent),
+            data: base64Content,
           },
         ],
-        branch_updates: [{ name: defaultBranch, commit_sha: commitSHA }],
+        branch_updates: [
+          {
+            name: selectedBranch,
+            commit_sha: commitSHA,
+          },
+        ],
         tags: {},
       };
 

@@ -15,6 +15,7 @@ import {
 import { useTree, useBlob, type TreeEntry } from "@/hooks/use-files";
 import { usePushPack } from "@/hooks/use-git-operations";
 import { useCommits } from "@/hooks/use-commits";
+import { useBranches } from "@/hooks/use-branches";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 import {
   calculateBlobSHA,
@@ -44,6 +45,7 @@ export default function FileBrowserTab({
   userEmail,
 }: FileBrowserTabProps) {
   const [currentPath, setCurrentPath] = useState<string[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
   const [treePath, setTreePath] = useState<
     Array<{ name: string; sha: string }>
   >([]);
@@ -74,19 +76,33 @@ export default function FileBrowserTab({
     ownerId,
     repoName,
   );
-  const latestCommit = useMemo(() => {
-    return (
-      [...commits].sort((a, b) => {
-        const aTime = new Date(a.committed_at || a.created_at || 0).getTime();
-        const bTime = new Date(b.committed_at || b.created_at || 0).getTime();
-        return bTime - aTime;
-      })[0] ?? null
-    );
-  }, [commits]);
-  const latestTreeSha = latestCommit?.tree_sha ?? null;
-  const activeTreeSha =
-    treePath[treePath.length - 1]?.sha ?? latestTreeSha ?? "";
+  const { data: branches = [], isLoading: branchesLoading } = useBranches(
+    ownerId,
+    repoName,
+  );
+  const selectedBranchData = useMemo(() => {
+    return branches.find((branch) => branch.name === selectedBranch) ?? null;
+  }, [branches, selectedBranch]);
 
+  const selectedBranchCommit = useMemo(() => {
+    if (!selectedBranchData?.commit_sha) return null;
+
+    return (
+      commits.find((commit) => commit.sha === selectedBranchData.commit_sha) ??
+      null
+    );
+  }, [commits, selectedBranchData]);
+
+  const selectedBranchTreeSha = selectedBranchCommit?.tree_sha ?? null;
+
+  const activeTreeSha =
+    treePath[treePath.length - 1]?.sha ?? selectedBranchTreeSha ?? "";
+  useEffect(() => {
+    setCurrentPath([]);
+    setTreePath([]);
+    setSelectedFile(null);
+    setViewMode("tree");
+  }, [selectedBranch]);
   // Get the current directory tree using the active tree SHA.
   const { data: tree, isLoading: treeLoading } = useTree(
     ownerId,
@@ -102,10 +118,10 @@ export default function FileBrowserTab({
     selectedFile || "",
   );
 
-  console.log("[FileBrowserTab] Latest commit:", latestCommit);
-  console.log("[FileBrowserTab] Current tree SHA:", activeTreeSha);
-  console.log("[FileBrowserTab] Tree response:", tree);
-  console.log("[FileBrowserTab] Tree entries:", tree?.entries);
+  // console.log("[FileBrowserTab] Latest commit:", latestCommit);
+  // console.log("[FileBrowserTab] Current tree SHA:", activeTreeSha);
+  // console.log("[FileBrowserTab] Tree response:", tree);
+  // console.log("[FileBrowserTab] Tree entries:", tree?.entries);
 
   const currentEntries = useMemo(() => {
     if (!tree?.entries) return [];
@@ -214,7 +230,7 @@ export default function FileBrowserTab({
       );
       const commitSha = await calculateCommitSHA({
         treeSHA: nextTreeSha,
-        parentSHAs: latestCommit ? [latestCommit.sha] : [],
+        parentSHAs: selectedBranchCommit ? [selectedBranchCommit.sha] : [],
         author: authorString,
         committer: authorString,
         message: `Update ${selectedEntry.name}`,
@@ -223,7 +239,7 @@ export default function FileBrowserTab({
       const contentSize = getUtf8ByteLength(normalizedContent);
 
       const pack = {
-        branch: defaultBranch,
+        branch: selectedBranch,
         force: false,
         commits: [
           {
@@ -234,7 +250,7 @@ export default function FileBrowserTab({
               email: safeUserEmail,
             },
             timestamp: new Date().toISOString(),
-            parent: latestCommit ? latestCommit.sha : null,
+            parent: selectedBranchCommit ? selectedBranchCommit.sha : null,
             mergeParent: null,
             treeHash: nextTreeSha,
             tree: nextTreeEntries.map((entry) => ({
@@ -260,7 +276,12 @@ export default function FileBrowserTab({
             data: base64Content,
           },
         ],
-        branch_updates: [{ name: defaultBranch, commit_sha: commitSha }],
+        branch_updates: [
+          {
+            name: selectedBranch,
+            commit_sha: commitSha,
+          },
+        ],
         tags: {},
       };
 
@@ -322,7 +343,7 @@ export default function FileBrowserTab({
   if (
     (commitsLoading || treeLoading) &&
     viewMode === "tree" &&
-    latestTreeSha !== null
+    selectedBranchTreeSha !== null
   ) {
     return (
       <>
@@ -333,7 +354,11 @@ export default function FileBrowserTab({
             isDark={isDark}
             onCreate={() => setShowCreateModal(true)}
             onUpload={() => setShowUploadModal(true)}
+            branches={branches}
+            selectedBranch={selectedBranch}
+            onBranchChange={setSelectedBranch}
           />
+
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 animate-pulse">
@@ -371,7 +396,12 @@ export default function FileBrowserTab({
   }
 
   // Empty repository view - show immediately if no tree is available yet
-  if (!latestTreeSha || !tree || !tree.entries || tree.entries.length === 0) {
+  if (
+    !selectedBranchTreeSha ||
+    !tree ||
+    !tree.entries ||
+    tree.entries.length === 0
+  ) {
     return (
       <>
         <div className="space-y-4">
@@ -381,6 +411,9 @@ export default function FileBrowserTab({
             isDark={isDark}
             onCreate={() => setShowCreateModal(true)}
             onUpload={() => setShowUploadModal(true)}
+            branches={branches}
+            selectedBranch={selectedBranch}
+            onBranchChange={setSelectedBranch}
           />
 
           <div className="text-center py-12">
@@ -490,6 +523,9 @@ git push -u origin ${defaultBranch}`;
             isDark={isDark}
             onCreate={() => setShowCreateModal(true)}
             onUpload={() => setShowUploadModal(true)}
+            branches={branches}
+            selectedBranch={selectedBranch}
+            onBranchChange={setSelectedBranch}
           />
 
           {/* File header */}
@@ -678,6 +714,9 @@ git push -u origin ${defaultBranch}`;
           isDark={isDark}
           onCreate={() => setShowCreateModal(true)}
           onUpload={() => setShowUploadModal(true)}
+          branches={branches}
+          selectedBranch={selectedBranch}
+          onBranchChange={setSelectedBranch}
         />
 
         {/* Back button for directories */}
@@ -738,7 +777,7 @@ git push -u origin ${defaultBranch}`;
         ownerId={ownerId}
         repoName={repoName}
         isDark={isDark}
-        defaultBranch={defaultBranch}
+        defaultBranch={selectedBranch}
         userEmail={userEmail}
         currentPath={currentPath}
         currentTreeSha={activeTreeSha}
@@ -749,7 +788,7 @@ git push -u origin ${defaultBranch}`;
         ownerId={ownerId}
         repoName={repoName}
         isDark={isDark}
-        defaultBranch={defaultBranch}
+        defaultBranch={selectedBranch}
         userEmail={userEmail}
         currentPath={currentPath}
       />
