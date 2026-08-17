@@ -172,7 +172,7 @@ export default function CommitDetails({
             className="rounded-lg border overflow-hidden"
             style={{
               borderColor: t.border,
-              backgroundColor: t.background,
+              backgroundColor: t.surface,
             }}
           >
             {/* File header */}
@@ -194,7 +194,7 @@ export default function CommitDetails({
                 <span
                   className="text-xs px-2 py-0.5 rounded"
                   style={{
-                    backgroundColor: t.background,
+                    backgroundColor: t.surface,
                     color: t.textMuted,
                   }}
                 >
