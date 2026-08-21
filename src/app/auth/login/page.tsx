@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
 import Link from "next/link";
 import axios from "@/lib/axios";
+import { isAxiosError } from "axios";
 import { parseAuthResponse } from "@/lib/auth-session";
 import { setAuth } from "@/store/slices/auth-slice";
 import { RootState } from "@/store";
@@ -45,53 +46,100 @@ export default function LoginPage() {
       window.history.replaceState({}, "", url.pathname);
     }
   }, []);
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
 
-  const handleLogin = async (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-    }
+    if (isLoading) return;
 
     setError("");
+
+    // Frontend validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!email.trim()) {
+      setError("Email is required");
+      return;
+    }
+
+    if (!emailRegex.test(email.trim())) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    if (!password) {
+      setError("Password is required");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        throw new Error("Please enter a valid email address");
-      }
+      const response = await axios.post("/auth/login/", {
+        email: email.trim(),
+        password,
+      });
 
-      if (!password || password.length < 8) {
-        throw new Error("Password must be at least 8 characters");
-      }
+      console.log("✅ LOGIN SUCCESS:", response.data);
 
-      const response = await axios.post("/auth/login/", { email, password });
       const { token, refreshToken, user } = parseAuthResponse(response.data);
 
       if (!token) {
         throw new Error("Login failed: token not received from server");
       }
 
-      // حفظ التوكن في localStorage
+      // Save tokens
       if (typeof window !== "undefined") {
         localStorage.setItem("token", token);
+
         if (refreshToken) {
           localStorage.setItem("refreshToken", refreshToken);
         }
-        console.log("✅ Token saved to localStorage:", {
-          token: token.substring(0, 20) + "...",
-          refreshToken: refreshToken
-            ? refreshToken.substring(0, 20) + "..."
-            : "none",
-        });
+
+        console.log("✅ Token saved to localStorage");
       }
 
-      // حفظ في Redux store
+      // Save auth state
       dispatch(setAuth({ token, user, refreshToken }));
 
-      // توجيه للـ Dashboard
+      // Go to dashboard
       router.replace(DASHBOARD_PATH.ROOT);
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || "Login failed");
+    } catch (err: unknown) {
+      let errorMessage = "Login failed";
+
+      if (isAxiosError(err)) {
+        const data = err.response?.data;
+
+        if (data?.email) {
+          errorMessage = Array.isArray(data.email) ? data.email[0] : data.email;
+        } else if (data?.password) {
+          errorMessage = Array.isArray(data.password)
+            ? data.password[0]
+            : data.password;
+        } else if (data?.detail) {
+          errorMessage = Array.isArray(data.detail)
+            ? data.detail[0]
+            : data.detail;
+        } else if (data?.error) {
+          errorMessage = Array.isArray(data.error) ? data.error[0] : data.error;
+        } else if (data?.non_field_errors) {
+          errorMessage = Array.isArray(data.non_field_errors)
+            ? data.non_field_errors[0]
+            : data.non_field_errors;
+        } else if (typeof data === "string") {
+          errorMessage = data;
+        } else if (err.message) {
+          errorMessage = err.message;
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -189,12 +237,7 @@ export default function LoginPage() {
                 Welcome back to Gent
               </p>
 
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="space-y-4"
-              >
+              <form onSubmit={handleLogin} noValidate className="space-y-4">
                 {/* Success Message */}
                 {successMessage && (
                   <motion.div
@@ -211,16 +254,16 @@ export default function LoginPage() {
 
                 {/* Error Message */}
                 {error && (
-                  <motion.div
-                    className={`text-sm p-3 rounded-md border ${
+                  <div
+                    role="alert"
+                    className={`w-full p-3 mb-4 rounded-md border text-sm font-medium ${
                       isDark
-                        ? "bg-red-500/20 border-red-500/30 text-red-400"
-                        : "bg-red-50 border-red-200 text-red-600"
+                        ? "bg-red-500/20 border-red-500/40 text-red-400"
+                        : "bg-red-50 border-red-300 text-red-600"
                     }`}
-                    variants={itemVariants}
                   >
                     {error}
-                  </motion.div>
+                  </div>
                 )}
 
                 <motion.div variants={itemVariants}>
@@ -229,7 +272,10 @@ export default function LoginPage() {
                     type="email"
                     name="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error) setError("");
+                    }}
                     placeholder="user@example.com"
                     required
                   />
@@ -241,7 +287,10 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     name="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (error) setError("");
+                    }}
                     placeholder="••••••••"
                     required
                   />
@@ -281,8 +330,7 @@ export default function LoginPage() {
                 </motion.div>
 
                 <motion.button
-                  type="button"
-                  onClick={() => handleLogin()}
+                  type="submit"
                   className={`w-full font-bold py-2 px-4 rounded-lg transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${
                     isDark
                       ? "bg-gradient-to-r from-[#7dd3fc] to-[#06b6d4] text-[#0f1419] hover:shadow-lg hover:shadow-cyan-500/50"
@@ -314,7 +362,7 @@ export default function LoginPage() {
                     create one
                   </Link>
                 </motion.div>
-              </motion.div>
+              </form>
             </div>
           </motion.div>
         </div>
