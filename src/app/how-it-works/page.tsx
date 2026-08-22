@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
@@ -16,19 +16,11 @@ import {
   Rocket,
   Users,
   Shield,
-  Zap,
-  TrendingUp,
   Code,
-  Database,
   Activity,
-  Terminal,
   Lock,
   GitMerge,
-  BarChart3,
   Layers,
-  Cloud,
-  Cpu,
-  Globe,
 } from "lucide-react";
 
 interface BlogPost {
@@ -50,683 +42,338 @@ interface BlogPost {
 const blogPosts: BlogPost[] = [
   {
     id: 1,
-    title: "Enterprise-Grade Version Control for Modern Teams",
+    title: "Repository Management: Organize Your Code",
     description:
-      "Discover how Gent revolutionizes code management with advanced security, real-time collaboration, and seamless CI/CD integration.",
-    badge: "Product",
-    category: "product",
-    date: "Jan 15, 2026",
+      "Create, manage, and explore repositories while keeping your projects organized in one place.",
+    badge: "Repository",
+    category: "repository",
+    date: "Aug 20, 2026",
     readTime: "5 min read",
     image: "/api/placeholder/800/400",
     author: {
-      name: "Sarah Johnson",
-      role: "Chief Product Officer",
+      name: "Gent Team",
+      role: "Development Team",
     },
     content: `
-# Enterprise-Grade Version Control for Modern Teams
+# Repository Management: Organize Your Code
 
-In today's fast-paced development landscape, teams need more than just basic version control. They need a platform that scales with their ambitions, secures their intellectual property, and accelerates their delivery pipeline.
+Gent provides a simple way to create and manage software repositories from one place.
 
-## Why Traditional Solutions Fall Short
+## Create a Repository
 
-Legacy version control systems were built for a different era. They struggle with:
+Start a new project by creating a repository and providing the basic information about your project.
 
-- **Scalability Challenges**: Slow performance with large repositories
-- **Complex Workflows**: Steep learning curves that slow down teams
-- **Security Gaps**: Insufficient access controls and audit trails
-- **Integration Friction**: Limited compatibility with modern DevOps tools
+You can define the repository name, description, and visibility according to your project needs.
 
-## The Gent Approach
+## Manage Repository Information
 
-Gent was designed from the ground up to address these challenges:
+Repository owners can update repository information when project details change.
 
-### 1. Lightning-Fast Performance
-Our distributed architecture ensures sub-second response times, even with repositories containing millions of commits. We achieve this through:
-- Intelligent caching mechanisms
-- Optimized data structures
-- Edge computing distribution
+Gent keeps repository management organized so that users can easily access their projects.
 
-### 2. Enterprise Security
-Security isn't an afterthought—it's built into every layer:
-- End-to-end encryption for data in transit and at rest
-- Role-based access controls with granular permissions
-- Complete audit logs for compliance requirements
-- SOC 2 Type II certified infrastructure
+## Explore Your Repository
 
-### 3. Seamless Integration
-Gent plays well with your existing tools:
-- Native integration with popular CI/CD platforms
-- Webhook support for custom workflows
-- REST and GraphQL APIs for extensibility
-- Pre-built plugins for major IDEs
+After creating a repository, you can explore its branches, files, commits, and other available repository information.
 
-## Real-World Impact
+## Repository Ownership
 
-Organizations using Gent report:
-- 40% reduction in merge conflicts
-- 60% faster code review cycles
-- 99.99% uptime reliability
-- 50% decrease in security incidents
+Repository permissions are managed according to the user's role. Owners have access to repository management actions while other users have access according to the permissions granted to them.
 
 ## Getting Started
 
-Migrating to Gent is straightforward:
-1. Connect your existing repositories
-2. Configure team permissions
-3. Set up automated workflows
-4. Train your team with our onboarding resources
+Create a repository, add your project files, create branches, and start tracking your changes with commits.
 
-The future of version control is here. Are you ready?
+Gent brings the essential repository management features together in one platform.
     `,
   },
+
   {
     id: 2,
-    title: "Streamlining DevOps: From Commit to Deployment",
+    title: "Branch Management: Work on Different Versions",
     description:
-      "Learn how to build a robust CI/CD pipeline that reduces deployment time from hours to minutes while maintaining quality and security.",
-    badge: "DevOps",
-    category: "devops",
-    date: "Jan 10, 2026",
-    readTime: "7 min read",
+      "Create branches, switch between them, and explore different versions of your project without changing the main branch.",
+    badge: "Branches",
+    category: "branches",
+    date: "Aug 19, 2026",
+    readTime: "5 min read",
     image: "/api/placeholder/800/400",
     author: {
-      name: "Marcus Chen",
-      role: "Head of DevOps",
+      name: "Gent Team",
+      role: "Development Team",
     },
     content: `
-# Streamlining DevOps: From Commit to Deployment
+# Branch Management: Work on Different Versions
 
-Modern software development demands speed without sacrificing quality. Organizations that master their DevOps pipeline gain a significant competitive advantage.
+Branches allow developers to work on different versions of a project while keeping the main development line organized.
 
-## The Traditional Deployment Problem
+## Create a Branch
 
-Many teams still struggle with:
-- Manual deployment processes prone to human error
-- Hours-long release cycles
-- Inconsistent environments between staging and production
-- Lack of visibility into deployment status
+Create a new branch from an existing branch when you want to work on a new feature or make changes independently.
 
-## Building an Efficient Pipeline
+## Switch Between Branches
 
-### Stage 1: Automated Testing
-Every commit triggers a comprehensive test suite:
-- Unit tests for code correctness
-- Integration tests for component interaction
-- Security scans for vulnerability detection
-- Performance tests for regression prevention
+Gent allows you to select a branch and explore the files that belong to that branch.
 
-### Stage 2: Continuous Integration
-Gent automatically:
-- Builds artifacts from your code
-- Runs quality checks
-- Generates deployment packages
-- Stores versioned releases
+This makes it easier to work with different versions of the same repository.
 
-### Stage 3: Deployment Automation
-Deploy with confidence using:
-- Blue-green deployments for zero-downtime
-- Canary releases for gradual rollouts
-- Automatic rollback on failure detection
-- Environment-specific configurations
+## Branch Files
 
-## Monitoring and Observability
+Each branch can contain its own version of the repository files.
 
-Track your deployments with:
-- Real-time deployment dashboards
-- Automated health checks
-- Performance metrics collection
-- Incident alerting and notifications
+When you switch branches, Gent loads the corresponding repository tree so you can explore the correct version of the project.
 
-## Best Practices
+## Keep Your Work Organized
 
-1. **Fail Fast**: Catch issues early in the pipeline
-2. **Automate Everything**: Remove manual intervention
-3. **Monitor Continuously**: Track metrics and logs
-4. **Document Thoroughly**: Maintain clear runbooks
+Using branches helps separate different development tasks and makes it easier to track changes before they become part of the main development line.
 
-## Results
+## Working With Branches
 
-Teams implementing these practices see:
-- 80% reduction in deployment time
-- 90% fewer deployment failures
-- Increased developer productivity
-- Higher customer satisfaction
+A typical workflow can be:
 
-Start optimizing your pipeline today with Gent's integrated DevOps tools.
+1. Select an existing branch.
+2. Create a new branch when needed.
+3. Make changes to your project.
+4. Create commits for your changes.
+5. Compare changes when necessary.
+
+Branch management helps keep development organized and makes working with multiple versions of a project easier.
     `,
   },
+
   {
     id: 3,
-    title: "Security Best Practices for Code Repositories",
+    title: "Authentication: Secure Access to Your Account",
     description:
-      "Protect your codebase with industry-leading security practices. Learn about access control, encryption, and compliance frameworks.",
-    badge: "Security",
-    category: "security",
-    date: "Jan 5, 2026",
-    readTime: "6 min read",
+      "Manage your Gent account with login, registration, password recovery, and password management features.",
+    badge: "Authentication",
+    category: "authentication",
+    date: "Aug 18, 2026",
+    readTime: "4 min read",
     image: "/api/placeholder/800/400",
     author: {
-      name: "Dr. Emily Rodriguez",
-      role: "Chief Security Officer",
+      name: "Gent Team",
+      role: "Development Team",
     },
     content: `
-# Security Best Practices for Code Repositories
+# Authentication: Secure Access to Your Account
 
-Your code is your company's most valuable asset. Protecting it requires a multi-layered security approach that addresses both technical and organizational challenges.
+Authentication is an essential part of Gent. It allows users to securely access their accounts and repository features.
 
-## The Threat Landscape
+## Create an Account
 
-Modern development faces numerous security challenges:
-- Insider threats from compromised credentials
-- Supply chain attacks through dependencies
-- Data breaches exposing sensitive information
-- Compliance violations risking legal penalties
+New users can register by providing their account information through the registration form.
 
-## Foundational Security Measures
+After creating an account, users can sign in and access their Gent workspace.
 
-### 1. Access Control
-Implement the principle of least privilege:
-- Role-based permissions for team members
-- Multi-factor authentication enforcement
-- Regular access audits and reviews
-- Automated provisioning and deprovisioning
+## Login
 
-### 2. Encryption
-Protect data at every stage:
-- TLS 1.3 for all data in transit
-- AES-256 encryption for data at rest
-- Key rotation and management
-- Secure backup procedures
+Registered users can sign in to Gent using their account credentials.
 
-### 3. Audit and Compliance
-Maintain detailed records:
-- Complete audit trails of all actions
-- Regular security assessments
-- Compliance with SOC 2, ISO 27001, GDPR
-- Automated compliance reporting
+Authentication keeps access to personal repositories and account features associated with the correct user.
 
-## Advanced Security Features
+## Forgot Password
 
-### Secret Management
-Never expose sensitive data:
-- Encrypted environment variables
-- Secure credential storage
-- Automatic secret rotation
-- Leak detection and alerts
+If a user forgets their password, Gent provides a password recovery flow that allows the user to start the recovery process.
 
-### Vulnerability Scanning
-Stay ahead of threats:
-- Automated dependency scanning
-- Known vulnerability databases
-- Security patch notifications
-- Remediation guidance
+## Reset Password
 
-### Code Analysis
-Identify issues before they ship:
-- Static application security testing (SAST)
-- Dynamic application security testing (DAST)
-- Code quality enforcement
-- Custom security rules
+Users can set a new password through the password reset process.
 
-## Incident Response
+## Change Password
 
-Be prepared for security events:
-1. **Detection**: Automated monitoring and alerting
-2. **Response**: Predefined incident playbooks
-3. **Containment**: Quick isolation procedures
-4. **Recovery**: Tested backup and restore processes
-5. **Learning**: Post-incident analysis and improvements
+Authenticated users can change their current password from their account settings.
 
-## Security Culture
+## Account Access
 
-Technology alone isn't enough:
-- Regular security training for all team members
-- Security champions within development teams
-- Clear escalation procedures
-- Open communication about security concerns
+Authentication ensures that repository actions and account-related features are associated with the authenticated user.
 
-## Gent Security Commitment
-
-We take security seriously:
-- 24/7 security operations center
-- Regular penetration testing
-- Bug bounty program
-- Transparent security disclosures
-
-Secure your codebase with Gent's enterprise-grade security features.
+Gent provides the essential authentication flows needed to manage access to your account.
     `,
   },
+
   {
     id: 4,
-    title: "Scaling Development Teams: Collaboration at Scale",
+    title: "Collaborators: Work Together on Repositories",
     description:
-      "Manage growing engineering teams effectively. Discover strategies for maintaining productivity and code quality as your organization expands.",
-    badge: "Team Management",
-    category: "team",
-    date: "Dec 28, 2025",
-    readTime: "8 min read",
+      "Manage repository collaborators and control who can work with your projects.",
+    badge: "Collaboration",
+    category: "collaboration",
+    date: "Aug 17, 2026",
+    readTime: "5 min read",
     image: "/api/placeholder/800/400",
     author: {
-      name: "David Park",
-      role: "VP of Engineering",
+      name: "Gent Team",
+      role: "Development Team",
     },
     content: `
-# Scaling Development Teams: Collaboration at Scale
+# Collaborators: Work Together on Repositories
 
-As organizations grow, maintaining effective collaboration becomes increasingly challenging. The strategies that worked for a team of 10 often break down at 100 or 1000 developers.
+Software development is often a collaborative process. Gent provides repository collaboration features that allow repository owners to manage other users who can work with their projects.
 
-## The Scaling Challenge
+## Add Collaborators
 
-Common pain points include:
-- Communication overhead increasing exponentially
-- Knowledge silos forming across teams
-- Inconsistent processes and tooling
-- Difficult code review backlogs
-- Merge conflicts and integration issues
+Repository owners can add users as collaborators when they want other developers to work with the repository.
 
-## Organizational Strategies
+## Manage Access
 
-### Team Structure
-Optimize your organization:
-- Autonomous, cross-functional teams
-- Clear ownership and accountability
-- Defined interfaces between teams
-- Regular cross-team communication
+Collaborators receive access according to the permissions provided by the repository.
 
-### Process Standardization
-Create consistency without stifling innovation:
-- Documented coding standards
-- Standardized development workflows
-- Shared best practices libraries
-- Regular process reviews and improvements
+This allows repository owners to keep control over important repository management actions.
 
-### Knowledge Management
-Keep information flowing:
-- Comprehensive documentation
-- Code comments and README files
-- Architecture decision records
-- Regular knowledge sharing sessions
+## Repository Ownership
 
-## Technical Solutions
+The owner remains responsible for the repository and can manage its collaborators.
 
-### Monorepo vs. Multirepo
-Choose the right structure:
-- Monorepo benefits: Shared code, atomic changes
-- Multirepo benefits: Independent deployment, clear boundaries
-- Hybrid approaches for maximum flexibility
+Some repository actions are restricted to users who have the required permissions.
 
-### Code Ownership
-Implement CODEOWNERS files:
-- Automatic reviewer assignment
-- Required approvals from owners
-- Clear responsibility boundaries
-- Faster code review cycles
+## Working Together
 
-### Automated Workflows
-Reduce manual overhead:
-- Automated testing and validation
-- Continuous integration pipelines
-- Deployment automation
-- Automated documentation generation
+A collaborative workflow can include:
 
-## Communication Patterns
+1. Create a repository.
+2. Add collaborators.
+3. Create branches for different tasks.
+4. Make changes and create commits.
+5. Review and compare changes.
 
-### Asynchronous Communication
-Respect global teams:
-- Detailed pull request descriptions
-- Threaded code review discussions
-- Recorded decision-making processes
-- Written status updates
-
-### Synchronous Collaboration
-When real-time matters:
-- Daily standup meetings
-- Pair programming sessions
-- Architecture discussions
-- Incident response coordination
-
-## Metrics That Matter
-
-Track team effectiveness:
-- Cycle time from commit to deployment
-- Pull request review time
-- Deployment frequency
-- Change failure rate
-- Mean time to recovery
-
-## Building Culture
-
-Foster collaboration through:
-- Recognition programs
-- Cross-team rotations
-- Hackathons and innovation time
-- Open source contributions
-
-## Gent's Collaboration Tools
-
-We provide:
-- Real-time activity feeds
-- Integrated code review
-- Team analytics and insights
-- Communication integrations
-
-Scale your team confidently with Gent's collaboration platform.
+Collaborators make it easier for multiple developers to work on the same repository while keeping repository access organized.
     `,
   },
+
   {
     id: 5,
-    title: "Cloud-Native Architecture: Building for Scale",
+    title: "Repository Files: Explore Your Project",
     description:
-      "Explore how cloud-native design patterns enable unlimited scalability, high availability, and cost efficiency for modern applications.",
-    badge: "Architecture",
-    category: "architecture",
-    date: "Dec 20, 2025",
-    readTime: "6 min read",
+      "Browse repository files and folders, switch branches, and inspect the contents of your project.",
+    badge: "File Browser",
+    category: "files",
+    date: "Aug 16, 2026",
+    readTime: "5 min read",
     image: "/api/placeholder/800/400",
     author: {
-      name: "Alex Kumar",
-      role: "Solutions Architect",
+      name: "Gent Team",
+      role: "Development Team",
     },
     content: `
-# Cloud-Native Architecture: Building for Scale
+# Repository Files: Explore Your Project
 
-The shift to cloud-native architecture represents a fundamental change in how we design and deploy applications. It's not just about moving to the cloud—it's about building systems that leverage cloud capabilities to their fullest.
+Gent provides a repository file browser that allows users to explore the structure and contents of their projects.
 
-## Understanding Cloud-Native Principles
+## Browse Files and Folders
 
-Cloud-native applications are designed to:
-- Scale horizontally with minimal effort
-- Recover automatically from failures
-- Update without downtime
-- Optimize resource utilization
+Open a repository and navigate through its folders and files from the repository browser.
 
-### Microservices Architecture
-Break monoliths into manageable services:
-- Independent deployment cycles
-- Technology diversity
-- Isolated failure domains
-- Team autonomy
+The file tree makes it easier to understand the structure of a project without leaving the platform.
 
-### Containerization
-Package applications consistently:
-- Docker for containerization
-- Kubernetes for orchestration
-- Consistent environments
-- Resource efficiency
+## Explore a Branch
 
-## Infrastructure as Code
+The repository browser works with branches, allowing you to select a branch and view the files that belong to that version.
 
-Manage infrastructure programmatically:
-- Version-controlled infrastructure
-- Reproducible environments
-- Automated provisioning
-- Compliance as code
+## Open Files
 
-## Observability and Monitoring
+Select a file to inspect its contents directly from the repository.
 
-Understand system behavior:
-- Distributed tracing
-- Centralized logging
-- Metrics collection
-- Real-time alerting
+This makes it easier to review source code and project configuration files.
 
-## Best Practices
+## Create Files
 
-1. **Design for Failure**: Assume components will fail
-2. **Automate Everything**: Reduce manual intervention
-3. **Optimize Costs**: Monitor and adjust resource usage
-4. **Security First**: Implement security at every layer
+Users with the required permissions can create files inside the repository.
 
-Embrace cloud-native with Gent's modern infrastructure.
+New files become part of the repository structure and can be tracked through the repository's development workflow.
+
+## Navigate Your Project
+
+The repository browser brings files, folders, and branches together so developers can quickly find the part of the project they need.
+
+Gent makes exploring a repository simple and accessible directly from the web interface.
     `,
   },
+
   {
     id: 6,
-    title: "API-First Development: Building Connected Systems",
+    title: "Commits & Diff: Track and Compare Changes",
     description:
-      "Master API design and implementation strategies that enable seamless integration, scalability, and developer-friendly interfaces.",
-    badge: "Development",
-    category: "development",
-    date: "Dec 15, 2025",
-    readTime: "7 min read",
-    image: "/api/placeholder/800/400",
-    author: {
-      name: "Jordan Martinez",
-      role: "API Architect",
-    },
-    content: `
-# API-First Development: Building Connected Systems
-
-In today's interconnected world, APIs are the backbone of modern software. An API-first approach ensures your systems are built for integration from day one.
-
-## Why API-First?
-
-APIs enable:
-- Third-party integrations
-- Mobile and web applications
-- Internal service communication
-- Partner ecosystems
-
-### RESTful Design Principles
-
-Build intuitive APIs:
-- Resource-based URLs
-- HTTP methods for actions
-- Stateless operations
-- JSON responses
-
-### GraphQL Advantages
-
-Modern query language:
-- Client-specified data
-- Single endpoint
-- Strong typing
-- Real-time subscriptions
-
-## API Documentation
-
-Clear documentation is crucial:
-- OpenAPI/Swagger specs
-- Interactive examples
-- Code samples
-- Versioning strategy
-
-## Security Considerations
-
-Protect your APIs:
-- OAuth 2.0 authentication
-- Rate limiting
-- Input validation
-- HTTPS everywhere
-
-## Performance Optimization
-
-Ensure fast responses:
-- Caching strategies
-- Pagination
-- Compression
-- CDN integration
-
-Build powerful APIs with Gent's development tools.
-    `,
-  },
-  {
-    id: 7,
-    title: "Performance Optimization: Speed at Every Layer",
-    description:
-      "Learn advanced techniques for optimizing application performance, from database queries to frontend rendering and caching strategies.",
-    badge: "Performance",
-    category: "performance",
-    date: "Dec 10, 2025",
-    readTime: "8 min read",
-    image: "/api/placeholder/800/400",
-    author: {
-      name: "Lisa Wong",
-      role: "Performance Engineer",
-    },
-    content: `
-# Performance Optimization: Speed at Every Layer
-
-Performance isn't just about speed—it's about user experience, cost efficiency, and competitive advantage. Every millisecond counts.
-
-## Frontend Optimization
-
-Deliver fast-loading interfaces:
-- Code splitting and lazy loading
-- Image optimization
-- Critical CSS
-- Resource compression
-
-### JavaScript Performance
-
-Optimize execution:
-- Minimize bundle sizes
-- Tree shaking
-- Web workers
-- Service workers
-
-## Backend Optimization
-
-Server-side efficiency:
-- Database query optimization
-- Connection pooling
-- Asynchronous processing
-- Efficient algorithms
-
-### Caching Strategies
-
-Reduce redundant work:
-- CDN caching
-- Application-level caching
-- Database query caching
-- Redis/Memcached
-
-## Database Performance
-
-Optimize data access:
-- Proper indexing
-- Query optimization
-- Connection management
-- Sharding and replication
-
-## Monitoring and Profiling
-
-Identify bottlenecks:
-- Application Performance Monitoring (APM)
-- Real User Monitoring (RUM)
-- Synthetic monitoring
-- Load testing
-
-## Best Practices
-
-1. **Measure First**: Profile before optimizing
-2. **Optimize Critical Paths**: Focus on user-facing operations
-3. **Test Under Load**: Simulate real-world conditions
-4. **Monitor Continuously**: Track performance metrics
-
-Optimize your applications with Gent's performance tools.
-    `,
-  },
-  {
-    id: 8,
-    title: "Continuous Integration: Automating Your Workflow",
-    description:
-      "Implement robust CI practices that catch bugs early, speed up development cycles, and maintain code quality across your team.",
-    badge: "CI/CD",
-    category: "cicd",
-    date: "Dec 5, 2025",
+      "Explore commit history and compare changes to understand exactly what was added, removed, or modified.",
+    badge: "Commits",
+    category: "commits",
+    date: "Aug 15, 2026",
     readTime: "6 min read",
     image: "/api/placeholder/800/400",
     author: {
-      name: "Ryan Foster",
-      role: "DevOps Lead",
+      name: "Gent Team",
+      role: "Development Team",
     },
     content: `
-# Continuous Integration: Automating Your Workflow
+# Commits & Diff: Track and Compare Changes
 
-Continuous Integration transforms how teams deliver software. Automate testing, validation, and integration to ship with confidence.
+Commits provide a history of changes made to a repository. Gent allows users to explore this history and inspect individual commits.
 
-## CI Fundamentals
+## Commit History
 
-Core principles:
-- Commit frequently
-- Automated builds
-- Self-testing code
-- Fast feedback loops
+Repository users can view the commit history and inspect the changes associated with previous commits.
 
-### Build Pipeline
+Each commit has identifying information that helps developers understand when and how a change was made.
 
-Structure your pipeline:
-- Source code checkout
-- Dependency installation
-- Compilation/transpilation
-- Test execution
-- Artifact generation
+## Commit Details
 
-## Testing Strategy
+Opening a commit provides more information about the selected change.
 
-Comprehensive test coverage:
-- Unit tests for components
-- Integration tests for services
-- End-to-end tests for workflows
-- Performance tests
+Developers can use the commit information to understand the evolution of their project.
 
-### Quality Gates
+## Compare Changes
 
-Enforce standards:
-- Code coverage thresholds
-- Linting and formatting
-- Security scans
-- Code complexity checks
+The diff view makes it possible to compare changes between versions of the code.
 
-## Artifact Management
+Added lines and removed lines can be inspected directly so developers can understand what changed.
 
-Handle build outputs:
-- Version tagging
-- Artifact repository
-- Dependency management
-- Release preparation
+## Review Changes
 
-## Notifications and Reporting
+Diffs are useful when reviewing modifications before continuing development.
 
-Keep teams informed:
-- Build status notifications
-- Test failure reports
-- Coverage reports
-- Deployment status
+They help developers quickly identify:
 
-## Best Practices
+- Added code
+- Removed code
+- Modified files
+- Changes between versions
 
-1. **Keep Builds Fast**: Optimize for quick feedback
-2. **Fix Broken Builds Immediately**: Maintain green status
-3. **Automate Everything**: Reduce manual steps
-4. **Version Everything**: Track all changes
+## Development History
 
-Automate your workflow with Gent's CI/CD platform.
+Combining branches, commits, and diff views gives developers a clearer picture of how their repository changes over time.
+
+Gent makes repository history easier to explore and understand.
     `,
   },
 ];
 
 export default function HowItWorksPage() {
   const isDark = useSelector((state: RootState) => state.theme.isDark);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const isHydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
 
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
+  const cleanContent = (content: string): string => {
+    return content
+      .replace(/^#{1,6}\s+/gm, "")
+      .replace(/^[-*+]\s+/gm, "")
+      .replace(/^\d+\.\s+/gm, "")
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/__(.*?)__/g, "$1")
+      .replace(/`(.*?)`/g, "$1")
+      .trim();
+  };
   const filters = [
-    { id: "all", label: "All Articles", icon: Activity },
-    { id: "product", label: "Product", icon: Rocket },
-    { id: "devops", label: "DevOps", icon: Terminal },
-    { id: "security", label: "Security", icon: Lock },
-    { id: "team", label: "Team", icon: Users },
-    { id: "architecture", label: "Architecture", icon: Layers },
-    { id: "development", label: "Development", icon: Code },
-    { id: "performance", label: "Performance", icon: Zap },
-    { id: "cicd", label: "CI/CD", icon: GitMerge },
+    { id: "all", label: "All Features", icon: Activity },
+    { id: "repository", label: "Repositories", icon: GitBranch },
+    { id: "branches", label: "Branches", icon: GitMerge },
+    { id: "authentication", label: "Authentication", icon: Lock },
+    { id: "collaboration", label: "Collaborators", icon: Users },
+    { id: "files", label: "Files", icon: Code },
+    { id: "commits", label: "Commits & Diff", icon: GitBranch },
   ];
 
   const filteredPosts =
@@ -741,464 +388,299 @@ export default function HowItWorksPage() {
     }`;
 
     switch (category) {
-      case "product":
+      case "repository":
         return (
           <div className={baseClasses}>
             <div className="space-y-3">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <div className="flex items-center gap-2">
+                  <GitBranch className="w-4 h-4 text-[#7dd3fc]" />
+                  <span className="text-sm text-[#7dd3fc] font-mono">
+                    gent-platform
+                  </span>
                 </div>
-                <div className="text-[#7dd3fc] text-xs font-mono">
+
+                <span className="text-xs text-gray-400">Public</span>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-2 rounded bg-white/5">
+                  <Code className="w-4 h-4 text-[#7dd3fc]" />
+                  <span className="text-xs text-gray-300">
+                    Repository Files
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 p-2 rounded bg-white/5">
+                  <GitBranch className="w-4 h-4 text-purple-400" />
+                  <span className="text-xs text-gray-300">Branches</span>
+                </div>
+
+                <div className="flex items-center gap-2 p-2 rounded bg-white/5">
+                  <GitMerge className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs text-gray-300">Commits</span>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 rounded bg-[#7dd3fc]/10 border border-[#7dd3fc]/20">
+                <div className="text-xs text-[#7dd3fc] mb-1">Repository</div>
+
+                <div className="text-xs text-gray-400 font-mono">
                   gent-platform
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <GitBranch className="w-4 h-4 text-[#7dd3fc]" />
-                  <div className="h-2 bg-[#7dd3fc]/20 rounded flex-1"></div>
-                  <div className="text-xs text-gray-400">main</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Code className="w-4 h-4 text-emerald-400" />
-                  <div className="h-2 bg-emerald-400/20 rounded flex-1"></div>
-                  <div className="text-xs text-gray-400">156 files</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-purple-400" />
-                  <div className="h-2 bg-purple-400/20 rounded w-2/3"></div>
-                  <div className="text-xs text-gray-400">12 members</div>
-                </div>
-              </div>
-              <div className="mt-4 p-3 rounded bg-[#7dd3fc]/10 border border-[#7dd3fc]/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-[#7dd3fc] animate-pulse"></div>
-                  <span className="text-xs text-[#7dd3fc]">Latest commit</span>
-                </div>
-                <div className="text-xs text-gray-400 font-mono">
-                  feat: add new dashboard
-                </div>
-              </div>
             </div>
           </div>
         );
 
-      case "devops":
+      case "branches":
         return (
           <div className={baseClasses}>
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-4">
-                <Terminal className="w-4 h-4 text-[#7dd3fc]" />
+                <GitBranch className="w-4 h-4 text-[#7dd3fc]" />
                 <span className="text-sm text-[#7dd3fc] font-mono">
-                  CI/CD Pipeline
+                  Branches
                 </span>
               </div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+
+              <div className="space-y-2">
+                {[
+                  { name: "main", active: true },
+                  { name: "frontend", active: false },
+                  { name: "feature/auth", active: false },
+                  { name: "feature/diff", active: false },
+                ].map((branch) => (
+                  <div
+                    key={branch.name}
+                    className={`flex items-center gap-3 p-2 rounded ${
+                      branch.active
+                        ? "bg-[#7dd3fc]/10 border border-[#7dd3fc]/20"
+                        : "bg-white/5"
+                    }`}
+                  >
+                    <GitBranch
+                      className={`w-3 h-3 ${
+                        branch.active ? "text-[#7dd3fc]" : "text-gray-500"
+                      }`}
+                    />
+
+                    <span
+                      className={`text-xs ${
+                        branch.active ? "text-[#7dd3fc]" : "text-gray-300"
+                      }`}
+                    >
+                      {branch.name}
+                    </span>
+
+                    {branch.active && (
+                      <span className="ml-auto text-[10px] text-[#7dd3fc]">
+                        Current
+                      </span>
+                    )}
                   </div>
-                  <div className="flex-1">
-                    <div className="text-xs text-emerald-400 mb-1">
-                      Build Complete
-                    </div>
-                    <div className="h-1 bg-emerald-500/20 rounded">
-                      <div className="h-full w-full bg-emerald-500 rounded"></div>
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-400">2m 34s</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#7dd3fc]/20 flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-[#7dd3fc] animate-pulse"></div>
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-xs text-[#7dd3fc] mb-1">
-                      Running Tests
-                    </div>
-                    <div className="h-1 bg-[#7dd3fc]/20 rounded">
-                      <div className="h-full w-3/4 bg-[#7dd3fc] rounded"></div>
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-400">1m 12s</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-700/50 flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-gray-500"></div>
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-500 mb-1">
-                      Deploy to Production
-                    </div>
-                    <div className="h-1 bg-gray-700/50 rounded"></div>
-                  </div>
-                  <span className="text-xs text-gray-500">Pending</span>
-                </div>
+                ))}
               </div>
             </div>
           </div>
         );
 
-      case "security":
+      case "authentication":
         return (
           <div className={baseClasses}>
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-4">
-                <Shield className="w-4 h-4 text-[#7dd3fc]" />
+                <Lock className="w-4 h-4 text-[#7dd3fc]" />
                 <span className="text-sm text-[#7dd3fc] font-mono">
-                  Security Dashboard
+                  Account Access
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="text-2xl font-bold text-emerald-400">98%</div>
-                  <div className="text-xs text-gray-400">Security Score</div>
-                </div>
-                <div className="p-2 rounded bg-[#7dd3fc]/10 border border-[#7dd3fc]/20">
-                  <div className="text-2xl font-bold text-[#7dd3fc]">0</div>
-                  <div className="text-xs text-gray-400">Critical Issues</div>
-                </div>
-              </div>
+
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 rounded bg-white/5">
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-3 h-3 text-emerald-400" />
-                    <span className="text-xs text-gray-300">2FA Enabled</span>
+                <div className="flex items-center gap-3 p-3 rounded bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400" />
+
+                  <div>
+                    <div className="text-xs text-emerald-400 font-semibold">
+                      Signed In
+                    </div>
+
+                    <div className="text-xs text-gray-500">
+                      Account authenticated
+                    </div>
                   </div>
-                  <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded bg-white/5">
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-3 h-3 text-emerald-400" />
-                    <span className="text-xs text-gray-300">
-                      SSL Certificate
-                    </span>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-3 rounded bg-white/5">
+                    <Lock className="w-4 h-4 text-[#7dd3fc] mb-2" />
+                    <div className="text-xs text-gray-300">Change Password</div>
                   </div>
-                  <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded bg-white/5">
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-3 h-3 text-emerald-400" />
-                    <span className="text-xs text-gray-300">
-                      Encrypted Backups
-                    </span>
+
+                  <div className="p-3 rounded bg-white/5">
+                    <Shield className="w-4 h-4 text-purple-400 mb-2" />
+                    <div className="text-xs text-gray-300">
+                      Password Recovery
+                    </div>
                   </div>
-                  <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
                 </div>
               </div>
             </div>
           </div>
         );
 
-      case "team":
+      case "collaboration":
         return (
           <div className={baseClasses}>
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-4">
                 <Users className="w-4 h-4 text-[#7dd3fc]" />
                 <span className="text-sm text-[#7dd3fc] font-mono">
-                  Team Analytics
+                  Collaborators
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                <div className="p-2 rounded bg-[#7dd3fc]/10 text-center">
-                  <div className="text-xl font-bold text-[#7dd3fc]">24</div>
-                  <div className="text-xs text-gray-400">Members</div>
-                </div>
-                <div className="p-2 rounded bg-purple-500/10 text-center">
-                  <div className="text-xl font-bold text-purple-400">156</div>
-                  <div className="text-xs text-gray-400">Commits</div>
-                </div>
-                <div className="p-2 rounded bg-emerald-500/10 text-center">
-                  <div className="text-xl font-bold text-emerald-400">89%</div>
-                  <div className="text-xs text-gray-400">Uptime</div>
-                </div>
-              </div>
+
               <div className="space-y-2">
                 {[
-                  { name: "Sarah J.", commits: 45, color: "bg-[#7dd3fc]" },
-                  { name: "Marcus C.", commits: 38, color: "bg-purple-400" },
-                  { name: "Emily R.", commits: 32, color: "bg-emerald-400" },
-                ].map((member, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
+                  {
+                    name: "Repository Owner",
+                    role: "Owner",
+                    icon: Shield,
+                  },
+                  {
+                    name: "Collaborator",
+                    role: "Member",
+                    icon: Users,
+                  },
+                  {
+                    name: "Developer",
+                    role: "Member",
+                    icon: Code,
+                  },
+                ].map((member) => {
+                  const Icon = member.icon;
+
+                  return (
                     <div
-                      className={`w-6 h-6 rounded-full ${member.color}/20 flex items-center justify-center`}
+                      key={member.name}
+                      className="flex items-center gap-3 p-2 rounded bg-white/5"
                     >
-                      <span className="text-xs font-semibold text-white">
-                        {member.name.charAt(0)}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-300">
+                      <div className="w-7 h-7 rounded-full bg-[#7dd3fc]/10 flex items-center justify-center">
+                        <Icon className="w-3 h-3 text-[#7dd3fc]" />
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="text-xs text-gray-300">
                           {member.name}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {member.commits}
-                        </span>
-                      </div>
-                      <div className="h-1 bg-gray-700 rounded">
-                        <div
-                          className={`h-full ${member.color} rounded`}
-                          style={{ width: `${member.commits}%` }}
-                        ></div>
+                        </div>
+
+                        <div className="text-[10px] text-gray-500">
+                          {member.role}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
         );
 
-      case "architecture":
+      case "files":
         return (
           <div className={baseClasses}>
             <div className="space-y-3">
-              <div className="flex items-center gap-2 mb-4">
-                <Layers className="w-4 h-4 text-[#7dd3fc]" />
-                <span className="text-sm text-[#7dd3fc] font-mono">
-                  System Architecture
-                </span>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Code className="w-4 h-4 text-[#7dd3fc]" />
+
+                  <span className="text-sm text-[#7dd3fc] font-mono">
+                    Repository Files
+                  </span>
+                </div>
+
+                <span className="text-xs text-gray-500">main</span>
               </div>
-              <div className="space-y-2">
-                <div className="p-3 rounded bg-[#7dd3fc]/10 border border-[#7dd3fc]/20">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-[#7dd3fc] font-semibold">
-                      API Gateway
-                    </span>
-                    <Cloud className="w-3 h-3 text-[#7dd3fc]" />
-                  </div>
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 h-1 bg-[#7dd3fc] rounded"
-                      ></div>
-                    ))}
-                  </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 p-2 rounded bg-white/5">
+                  <Layers className="w-3 h-3 text-[#7dd3fc]" />
+                  <span className="text-xs text-gray-300">src</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 rounded bg-purple-500/10 border border-purple-500/20">
-                    <Database className="w-3 h-3 text-purple-400 mb-1" />
-                    <div className="text-xs text-purple-400">Database</div>
-                  </div>
-                  <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20">
-                    <Cpu className="w-3 h-3 text-emerald-400 mb-1" />
-                    <div className="text-xs text-emerald-400">Services</div>
-                  </div>
+
+                <div className="flex items-center gap-2 p-2 rounded bg-white/5">
+                  <Layers className="w-3 h-3 text-purple-400" />
+                  <span className="text-xs text-gray-300">components</span>
                 </div>
-                <div className="p-2 rounded bg-white/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-                    <span className="text-xs text-gray-400">
-                      Load Balancer Active
-                    </span>
-                  </div>
-                  <div className="h-1 bg-gray-700 rounded">
-                    <div className="h-full w-3/4 bg-emerald-400 rounded"></div>
-                  </div>
+
+                <div className="flex items-center gap-2 p-2 rounded bg-white/5">
+                  <Code className="w-3 h-3 text-emerald-400" />
+                  <span className="text-xs text-gray-300">package.json</span>
+                </div>
+
+                <div className="flex items-center gap-2 p-2 rounded bg-white/5">
+                  <Code className="w-3 h-3 text-[#7dd3fc]" />
+                  <span className="text-xs text-gray-300">README.md</span>
                 </div>
               </div>
             </div>
           </div>
         );
 
-      case "development":
-        return (
-          <div className={baseClasses}>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 mb-4">
-                <Code className="w-4 h-4 text-[#7dd3fc]" />
-                <span className="text-sm text-[#7dd3fc] font-mono">
-                  API Development
-                </span>
-              </div>
-              <div className="p-3 rounded bg-white/5 font-mono text-xs">
-                <div className="text-purple-400 mb-1">POST /api/users</div>
-                <div className="text-gray-500 mb-2">{"{"}</div>
-                <div className="pl-4 space-y-1">
-                  <div>
-                    <span className="text-[#7dd3fc]">"name"</span>:{" "}
-                    <span className="text-emerald-400">"John"</span>,
-                  </div>
-                  <div>
-                    <span className="text-[#7dd3fc]">"email"</span>:{" "}
-                    <span className="text-emerald-400">"j@ex.com"</span>
-                  </div>
-                </div>
-                <div className="text-gray-500">{"}"}</div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 rounded bg-emerald-500/10">
-                  <div className="text-lg font-bold text-emerald-400">200</div>
-                  <div className="text-xs text-gray-400">Success Rate</div>
-                </div>
-                <div className="p-2 rounded bg-[#7dd3fc]/10">
-                  <div className="text-lg font-bold text-[#7dd3fc]">45ms</div>
-                  <div className="text-xs text-gray-400">Avg Response</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case "performance":
-        return (
-          <div className={baseClasses}>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 mb-4">
-                <Zap className="w-4 h-4 text-[#7dd3fc]" />
-                <span className="text-sm text-[#7dd3fc] font-mono">
-                  Performance Metrics
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="p-2 rounded bg-emerald-500/10">
-                  <div className="text-2xl font-bold text-emerald-400">98</div>
-                  <div className="text-xs text-gray-400">Performance Score</div>
-                </div>
-                <div className="p-2 rounded bg-[#7dd3fc]/10">
-                  <div className="text-2xl font-bold text-[#7dd3fc]">1.2s</div>
-                  <div className="text-xs text-gray-400">Load Time</div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {[
-                  { label: "FCP", value: 85, color: "bg-emerald-400" },
-                  { label: "LCP", value: 92, color: "bg-[#7dd3fc]" },
-                  { label: "TTI", value: 78, color: "bg-purple-400" },
-                ].map((metric, idx) => (
-                  <div key={idx}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-300">
-                        {metric.label}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {metric.value}
-                      </span>
-                    </div>
-                    <div className="h-1.5 bg-gray-700 rounded overflow-hidden">
-                      <div
-                        className={`h-full ${metric.color} rounded`}
-                        style={{ width: `${metric.value}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case "cicd":
+      case "commits":
         return (
           <div className={baseClasses}>
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-4">
                 <GitMerge className="w-4 h-4 text-[#7dd3fc]" />
+
                 <span className="text-sm text-[#7dd3fc] font-mono">
-                  CI/CD Status
+                  Commit History
                 </span>
               </div>
+
               <div className="space-y-2">
-                <div className="flex items-center gap-3 p-2 rounded bg-emerald-500/10">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                  <div className="flex-1">
-                    <div className="text-xs text-emerald-400 font-semibold">
-                      Build Passed
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      #1234 - main branch
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-400">2m ago</span>
-                </div>
-                <div className="flex items-center gap-3 p-2 rounded bg-[#7dd3fc]/10">
-                  <div className="w-2 h-2 rounded-full bg-[#7dd3fc] animate-pulse"></div>
-                  <div className="flex-1">
-                    <div className="text-xs text-[#7dd3fc] font-semibold">
-                      Deploying
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Production environment
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-400">Now</span>
-                </div>
-                <div className="p-2 rounded bg-white/5">
+                <div className="p-3 rounded bg-white/5">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-gray-400">Success Rate</span>
-                    <span className="text-xs text-emerald-400 font-semibold">
-                      96%
+                    <span className="text-xs text-gray-300">
+                      Update repository settings
+                    </span>
+
+                    <span className="text-[10px] text-gray-500 font-mono">
+                      a83f21c
                     </span>
                   </div>
-                  <div className="h-1 bg-gray-700 rounded overflow-hidden">
-                    <div className="h-full w-[96%] bg-emerald-400 rounded"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
 
-        return (
-          <div className={baseClasses}>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="w-4 h-4 text-[#7dd3fc]" />
-                <span className="text-sm text-[#7dd3fc] font-mono">
-                  Team Analytics
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                <div className="p-2 rounded bg-[#7dd3fc]/10 text-center">
-                  <div className="text-xl font-bold text-[#7dd3fc]">24</div>
-                  <div className="text-xs text-gray-400">Members</div>
-                </div>
-                <div className="p-2 rounded bg-purple-500/10 text-center">
-                  <div className="text-xl font-bold text-purple-400">156</div>
-                  <div className="text-xs text-gray-400">Commits</div>
-                </div>
-                <div className="p-2 rounded bg-emerald-500/10 text-center">
-                  <div className="text-xl font-bold text-emerald-400">89%</div>
-                  <div className="text-xs text-gray-400">Uptime</div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {[
-                  { name: "Sarah J.", commits: 45, color: "bg-[#7dd3fc]" },
-                  { name: "Marcus C.", commits: 38, color: "bg-purple-400" },
-                  { name: "Emily R.", commits: 32, color: "bg-emerald-400" },
-                ].map((member, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <div
-                      className={`w-6 h-6 rounded-full ${member.color}/20 flex items-center justify-center`}
-                    >
-                      <span className="text-xs font-semibold text-white">
-                        {member.name.charAt(0)}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-300">
-                          {member.name}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {member.commits}
-                        </span>
-                      </div>
-                      <div className="h-1 bg-gray-700 rounded">
-                        <div
-                          className={`h-full ${member.color} rounded`}
-                          style={{ width: `${member.commits}%` }}
-                        ></div>
-                      </div>
-                    </div>
+                  <div className="flex gap-3 text-[10px]">
+                    <span className="text-emerald-400">+24 additions</span>
+
+                    <span className="text-red-400">-8 deletions</span>
                   </div>
-                ))}
+                </div>
+
+                <div className="p-3 rounded bg-white/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-300">
+                      Add repository files
+                    </span>
+
+                    <span className="text-[10px] text-gray-500 font-mono">
+                      7c91d42
+                    </span>
+                  </div>
+
+                  <div className="text-[10px] text-gray-500">
+                    Files changed: 3
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center gap-2 p-2 rounded bg-[#7dd3fc]/10 border border-[#7dd3fc]/20">
+                  <GitMerge className="w-3 h-3 text-[#7dd3fc]" />
+
+                  <span className="text-xs text-[#7dd3fc]">
+                    Compare changes
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -1208,8 +690,10 @@ export default function HowItWorksPage() {
         return (
           <div className={baseClasses}>
             <div className="w-full h-full flex items-center justify-center">
-              <Database
-                className={`w-16 h-16 ${isDark ? "text-[#7dd3fc]/20" : "text-gray-400"}`}
+              <GitBranch
+                className={`w-16 h-16 ${
+                  isDark ? "text-[#7dd3fc]/20" : "text-gray-400"
+                }`}
               />
             </div>
           </div>
@@ -1285,7 +769,7 @@ export default function HowItWorksPage() {
             transition={{ delay: 0.6 }}
             className="flex justify-center gap-8 mt-12"
           >
-            {[GitBranch, Users, Shield, Zap, TrendingUp, Code].map(
+            {[GitBranch, Code, Users, Lock, GitMerge, Layers].map(
               (Icon, index) => (
                 <motion.div
                   key={index}
@@ -1523,16 +1007,19 @@ export default function HowItWorksPage() {
                 <div
                   className={`prose max-w-none ${isDark ? "prose-invert" : ""}`}
                 >
-                  {selectedPost.content.split("\n").map((paragraph, index) => (
-                    <p
-                      key={index}
-                      className={`mb-4 ${
-                        isDark ? "text-gray-300" : "text-gray-700"
-                      }`}
-                    >
-                      {paragraph}
-                    </p>
-                  ))}
+                  {cleanContent(selectedPost.content)
+                    .split("\n")
+                    .filter((paragraph: string) => paragraph.trim() !== "")
+                    .map((paragraph: string, index: number) => (
+                      <p
+                        key={index}
+                        className={`mb-4 ${
+                          isDark ? "text-gray-300" : "text-gray-700"
+                        }`}
+                      >
+                        {paragraph}
+                      </p>
+                    ))}
                 </div>
               </div>
             </motion.div>
