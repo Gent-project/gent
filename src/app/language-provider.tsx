@@ -563,6 +563,11 @@ const translations: Record<string, string> = {
   "Start Your Career with Gent": "ابدأ مسارك مع Gent",
   "Use Gent to create repositories, manage branches and members, and sync local work through the Gent CLI and API.":
     "استخدم Gent لإنشاء المستودعات وإدارة الفروع والأعضاء ومزامنة العمل المحلي عبر Gent CLI وAPI.",
+  "Repository route is incomplete": "مسار المستودع غير مكتمل",
+  "Repository pages need both an owner id and a repository name. Open a repository from the dashboard, or use a full URL like /dashboard/repository/1/my-repo.":
+    "تحتاج صفحات المستودعات إلى معرف المالك واسم المستودع معاً. افتح المستودع من لوحة التحكم، أو استخدم رابطاً كاملاً مثل /dashboard/repository/1/my-repo.",
+  "Back to Dashboard": "العودة إلى لوحة التحكم",
+  "Browse repositories": "تصفح المستودعات",
 };
 
 const dynamicTranslations: Array<[RegExp, (match: RegExpMatchArray) => string]> = [

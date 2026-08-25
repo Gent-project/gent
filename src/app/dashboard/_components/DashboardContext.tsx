@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "@/lib/axios";
 import { RootState } from "@/store";
@@ -40,6 +40,7 @@ export function useDashboard() {
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
   const router = useRouter();
+  const pathname = usePathname();
   const isDark = useSelector((state: RootState) => state.theme.isDark);
   const token = useSelector((state: RootState) => state.auth.token);
   const [authChecked, setAuthChecked] = useState(false);
@@ -59,9 +60,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [dispatch]);
 
   const hasToken = !!token || !!getStoredToken();
+  const isRepositoryFallbackRoute =
+    pathname === "/dashboard/repository" ||
+    /^\/dashboard\/repository\/[^/]+$/.test(pathname);
 
   useEffect(() => {
     if (!authChecked) return;
+    if (isRepositoryFallbackRoute) return;
     if (!hasToken) {
       router.replace(AUTH_PATH.LOGIN);
       return;
@@ -116,7 +121,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [authChecked, hasToken, router]);
+  }, [authChecked, hasToken, isRepositoryFallbackRoute, router]);
 
   const handleCreateRepository = async (repo: {
     name: string;
@@ -176,7 +181,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     ).length;
   }, [searchQuery, repositories]);
 
-  if (!authChecked || !hasToken) return null;
+  if (!authChecked) return null;
+  if (isRepositoryFallbackRoute && !hasToken) return <>{children}</>;
+  if (!hasToken) return null;
 
   return (
     <DashboardCtx.Provider
