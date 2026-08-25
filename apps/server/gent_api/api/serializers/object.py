@@ -12,6 +12,10 @@ class TreeSerializer(serializers.ModelSerializer):
 
 class TreeCreateSerializer(serializers.Serializer):
     """Serializer for creating a tree."""
+    sha = serializers.RegexField(
+        regex=r'^[0-9a-fA-F]{64}$',
+        required=False
+    )
     entries = serializers.ListField(required=True)
 
     def validate_entries(self, value):
@@ -43,6 +47,10 @@ class BlobSerializer(serializers.ModelSerializer):
 
 class BlobCreateSerializer(serializers.Serializer):
     """Serializer for creating a blob."""
+    sha = serializers.RegexField(
+        regex=r'^[0-9a-fA-F]{64}$',
+        required=False
+    )
     content = serializers.CharField(required=True)
     encoding = serializers.ChoiceField(
         choices=['utf-8', 'base64'],
