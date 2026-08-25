@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   GitBranch,
@@ -194,10 +195,13 @@ export default function ActivityFeed() {
                   )}
                 </span>
                 {activity.url && (
-                  <button className="flex items-center gap-1 hover:underline">
+                  <Link
+                    href={activity.url}
+                    className="flex items-center gap-1 hover:underline"
+                  >
                     <ExternalLink className="w-3 h-3" />
                     View
-                  </button>
+                  </Link>
                 )}
               </div>
             </div>
