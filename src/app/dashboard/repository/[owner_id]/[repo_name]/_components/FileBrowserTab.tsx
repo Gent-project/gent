@@ -161,18 +161,58 @@ export default function FileBrowserTab({
     }
   };
 
+  const decodeFileContent = (content: string, encoding?: string) => {
+    if (encoding?.toLowerCase() === "base64") {
+      const binary = atob(content);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    }
+
+    return new TextEncoder().encode(content);
+  };
+
+  const getDownloadMimeType = (fileName: string) => {
+    const ext = fileName.split(".").pop()?.toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      css: "text/css;charset=utf-8",
+      csv: "text/csv;charset=utf-8",
+      html: "text/html;charset=utf-8",
+      js: "text/javascript;charset=utf-8",
+      json: "application/json;charset=utf-8",
+      md: "text/markdown;charset=utf-8",
+      pdf: "application/pdf",
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      gif: "image/gif",
+      svg: "image/svg+xml;charset=utf-8",
+      ts: "text/typescript;charset=utf-8",
+      tsx: "text/typescript;charset=utf-8",
+      txt: "text/plain;charset=utf-8",
+      xml: "application/xml;charset=utf-8",
+      yml: "application/yaml;charset=utf-8",
+      yaml: "application/yaml;charset=utf-8",
+      zip: "application/zip",
+    };
+    return mimeTypes[ext || ""] || "application/octet-stream";
+  };
+
   const handleDownloadFile = () => {
     if (!fileBlob || !selectedEntry) return;
 
-    const fileName = selectedEntry.name || selectedEntry.path || "download.txt";
-    const blob = new Blob([fileBlob.content], {
-      type: "text/plain;charset=utf-8",
-    });
+    const fileName = selectedEntry.name || selectedEntry.path || "download";
+    const bytes = decodeFileContent(fileBlob.content, fileBlob.encoding);
+    const blob = new Blob([bytes], { type: getDownloadMimeType(fileName) });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = fileName.split("/").pop() || "download.txt";
+    link.download = fileName.split("/").pop() || "download";
+    document.body.appendChild(link);
     link.click();
+    link.remove();
     URL.revokeObjectURL(url);
   };
 

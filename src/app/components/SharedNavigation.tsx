@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { AUTH_PATH, DASHBOARD_PATH } from "@/routes/path";
 import { RootState } from "@/store";
 import { toggleTheme } from "@/store/slices/theme-slice";
+import { LanguageToggle } from "@/app/language-provider";
 
 const navLinks = [
   { href: "/home", label: "Home" },
@@ -78,6 +79,9 @@ export default function SharedNavigation() {
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
+          <LanguageToggle
+            className={`rounded-lg px-3 py-2 text-xs font-bold transition ${navText}`}
+          />
           <Link
             href={DASHBOARD_PATH.ROOT}
             className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${primary}`}
@@ -96,6 +100,9 @@ export default function SharedNavigation() {
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
+          <LanguageToggle
+            className={`rounded-lg px-3 py-2 text-xs font-bold transition ${navText}`}
+          />
           <button
             type="button"
             onClick={() => setIsMenuOpen((open) => !open)}

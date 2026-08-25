@@ -2,6 +2,7 @@
 
 import { Search, Plus, Menu, Moon, Sun } from "lucide-react";
 import { getDashboardTheme } from "./dashboard-theme";
+import { LanguageToggle } from "@/app/language-provider";
 
 interface DashboardTopBarProps {
   isDark: boolean;
@@ -80,6 +81,15 @@ export default function DashboardTopBar({
       >
         {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
       </button>
+
+      <LanguageToggle
+        className="hidden sm:flex items-center justify-center px-2.5 py-2 rounded-md text-xs font-bold border transition-colors"
+        style={{
+          backgroundColor: t.elevated,
+          borderColor: t.border,
+          color: t.textMuted,
+        }}
+      />
 
       <button
         type="button"
