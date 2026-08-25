@@ -1,5 +1,8 @@
 import type { UserProfile } from "@/types/user";
 
+const ACCESS_KEYS = ["gent.access", "token"];
+const REFRESH_KEYS = ["gent.refresh", "refreshToken"];
+
 export type ParsedAuthResponse = {
   token: string;
   refreshToken?: string;
@@ -58,9 +61,11 @@ export function parseAuthResponse(
 export function getStoredToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const token = localStorage.getItem("token");
-    if (!token || token === "undefined" || token === "null") return null;
-    return token;
+    for (const key of ACCESS_KEYS) {
+      const token = localStorage.getItem(key);
+      if (token && token !== "undefined" && token !== "null") return token;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -69,17 +74,29 @@ export function getStoredToken(): string | null {
 export function getStoredRefreshToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const token = localStorage.getItem("refreshToken");
-    if (!token || token === "undefined" || token === "null") return null;
-    return token;
+    for (const key of REFRESH_KEYS) {
+      const token = localStorage.getItem(key);
+      if (token && token !== "undefined" && token !== "null") return token;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
+export function storeAuthTokens(token: string, refreshToken?: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("gent.access", token);
+  localStorage.setItem("token", token);
+  if (refreshToken) {
+    localStorage.setItem("gent.refresh", refreshToken);
+    localStorage.setItem("refreshToken", refreshToken);
+  }
+}
+
 export function clearAuthStorage(): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem("token");
-  localStorage.removeItem("refreshToken");
+  ACCESS_KEYS.forEach((key) => localStorage.removeItem(key));
+  REFRESH_KEYS.forEach((key) => localStorage.removeItem(key));
   localStorage.removeItem("permissions");
 }

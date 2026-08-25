@@ -134,7 +134,7 @@ export default function DashboardSidebar({
           {repositories.map((repo) => (
             <Link
               key={repo.id}
-              href={`/repo/${repo.owner_id}/${repo.name}`}
+              href={`/dashboard/repository/${repo.owner_id}/${repo.name}`}
               className="block px-3 py-2 rounded-lg text-sm truncate"
               style={{ color: t.textSecondary }}
             >

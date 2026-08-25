@@ -75,14 +75,14 @@ export interface PushPayload {
 export class RepositoryService {
   // Repository Management
   static async getRepositories(): Promise<Repository[]> {
-    const response = await axios.get("/api/repos/");
+    const response = await axios.get("/repos/");
     return response.data;
   }
 
   static async createRepository(
     payload: CreateRepositoryRequest,
   ): Promise<Repository> {
-    const response = await axios.post("/api/repos/create/", payload);
+    const response = await axios.post("/repos/create/", payload);
     return response.data;
   }
 
@@ -90,7 +90,7 @@ export class RepositoryService {
     ownerId: number,
     repoName: string,
   ): Promise<Repository> {
-    const response = await axios.get(`/api/repos/${ownerId}/${repoName}/`);
+    const response = await axios.get(`/repos/${ownerId}/${repoName}/`);
     return response.data;
   }
 
@@ -100,7 +100,7 @@ export class RepositoryService {
     payload: UpdateRepositoryPayload,
   ): Promise<Repository> {
     const response = await axios.patch(
-      `/api/repos/${ownerId}/${repoName}/`,
+      `/repos/${ownerId}/${repoName}/`,
       payload,
     );
     return response.data;
@@ -110,7 +110,7 @@ export class RepositoryService {
     ownerId: number,
     repoName: string,
   ): Promise<void> {
-    await axios.delete(`/api/repos/${ownerId}/${repoName}/delete/`);
+    await axios.delete(`/repos/${ownerId}/${repoName}/delete/`);
   }
 
   // Blob Management
@@ -120,7 +120,7 @@ export class RepositoryService {
     sha: string,
   ): Promise<Blob> {
     const response = await axios.get(
-      `/api/repos/${ownerId}/${repoName}/blob/${sha}/`,
+      `/repos/${ownerId}/${repoName}/blob/${sha}/`,
     );
     return response.data;
   }
@@ -131,7 +131,7 @@ export class RepositoryService {
     payload: Blob,
   ): Promise<{ sha: string }> {
     const response = await axios.post(
-      `/api/repos/${ownerId}/${repoName}/blob/create/`,
+      `/repos/${ownerId}/${repoName}/blob/create/`,
       payload,
     );
     return response.data;
@@ -143,7 +143,7 @@ export class RepositoryService {
     repoName: string,
   ): Promise<Branch[]> {
     const response = await axios.get(
-      `/api/repos/${ownerId}/${repoName}/branches/`,
+      `/repos/${ownerId}/${repoName}/branches/`,
     );
     return response.data;
   }
@@ -154,7 +154,7 @@ export class RepositoryService {
     branchName: string,
   ): Promise<Branch> {
     const response = await axios.get(
-      `/api/repos/${ownerId}/${repoName}/branches/${branchName}/`,
+      `/repos/${ownerId}/${repoName}/branches/${branchName}/`,
     );
     return response.data;
   }
@@ -165,7 +165,7 @@ export class RepositoryService {
     payload: CreateBranchPayload,
   ): Promise<Branch> {
     const response = await axios.post(
-      `/api/repos/${ownerId}/${repoName}/branches/create/`,
+      `/repos/${ownerId}/${repoName}/branches/create/`,
       payload,
     );
     return response.data;
@@ -178,7 +178,7 @@ export class RepositoryService {
     payload: UpdateBranchPayload,
   ): Promise<Branch> {
     const response = await axios.patch(
-      `/api/repos/${ownerId}/${repoName}/branches/${branchName}/`,
+      `/repos/${ownerId}/${repoName}/branches/${branchName}/`,
       payload,
     );
     return response.data;
@@ -190,7 +190,7 @@ export class RepositoryService {
     branchName: string,
   ): Promise<void> {
     await axios.delete(
-      `/api/repos/${ownerId}/${repoName}/branches/${branchName}/`,
+      `/repos/${ownerId}/${repoName}/branches/${branchName}/`,
     );
   }
 
@@ -200,7 +200,7 @@ export class RepositoryService {
     repoName: string,
   ): Promise<Commit[]> {
     const response = await axios.get(
-      `/api/repos/${ownerId}/${repoName}/commits/`,
+      `/repos/${ownerId}/${repoName}/commits/`,
     );
     return response.data;
   }
@@ -211,7 +211,7 @@ export class RepositoryService {
     sha: string,
   ): Promise<Commit> {
     const response = await axios.get(
-      `/api/repos/${ownerId}/${repoName}/commits/${sha}/`,
+      `/repos/${ownerId}/${repoName}/commits/${sha}/`,
     );
     return response.data;
   }
@@ -232,7 +232,7 @@ export class RepositoryService {
     payload: CreateCommitPayload,
   ): Promise<Commit> {
     const response = await axios.post(
-      `/api/repos/${ownerId}/${repoName}/commits/create/`,
+      `/repos/${ownerId}/${repoName}/commits/create/`,
       payload,
     );
     return response.data;
@@ -240,7 +240,7 @@ export class RepositoryService {
 
   // Tag Management
   static async getTags(ownerId: number, repoName: string): Promise<Tag[]> {
-    const response = await axios.get(`/api/repos/${ownerId}/${repoName}/tags/`);
+    const response = await axios.get(`/repos/${ownerId}/${repoName}/tags/`);
     return response.data;
   }
 
@@ -250,7 +250,7 @@ export class RepositoryService {
     payload: CreateTagPayload,
   ): Promise<Tag> {
     const response = await axios.post(
-      `/api/repos/${ownerId}/${repoName}/tags/create/`,
+      `/repos/${ownerId}/${repoName}/tags/create/`,
       payload,
     );
     return response.data;
@@ -261,7 +261,7 @@ export class RepositoryService {
     repoName: string,
     tagName: string,
   ): Promise<void> {
-    await axios.delete(`/api/repos/${ownerId}/${repoName}/tags/${tagName}/`);
+    await axios.delete(`/repos/${ownerId}/${repoName}/tags/${tagName}/`);
   }
 
   // Tree Management
@@ -271,7 +271,7 @@ export class RepositoryService {
     sha: string,
   ): Promise<Tree> {
     const response = await axios.get(
-      `/api/repos/${ownerId}/${repoName}/tree/${sha}/`,
+      `/repos/${ownerId}/${repoName}/tree/${sha}/`,
     );
     return response.data;
   }
@@ -282,7 +282,7 @@ export class RepositoryService {
     payload: CreateTreePayload,
   ): Promise<Tree> {
     const response = await axios.post(
-      `/api/repos/${ownerId}/${repoName}/tree/create/`,
+      `/repos/${ownerId}/${repoName}/tree/create/`,
       payload,
     );
     return response.data;
@@ -290,7 +290,7 @@ export class RepositoryService {
 
   // Git Operations
   static async pullRepository(ownerId: number, repoName: string): Promise<any> {
-    const response = await axios.get(`/api/repos/${ownerId}/${repoName}/pull/`);
+    const response = await axios.get(`/repos/${ownerId}/${repoName}/pull/`);
     return response.data;
   }
 
@@ -300,7 +300,7 @@ export class RepositoryService {
     payload: PushPayload,
   ): Promise<any> {
     const response = await axios.post(
-      `/api/repos/${ownerId}/${repoName}/push/`,
+      `/repos/${ownerId}/${repoName}/push/`,
       payload,
     );
     return response.data;

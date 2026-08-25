@@ -16,7 +16,7 @@ const faqCategories = [
     questions: [
       {
         q: "What is Gent?",
-        a: "Gent is a lightweight, modern version control system designed for developers who value simplicity and efficiency. It provides an intuitive interface for managing repositories, collaborating with teams, and hosting your code with Git-like commands and workflows.",
+        a: "Gent is a lightweight version control platform with its own CLI, REST API, and web dashboard. It manages repositories, commits, branches, tags, and collaborators through Gent commands and Gent API paths.",
       },
       {
         q: "How do I create an account?",
@@ -28,7 +28,7 @@ const faqCategories = [
       },
       {
         q: "Can I import existing repositories?",
-        a: "Absolutely! You can import repositories from GitHub, GitLab, Bitbucket, or any Git-compatible source. We provide step-by-step guides for the import process.",
+        a: "Yes. Create a Gent repository, add the Gent API remote shown on the repository page, then push your local files with the Gent CLI.",
       },
     ],
   },
@@ -42,15 +42,15 @@ const faqCategories = [
       },
       {
         q: "How do pull requests work?",
-        a: "Pull requests allow you to propose changes to a repository. Team members can review your code, leave comments, and suggest improvements before merging. This ensures code quality and team collaboration.",
+        a: "Gent currently focuses on repository access, branches, commits, tags, and push/pull synchronization. Review workflows can be handled through branch history and repository member roles.",
       },
       {
         q: "Can I use Gent with CI/CD pipelines?",
-        a: "Yes! Gent integrates seamlessly with popular CI/CD tools like GitHub Actions, GitLab CI, Jenkins, and more. You can automate testing and deployment workflows.",
+        a: "Use the Gent CLI in automation by authenticating once, setting the Gent API remote, then running Gent commands such as add, commit, push, pull, and clone.",
       },
       {
         q: "Does Gent support branching strategies?",
-        a: "Gent supports all Git branching strategies including Git Flow, GitHub Flow, and trunk-based development. Create, merge, and manage branches with ease.",
+        a: "Gent supports named branches in the backend and dashboard. The Code tab reads the tree from the selected branch, and pushes update that branch only.",
       },
     ],
   },
@@ -60,7 +60,7 @@ const faqCategories = [
     questions: [
       {
         q: "How secure is my code?",
-        a: "We use enterprise-grade encryption for all repositories. Your code is encrypted both in transit and at rest. We comply with industry standards and best practices for data security.",
+        a: "Repository access is controlled by authentication and repository membership. Private repositories are only available to the owner and allowed members.",
       },
       {
         q: "Can I make repositories private?",
@@ -68,11 +68,11 @@ const faqCategories = [
       },
       {
         q: "What about data backups?",
-        a: "We automatically backup all repositories daily. Your code is replicated across multiple data centers to ensure availability and disaster recovery.",
+        a: "You can export repository history and files at any time with gent clone using the API path shown on the repository page.",
       },
       {
         q: "Does Gent comply with GDPR?",
-        a: "Yes, Gent is fully GDPR compliant. We also support SOC 2, ISO 27001, and other compliance standards for enterprise customers.",
+        a: "Gent stores account and repository data needed to provide the platform. Contact the project team for account or data removal requests.",
       },
     ],
   },
@@ -82,11 +82,11 @@ const faqCategories = [
     questions: [
       {
         q: "How do I invite team members?",
-        a: "Go to your repository settings, click 'Invite Members', and enter their email addresses. You can assign different roles like Admin, Developer, or Viewer.",
+        a: "Open repository settings, add a member by account email, and choose their access role.",
       },
       {
         q: "What are the different user roles?",
-        a: "We offer Admin (full access), Developer (can push/pull), Reviewer (can review PRs), and Viewer (read-only) roles. Enterprise plans include custom roles.",
+        a: "Gent supports repository owner access plus member roles such as read, write, and admin depending on the backend permission for that repository.",
       },
       {
         q: "Can I set up team permissions?",

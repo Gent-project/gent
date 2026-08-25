@@ -2,13 +2,12 @@
 
 ## Overview
 
-This guide explains how to upload files to your Gent repositories using both the Web UI and Git CLI.
+This guide explains how to create and upload files to Gent repositories using the Web UI and Gent CLI.
 
-## Method 1: Web UI Upload (After Initial Commit)
+## Method 1: Web UI Upload
 
 ### Prerequisites
 
-- Repository must have at least one commit
 - You need to be the repository owner or have write access
 
 ### Steps:
@@ -34,48 +33,47 @@ This guide explains how to upload files to your Gent repositories using both the
 
 ### How it works:
 
-The Web UI uses the Git Push API with proper SHA-1 hashing:
+The Web UI uses the Gent Push API with backend-compatible object hashing:
 
-1. Calculates blob SHA for file content
+1. Calculates the blob SHA-256 for file content
 2. Builds a tree object with all files
 3. Creates a commit object
-4. Pushes the complete Git pack to the backend
+4. Pushes the complete Gent pack to the backend
 
 ---
 
-## Method 2: Git CLI (Recommended for Initial Commit)
+## Method 2: Gent CLI
 
 ### For empty repositories:
 
 ```bash
-# Step 1: Initialize local repository
+# Step 1: Initialize local Gent repository
 echo "# my-repo" >> README.md
-git init
+gent init
 
 # Step 2: Add and commit files
-git add README.md
-git commit -m "Initial commit"
+gent add README.md
+gent commit -m "Initial commit"
 
 # Step 3: Set up remote and push
-git branch -M main
-git remote add origin https://gent.dev/username/repo-name.git
-git push -u origin main
+gent remote add origin https://gent-api.onrender.com/api/repos/1/repo-name
+gent push origin main
 ```
 
 ### For repositories with commits:
 
 ```bash
 # Step 1: Clone the repository
-git clone https://gent.dev/username/repo-name.git
+gent clone https://gent-api.onrender.com/api/repos/1/repo-name
 cd repo-name
 
 # Step 2: Add your files
 cp /path/to/your/files/* .
-git add .
+gent add .
 
 # Step 3: Commit and push
-git commit -m "Add new files"
-git push origin main
+gent commit -m "Add new files"
+gent push origin main
 ```
 
 ---
@@ -84,20 +82,20 @@ git push origin main
 
 ### "Repository is empty" message
 
-**Solution**: Use Git CLI to create the initial commit first (see Method 2 above)
+**Solution**: Click New file in the Code tab, upload files, or use the Gent CLI flow above.
 
 ### "Blob hash mismatch" error
 
-**Issue**: SHA-1 calculation mismatch
+**Issue**: Blob hash calculation mismatch
 **Solution**:
 
 - Ensure file content is properly encoded
 - Check for special characters
-- Try using Git CLI instead
+- Try using Gent CLI instead
 
 ### "Cannot create tags/branches in empty repository"
 
-**Solution**: Push at least one commit first using Git CLI
+**Solution**: Push at least one commit first using Gent CLI
 
 ### Upload button not responding
 
@@ -111,9 +109,9 @@ git push origin main
 
 ## Technical Details
 
-### Git SHA-1 Hashing
+### Gent Object Hashing
 
-Files are hashed using Git's standard format:
+Files are hashed with SHA-256 over the Gent blob object format:
 
 ```
 blob <size>\0<content>
@@ -141,7 +139,7 @@ committer Name <email> <timestamp>
 
 ## Best Practices
 
-1. **Use Git CLI for**:
+1. **Use Gent CLI for**:
    - Initial repository setup
    - Large file uploads
    - Complex directory structures

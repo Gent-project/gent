@@ -4,6 +4,7 @@ import {
   clearAuthStorage,
   getStoredRefreshToken,
   getStoredToken,
+  storeAuthTokens,
 } from "@/lib/auth-session";
 
 interface AuthState {
@@ -38,10 +39,7 @@ const authSlice = createSlice({
         state.refreshToken = action.payload.refreshToken;
       }
       if (typeof window !== "undefined") {
-        localStorage.setItem("token", action.payload.token);
-        if (action.payload.refreshToken) {
-          localStorage.setItem("refreshToken", action.payload.refreshToken);
-        }
+        storeAuthTokens(action.payload.token, action.payload.refreshToken);
         console.log("✅ Auth tokens saved to localStorage via Redux:", {
           token: action.payload.token.substring(0, 20) + "...",
           refreshToken: action.payload.refreshToken 

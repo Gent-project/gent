@@ -8,7 +8,7 @@ import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
 import Link from "next/link";
 import axios from "@/lib/axios";
 import { isAxiosError } from "axios";
-import { parseAuthResponse } from "@/lib/auth-session";
+import { parseAuthResponse, storeAuthTokens } from "@/lib/auth-session";
 import { setAuth } from "@/store/slices/auth-slice";
 import { RootState } from "@/store";
 import { AUTH_PATH, DASHBOARD_PATH } from "@/routes/path";
@@ -92,16 +92,7 @@ export default function LoginPage() {
         throw new Error("Login failed: token not received from server");
       }
 
-      // Save tokens
-      if (typeof window !== "undefined") {
-        localStorage.setItem("token", token);
-
-        if (refreshToken) {
-          localStorage.setItem("refreshToken", refreshToken);
-        }
-
-        console.log("✅ Token saved to localStorage");
-      }
+      storeAuthTokens(token, refreshToken);
 
       // Save auth state
       dispatch(setAuth({ token, user, refreshToken }));
@@ -184,24 +175,24 @@ export default function LoginPage() {
             className="hidden lg:block"
           >
             <TerminalPreview
-              title="Quick Start with Git"
+              title="Quick Start with Gent"
               commands={[
                 {
-                  command: "git clone https://gent.dev/username/repo.git",
+                  command: "gent clone https://gent-api.onrender.com/api/repos/1/repo",
                   comment: "Clone your repository",
                 },
                 { command: "cd repo" },
                 {
-                  command: "git checkout -b feature/new-feature",
+                  command: "gent checkout -b feature/new-feature",
                   comment: "Create new branch",
                 },
-                { command: "git add .", comment: "Stage your changes" },
+                { command: "gent add .", comment: "Stage your changes" },
                 {
-                  command: 'git commit -m "Add new feature"',
+                  command: 'gent commit -m "Add new feature"',
                   comment: "Commit your work",
                 },
                 {
-                  command: "git push origin feature/new-feature",
+                  command: "gent push origin feature/new-feature",
                   comment: "Push to remote",
                 },
               ]}

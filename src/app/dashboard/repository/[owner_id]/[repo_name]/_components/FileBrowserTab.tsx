@@ -339,6 +339,56 @@ export default function FileBrowserTab({
     return langMap[ext || ""] || "text";
   };
 
+  const renderHighlightedCode = (content: string, language: string) => {
+    const patterns =
+      language === "json"
+        ? /("(?:\\.|[^"\\])*"(?=\s*:)|"(?:\\.|[^"\\])*"|\b(?:true|false|null)\b|-?\b\d+(?:\.\d+)?\b)/g
+        : /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:const|let|var|function|return|if|else|for|while|class|interface|type|import|from|export|async|await|try|catch|new|true|false|null|undefined)\b|\/\/.*|#.*|\/\*[\s\S]*?\*\/|-?\b\d+(?:\.\d+)?\b)/g;
+
+    const colorFor = (token: string) => {
+      if (/^["'`]/.test(token)) return isDark ? "#86efac" : "#15803d";
+      if (/^(\/\/|#|\/\*)/.test(token)) return isDark ? "#94a3b8" : "#64748b";
+      if (/^-?\d/.test(token)) return isDark ? "#fbbf24" : "#b45309";
+      if (/^(true|false|null|undefined)$/.test(token)) {
+        return isDark ? "#f9a8d4" : "#be185d";
+      }
+      if (/^".*"$/.test(token) && language === "json") {
+        return isDark ? "#93c5fd" : "#1d4ed8";
+      }
+      return isDark ? "#c4b5fd" : "#7c3aed";
+    };
+
+    return content.split("\n").map((line, lineIndex) => {
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+
+      for (const match of line.matchAll(patterns)) {
+        const token = match[0];
+        const index = match.index ?? 0;
+        if (index > lastIndex) {
+          parts.push(line.slice(lastIndex, index));
+        }
+        parts.push(
+          <span key={`${lineIndex}-${index}`} style={{ color: colorFor(token) }}>
+            {token}
+          </span>,
+        );
+        lastIndex = index + token.length;
+      }
+
+      if (lastIndex < line.length) {
+        parts.push(line.slice(lastIndex));
+      }
+
+      return (
+        <span key={lineIndex}>
+          {parts}
+          {lineIndex < content.split("\n").length - 1 ? "\n" : ""}
+        </span>
+      );
+    });
+  };
+
   // Show loading only when actually loading commits or tree (not when empty)
   if (
     (commitsLoading || treeLoading) &&
@@ -428,8 +478,8 @@ export default function FileBrowserTab({
               This repository is empty
             </h3>
             <p className="text-sm mb-6" style={{ color: t.textMuted }}>
-              Use Git CLI to create your first commit and push to this
-              repository.
+              Create the first file here, upload files, or use the Gent CLI to
+              push an existing project.
             </p>
 
             {/* Git CLI Instructions */}
@@ -444,7 +494,7 @@ export default function FileBrowserTab({
                 className="text-sm font-semibold mb-3"
                 style={{ color: t.text }}
               >
-                Quick start with Git CLI:
+                Quick start with Gent CLI:
               </h4>
               <div
                 className="p-3 rounded font-mono text-xs space-y-1"
@@ -454,25 +504,21 @@ export default function FileBrowserTab({
                 }}
               >
                 <div>echo &#34;# {repoName}&#34; &gt;&gt; README.md</div>
-                <div>git init</div>
-                <div>git add README.md</div>
-                <div>git commit -m &#34;Initial commit&#34;</div>
-                <div>git branch -M {defaultBranch}</div>
                 <div>
-                  git remote add origin https://gent.dev/
-                  {userEmail.split("@")[0]}/{repoName}.git
+                  gent remote add origin https://gent-api.onrender.com/api/repos/
+                  {ownerId}/{repoName}
                 </div>
-                <div>git push -u origin {defaultBranch}</div>
+                <div>gent add README.md</div>
+                <div>gent commit -m &#34;Initial commit&#34;</div>
+                <div>gent push origin {defaultBranch}</div>
               </div>
               <button
                 onClick={() => {
                   const commands = `echo "# ${repoName}" >> README.md
-git init
-git add README.md
-git commit -m "Initial commit"
-git branch -M ${defaultBranch}
-git remote add origin https://gent.dev/${userEmail.split("@")[0]}/${repoName}.git
-git push -u origin ${defaultBranch}`;
+gent remote add origin https://gent-api.onrender.com/api/repos/${ownerId}/${repoName}
+gent add README.md
+gent commit -m "Initial commit"
+gent push origin ${defaultBranch}`;
                   navigator.clipboard.writeText(commands);
                 }}
                 className="mt-3 px-3 py-2 text-xs rounded-lg transition-colors"
@@ -583,7 +629,7 @@ git push -u origin ${defaultBranch}`;
               >
                 <div className="text-sm" style={{ color: t.textMuted }}>
                   {formatFileSize(fileBlob.size)} •{" "}
-                  {getFileLanguage(selectedFile || "")}
+                  {getFileLanguage(selectedEntry?.name || "")}
                 </div>
                 <div className="text-sm" style={{ color: t.textMuted }}>
                   {fileBlob.encoding}
@@ -599,8 +645,13 @@ git push -u origin ${defaultBranch}`;
                     'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, monospace',
                 }}
               >
-                <pre className="text-sm" style={{ color: t.text }}>
-                  <code>{fileBlob.content}</code>
+                <pre className="text-sm whitespace-pre-wrap" style={{ color: t.text }}>
+                  <code>
+                    {renderHighlightedCode(
+                      fileBlob.content,
+                      getFileLanguage(selectedEntry?.name || ""),
+                    )}
+                  </code>
                 </pre>
               </div>
             </div>

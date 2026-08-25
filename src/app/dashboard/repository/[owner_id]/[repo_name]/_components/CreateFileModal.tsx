@@ -124,17 +124,23 @@ export default function CreateFileModal({
       const normalizedContent = fileContent.replace(/\r\n/g, "\n");
       const blobSHA = await calculateBlobSHA(normalizedContent);
 
-      if (!selectedBranchCommit?.tree_sha) {
+      if (!selectedBranchCommit?.tree_sha && currentPath.length > 0) {
         throw new Error(
-          `Unable to find the tree for branch "${selectedBranch}"`,
+          `Directory "${currentPath.join("/")}" does not exist on an empty branch`,
         );
       }
 
-      let targetTreeSha = selectedBranchCommit.tree_sha;
+      let targetTreeSha = selectedBranchCommit?.tree_sha ?? null;
 
       // Walk through the current directory path starting from
       // the selected branch root tree.
       for (const pathSegment of currentPath) {
+        if (!targetTreeSha) {
+          throw new Error(
+            `Directory "${currentPath.join("/")}" does not exist on branch "${selectedBranch}"`,
+          );
+        }
+
         const response = await axios.get<{
           entries: Array<{
             name: string;
@@ -160,17 +166,19 @@ export default function CreateFileModal({
         targetTreeSha = entry.sha;
       }
 
-      const freshTreeResponse = await axios.get<{
-        entries: Array<{
-          name: string;
-          type: "blob" | "tree";
-          sha: string;
-          path?: string;
-          mode?: string;
-        }>;
-      }>(`/repos/${ownerId}/${repoName}/tree/${targetTreeSha}/`);
-
-      const freshTreeEntries = freshTreeResponse.data?.entries ?? [];
+      const freshTreeEntries = targetTreeSha
+        ? (
+            await axios.get<{
+              entries: Array<{
+                name: string;
+                type: "blob" | "tree";
+                sha: string;
+                path?: string;
+                mode?: string;
+              }>;
+            }>(`/repos/${ownerId}/${repoName}/tree/${targetTreeSha}/`)
+          ).data?.entries ?? []
+        : [];
       const existingEntries = freshTreeEntries
         .filter((entry) => entry.name !== normalizedFileName)
         .map((entry) => ({
@@ -205,10 +213,9 @@ export default function CreateFileModal({
       );
       console.log(
         "[CreateFileModal] Selected branch root tree:",
-        selectedBranchCommit.tree_sha,
+        selectedBranchCommit?.tree_sha ?? null,
       );
       console.log("[CreateFileModal] Target directory tree:", targetTreeSha);
-      console.log("[CreateFileModal] Tree response:", freshTreeResponse.data);
       console.log("[CreateFileModal] Tree entries:", freshTreeEntries);
       console.log("[CreateFileModal] Rendered files:", treeEntries);
       const treeSHA = await calculateTreeSHA(treeEntries);

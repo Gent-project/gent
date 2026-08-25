@@ -48,25 +48,19 @@ export default function GitOperationsModal({
 
   const cloneCommands = [
     {
-      title: "Clone with HTTPS",
-      command: `git clone ${repositoryUrl}`,
-      description: "Recommended for most users"
-    },
-    {
-      title: "Clone with SSH",
-      command: `git clone ${repositoryUrl.replace('https://', 'git@').replace('/', ':').replace('.git', '.git')}`,
-      description: "For users with SSH keys configured"
+      title: "Clone with Gent CLI",
+      command: `gent clone ${repositoryUrl}`,
+      description: "Uses the repository owner id and name"
     }
   ];
 
   const setupCommands = [
     `cd ${repoName}`,
     `echo "# ${repoName}" >> README.md`,
-    `git add README.md`,
-    `git commit -m "Initial commit"`,
-    `git branch -M ${defaultBranch}`,
-    `git remote add origin ${repositoryUrl}`,
-    `git push -u origin ${defaultBranch}`
+    `gent add README.md`,
+    `gent commit -m "Initial commit"`,
+    `gent remote add origin ${repositoryUrl}`,
+    `gent push origin ${defaultBranch}`
   ];
 
   return (
@@ -171,7 +165,7 @@ export default function GitOperationsModal({
 
               <div>
                 <h4 className="text-sm font-semibold mb-3" style={{ color: t.text }}>
-                  Create a new repository on the command line
+                  Push an existing folder from the command line
                 </h4>
                 <div
                   className="p-3 rounded-lg border font-mono text-xs"
@@ -213,14 +207,14 @@ export default function GitOperationsModal({
                   Push your local changes to the repository. This feature is for advanced Git pack operations.
                 </p>
                 <div className="space-y-2 text-xs" style={{ color: t.textMuted }}>
-                  <p>Use the standard Git commands:</p>
+                  <p>Use Gent CLI commands:</p>
                   <code
                     className="block p-2 rounded font-mono"
                     style={{ backgroundColor: t.surface }}
                   >
-                    git add .<br />
-                    git commit -m "Your message"<br />
-                    git push origin {defaultBranch}
+                    gent add .<br />
+                    gent commit -m "Your message"<br />
+                    gent push origin {defaultBranch}
                   </code>
                 </div>
               </div>
@@ -238,12 +232,12 @@ export default function GitOperationsModal({
                   Pull the latest changes from the repository to keep your local copy up to date.
                 </p>
                 <div className="space-y-2 text-xs" style={{ color: t.textMuted }}>
-                  <p>Use the standard Git commands:</p>
+                  <p>Use Gent CLI commands:</p>
                   <code
                     className="block p-2 rounded font-mono"
                     style={{ backgroundColor: t.surface }}
                   >
-                    git pull origin {defaultBranch}
+                    gent pull origin {defaultBranch}
                   </code>
                 </div>
                 <button

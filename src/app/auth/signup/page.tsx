@@ -47,15 +47,15 @@ export default function SignUpPage() {
                   command: "mkdir my-project && cd my-project",
                   comment: "Create your project",
                 },
-                { command: "git init", comment: "Initialize git repository" },
+                { command: "gent init", comment: "Initialize Gent repository" },
                 { command: 'echo "# My Project" > README.md' },
-                { command: "git add README.md" },
-                { command: 'git commit -m "Initial commit"' },
+                { command: "gent add README.md" },
+                { command: 'gent commit -m "Initial commit"' },
                 {
                   command:
-                    "git remote add origin https://gent.dev/username/my-project.git",
+                    "gent remote add origin https://gent-api.onrender.com/api/repos/1/my-project",
                 },
-                { command: "git push -u origin main", comment: "Push to Gent" },
+                { command: "gent push origin main", comment: "Push to Gent" },
               ]}
             />
           </motion.div>

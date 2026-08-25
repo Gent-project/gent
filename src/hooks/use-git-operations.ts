@@ -90,15 +90,13 @@ export const usePullRepository = () => {
 
 // Get repository clone URL
 export const getCloneUrl = (
-  ownerEmail: string,
+  ownerId: number | string,
   repoName: string,
   protocol: "https" | "ssh" = "https",
 ) => {
-  const ownerName = ownerEmail.split("@")[0];
-
   if (protocol === "ssh") {
-    return `git@gent.dev:${ownerName}/${repoName}.git`;
+    return `/api/repos/${ownerId}/${repoName}`;
   }
 
-  return `https://gent.dev/${ownerName}/${repoName}.git`;
+  return `https://gent-api.onrender.com/api/repos/${ownerId}/${repoName}`;
 };

@@ -256,15 +256,15 @@ export default function InitialCommitModal({
         <form onSubmit={handleCreateInitialCommit} className="p-6 space-y-4">
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm">
             <p style={{ color: t.text }} className="mb-2">
-              <strong>Note:</strong> This feature uses the Git Push API to
+              <strong>Note:</strong> This feature uses the Gent Push API to
               create the initial commit.
             </p>
             <p style={{ color: t.textMuted }} className="text-xs">
-              If you encounter errors, you can use the standard Git CLI commands
+              If you encounter errors, you can use the Gent CLI commands
               instead:
               <br />
               <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">
-                git clone → add files → commit → push
+                gent clone → gent add → gent commit → gent push
               </code>
             </p>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,8 @@ export default function InputField({
   ...props
 }: InputFieldProps) {
   const isDark = useSelector((state: RootState) => state.theme.isDark);
-  const [inputId] = useState(() => id || `input-${Math.random().toString(36).substr(2, 9)}`);
+  const generatedId = useId();
+  const inputId = id || generatedId;
 
   return (
     <div className={cn("space-y-2 w-full", containerClassName)}>

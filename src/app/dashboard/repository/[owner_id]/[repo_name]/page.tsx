@@ -366,7 +366,7 @@ export default function RepositoryPage() {
               <div className="flex">
                 <input
                   type="text"
-                  value={getCloneUrl(repository.owner_email, repository.name)}
+                  value={getCloneUrl(repository.owner_id, repository.name)}
                   readOnly
                   className="flex-1 px-3 py-2 text-xs rounded-l-lg border"
                   style={{
@@ -378,7 +378,7 @@ export default function RepositoryPage() {
                 <button
                   onClick={() =>
                     navigator.clipboard.writeText(
-                      getCloneUrl(repository.owner_email, repository.name),
+                      getCloneUrl(repository.owner_id, repository.name),
                     )
                   }
                   className="px-3 py-2 border border-l-0 rounded-r-lg text-xs transition-colors"
@@ -512,7 +512,7 @@ export default function RepositoryPage() {
         ownerId={ownerId}
         repoName={repoName}
         isDark={isDark}
-        repositoryUrl={getCloneUrl(repository.owner_email, repository.name)}
+        repositoryUrl={getCloneUrl(repository.owner_id, repository.name)}
         defaultBranch={repository.default_branch}
       />
     </div>

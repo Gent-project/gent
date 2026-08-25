@@ -11,12 +11,12 @@ import { useRepositories } from "@/hooks/use-repositories";
 import { useDashboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { Repository } from "@/types/repository";
 
-type SortKey = "updated" | "name" | "created";
+type SortKey = "newest" | "oldest" | "name";
 
 export default function DashboardPage() {
   const { isDark, searchQuery, selectedRepoId, openNewRepoModal } =
     useDashboard();
-  const [sortBy, setSortBy] = useState<SortKey>("updated");
+  const [sortBy, setSortBy] = useState<SortKey>("newest");
   const [filterType, setFilterType] = useState<"all" | "public" | "private">(
     "all",
   );
@@ -73,18 +73,19 @@ export default function DashboardPage() {
           a.name.localeCompare(b.name),
         );
         break;
-      case "created":
+      case "oldest":
+        list.sort(
+          (a: Repository, b: Repository) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        );
+        break;
+      case "newest":
         list.sort(
           (a: Repository, b: Repository) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         );
         break;
-      case "updated":
       default:
-        list.sort(
-          (a: Repository, b: Repository) =>
-            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-        );
         break;
     }
 
@@ -273,8 +274,8 @@ export default function DashboardPage() {
                   color: t.textSecondary,
                 }}
               >
-                <option value="updated">Last updated</option>
-                <option value="created">Recently created</option>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
                 <option value="name">Name</option>
               </select>
             </div>

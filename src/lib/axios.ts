@@ -6,6 +6,7 @@ import {
   clearAuthStorage,
   getStoredRefreshToken,
   getStoredToken,
+  storeAuthTokens,
 } from "./auth-session";
 
 // Base API URL
@@ -37,7 +38,7 @@ const axios = ax.create({
     "Content-Type": "application/json",
   },
   withCredentials: false,
-  timeout: 30000, // 30s - Render free tier can be slow on cold start
+  timeout: 60000, // Render free tier can be slow on cold start
   maxRedirects: 0, // Prevent redirects that might change POST to GET
 });
 
@@ -107,6 +108,8 @@ axios.interceptors.response.use(
       const isAuthEndpoint =
         requestUrl.includes("auth/login") ||
         requestUrl.includes("auth/register") ||
+        requestUrl.includes("auth/signup") ||
+        requestUrl.includes("auth/token/refresh") ||
         requestUrl.includes("auth/logout");
 
       if (isAuthEndpoint) {
@@ -136,8 +139,7 @@ axios.interceptors.response.use(
           refreshToken;
 
         if (newToken) {
-          localStorage.setItem("token", String(newToken));
-          localStorage.setItem("refreshToken", String(newRefresh));
+          storeAuthTokens(String(newToken), String(newRefresh));
           if (data.permissions) {
             localStorage.setItem(
               "permissions",
