@@ -6,12 +6,10 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Settings,
-  Trash2,
   Save,
   AlertTriangle,
   Lock,
   Globe,
-  GitBranch,
   Users,
   UserPlus,
   X,
@@ -89,6 +87,7 @@ export default function RepositorySettingsPage() {
       const message =
         error?.response?.data?.detail ||
         error?.response?.data?.email?.[0] ||
+        error?.response?.data?.error ||
         "Failed to add collaborator.";
 
       setCollaboratorError(message);
@@ -121,6 +120,7 @@ export default function RepositorySettingsPage() {
 
       setRemoveError(
         error?.response?.data?.detail ||
+          error?.response?.data?.error ||
           "You do not have permission to remove this collaborator.",
       );
     }
@@ -472,54 +472,6 @@ export default function RepositorySettingsPage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {/* Owner */}
-                    <div
-                      className="flex items-center justify-between gap-3 rounded-lg border p-3"
-                      style={{
-                        borderColor: t.border,
-                        backgroundColor: t.inputBg,
-                      }}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-                          style={{
-                            backgroundColor: t.accent,
-                            color: t.successText,
-                          }}
-                        >
-                          <span className="text-sm font-semibold">
-                            {repository.owner_email?.charAt(0)?.toUpperCase() ||
-                              "O"}
-                          </span>
-                        </div>
-
-                        <div className="min-w-0">
-                          <p
-                            className="text-sm font-medium truncate"
-                            style={{ color: t.text }}
-                          >
-                            {repository.owner_email}
-                          </p>
-
-                          <p className="text-xs" style={{ color: t.textMuted }}>
-                            Repository owner
-                          </p>
-                        </div>
-                      </div>
-
-                      <span
-                        className="shrink-0 px-2 py-1 rounded-md text-xs font-medium"
-                        style={{
-                          backgroundColor: t.accent + "20",
-                          color: t.accent,
-                        }}
-                      >
-                        Owner
-                      </span>
-                    </div>
-
-                    {/* Collaborators */}
                     {collaborators.length === 0 ? (
                       <div
                         className="text-center py-8 rounded-lg border border-dashed"
@@ -587,19 +539,25 @@ export default function RepositorySettingsPage() {
                                 color: t.textMuted,
                               }}
                             >
-                              Read & Write
+                              {member.role === "owner"
+                                ? "Owner"
+                                : member.role === "read"
+                                  ? "Read"
+                                  : "Read & Write"}
                             </span>
 
-                            <button
-                              onClick={() =>
-                                handleRemoveCollaborator(member.user_id)
-                              }
-                              disabled={removeCollaborator.isPending}
-                              className="p-2 rounded-lg transition-colors hover:bg-red-500/10 disabled:opacity-50"
-                              title="Remove collaborator"
-                            >
-                              <X className="w-4 h-4 text-red-500" />
-                            </button>
+                            {member.role !== "owner" && (
+                              <button
+                                onClick={() =>
+                                  handleRemoveCollaborator(member.user_id)
+                                }
+                                disabled={removeCollaborator.isPending}
+                                className="p-2 rounded-lg transition-colors hover:bg-red-500/10 disabled:opacity-50"
+                                title="Remove collaborator"
+                              >
+                                <X className="w-4 h-4 text-red-500" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))

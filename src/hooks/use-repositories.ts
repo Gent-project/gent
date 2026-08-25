@@ -2,6 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 import { Repository, CreateRepositoryRequest } from "@/types/repository";
 
+type RepositoryResponse = Repository | { repository: Repository };
+
+const unwrapRepository = (data: RepositoryResponse): Repository =>
+  "repository" in data ? data.repository : data;
+
 // Get all repositories
 export const useRepositories = () => {
   return useQuery<Repository[]>({
@@ -31,8 +36,8 @@ export const useCreateRepository = () => {
   
   return useMutation<Repository, Error, CreateRepositoryRequest>({
     mutationFn: async (data) => {
-      const response = await axios.post('/repos/create/', data);
-      return response.data;
+      const response = await axios.post<RepositoryResponse>('/repos/create/', data);
+      return unwrapRepository(response.data);
     },
     onSuccess: () => {
       // Invalidate and refetch repositories list
@@ -47,8 +52,8 @@ export const useUpdateRepository = () => {
   
   return useMutation<Repository, Error, { ownerId: number; repoName: string; data: Partial<Repository> }>({
     mutationFn: async ({ ownerId, repoName, data }) => {
-      const response = await axios.patch(`/repos/${ownerId}/${repoName}/`, data);
-      return response.data;
+      const response = await axios.patch<RepositoryResponse>(`/repos/${ownerId}/${repoName}/`, data);
+      return unwrapRepository(response.data);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['repositories'] });

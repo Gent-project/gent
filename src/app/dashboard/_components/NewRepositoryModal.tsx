@@ -7,6 +7,23 @@ import { getDashboardTheme } from "./dashboard-theme";
 import { useCreateRepository } from "@/hooks/use-repositories";
 import { CreateRepositoryRequest } from "@/types/repository";
 
+const getApiErrorMessage = (error: any, fallback: string) => {
+  const data = error?.response?.data;
+
+  if (!data) return error?.message || fallback;
+  if (typeof data === "string") return data;
+  if (data.error) return Array.isArray(data.error) ? data.error[0] : data.error;
+  if (data.detail) {
+    return Array.isArray(data.detail) ? data.detail[0] : data.detail;
+  }
+  if (data.message) {
+    return Array.isArray(data.message) ? data.message[0] : data.message;
+  }
+  if (data.name) return Array.isArray(data.name) ? data.name[0] : data.name;
+
+  return fallback;
+};
+
 interface NewRepositoryModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -22,13 +39,7 @@ export default function NewRepositoryModal({
   isOpen,
   onClose,
   isDark,
-  onCreate,
 }: NewRepositoryModalProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [isPrivate, setIsPrivate] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
   const t = getDashboardTheme(isDark);
   const [formData, setFormData] = useState<CreateRepositoryRequest>({
     name: "",
@@ -66,9 +77,9 @@ export default function NewRepositoryModal({
 
     if (!formData.name.trim()) {
       newErrors.name = "Repository name is required";
-    } else if (!/^[a-zA-Z0-9_.-]+$/.test(formData.name)) {
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(formData.name)) {
       newErrors.name =
-        "Repository name can only contain letters, numbers, hyphens, underscores, and periods";
+        "Repository name can only contain letters, numbers, hyphens, and underscores";
     } else if (formData.name.length < 2) {
       newErrors.name = "Repository name must be at least 2 characters";
     } else if (formData.name.length > 100) {
@@ -91,8 +102,11 @@ export default function NewRepositoryModal({
     try {
       await createRepository.mutateAsync(formData);
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create repository:", error);
+      setErrors({
+        form: getApiErrorMessage(error, "Failed to create repository."),
+      });
     }
   };
 
@@ -146,7 +160,7 @@ export default function NewRepositoryModal({
               >
                 <div className="px-5 py-4 space-y-4 overflow-y-auto">
                   {/* Error Alert */}
-                  {createRepository.error && (
+                  {(createRepository.error || errors.form) && (
                     <div
                       className="flex items-start gap-3 p-3 rounded-lg border text-sm"
                       style={{
@@ -159,8 +173,11 @@ export default function NewRepositoryModal({
                       <div>
                         <strong>Failed to create repository</strong>
                         <p className="mt-1">
-                          {createRepository.error?.message ||
-                            "An unexpected error occurred"}
+                          {errors.form ||
+                            getApiErrorMessage(
+                              createRepository.error,
+                              "An unexpected error occurred",
+                            )}
                         </p>
                       </div>
                     </div>
@@ -180,7 +197,7 @@ export default function NewRepositoryModal({
                       onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
                       }
-                      placeholder="my-awesome-repo"
+                      placeholder="my-awesome_repo"
                       disabled={createRepository.isPending}
                       className={`w-full px-3 py-2 text-sm rounded-md border outline-none transition-colors focus:ring-2 ${
                         errors.name

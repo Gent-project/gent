@@ -77,7 +77,8 @@
       <p>
         This frontend branch is rebuilt from the old design baseline commit
         <code>e996e2a8231aaa259b075f192687146327785cc5</code>. The changes are
-        functional compatibility fixes only.
+        functional compatibility fixes only, with unsupported marketing copy
+        removed from the public pages touched in this pass.
       </p>
 
       <div class="grid">
@@ -114,6 +115,24 @@
             <li>Clone URLs use <code>/api/repos/&lt;owner_id&gt;/&lt;repo_name&gt;</code>.</li>
             <li>Instructional examples use Gent CLI commands.</li>
             <li>Dark-mode dropdown options remain readable.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Public Pages</h2>
+          <ul>
+            <li>Top and bottom banners now link to Home, CLI Docs, FAQ, and Dashboard.</li>
+            <li>FAQ now contains real Gent CLI, API, repository, branch, member, and account answers.</li>
+            <li>Removed unsupported support/demo/notification CTA content from FAQ.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Create and Delete Smoke</h2>
+          <ul>
+            <li>Repository name validation now matches the backend: letters, numbers, dashes, and underscores.</li>
+            <li>Create/update hooks unwrap backend <code>{ repository }</code> responses.</li>
+            <li>Live smoke test created a repo, pushed first file data, cloned it with CLI, and deleted it.</li>
           </ul>
         </section>
       </div>
