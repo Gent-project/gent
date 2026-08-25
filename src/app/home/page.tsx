@@ -110,16 +110,16 @@ export default function Home() {
               >
                 Open Dashboard <ArrowRight className="h-4 w-4" />
               </Link>
-              <a
-                href="#workflow"
+              <Link
+                href="/cli"
                 className={`inline-flex items-center justify-center gap-2 rounded-lg border px-5 py-3 text-sm font-semibold transition ${
                   isDark
                     ? "border-white/20 text-white hover:bg-white/10"
                     : "border-[#2d3e2d]/25 text-[#2d3e2d] hover:bg-white"
                 }`}
               >
-                View CLI Flow
-              </a>
+                Read CLI Docs
+              </Link>
             </div>
           </motion.div>
 
@@ -185,8 +185,8 @@ export default function Home() {
               Built around real Gent workflows.
             </h2>
             <p className={`mt-3 leading-7 ${muted}`}>
-              No pricing, testimonials, fake analytics, or unavailable token
-              screens. These are the parts connected to the current project.
+              These are the parts connected to the current CLI, API, and
+              dashboard flow.
             </p>
           </div>
 
