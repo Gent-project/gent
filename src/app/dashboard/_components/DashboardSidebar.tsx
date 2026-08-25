@@ -11,6 +11,7 @@ import { getDashboardTheme } from "./dashboard-theme";
 import { DASHBOARD_PATH } from "@/routes/path";
 import { useRouter } from "next/navigation";
 import { useRepositories } from "@/hooks/use-repositories";
+import { LanguageToggle } from "@/app/language-provider";
 
 interface DashboardSidebarProps {
   isDark: boolean;
@@ -154,6 +155,14 @@ export default function DashboardSidebar({
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           {isDark ? "Light Mode" : "Dark Mode"}
         </button>
+
+        <LanguageToggle
+          className="flex items-center justify-center w-full px-3 py-2 rounded-lg text-sm font-bold border transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+          style={{
+            borderColor: t.border,
+            color: t.textSecondary,
+          }}
+        />
 
         <button
           onClick={handleLogout}
