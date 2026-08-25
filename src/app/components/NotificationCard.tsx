@@ -19,7 +19,7 @@ const notifications = [
   {
     title: "Start Your Journey",
     description:
-      "Join thousands of developers using Gent. Sign in now and manage your repositories with ease.",
+      "Sign in to create repositories, browse branches, and copy Gent CLI remotes.",
     badge: "Get Started",
     type: "cta",
     showButton: true,

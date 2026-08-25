@@ -95,8 +95,8 @@ export default function SharedFooter() {
             <p
               className={`text-sm leading-relaxed mb-4 ${isDark ? "text-gray-400" : "text-gray-600"}`}
             >
-              Modern version control that speaks your language. Git-compatible
-              CLI with a powerful web dashboard.
+              Modern version control that speaks your language. Gent CLI with a
+              repository dashboard.
             </p>
             {/* CLI Command Box */}
             <div

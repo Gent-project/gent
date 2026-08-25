@@ -13,7 +13,6 @@ import {
   Target,
   Lightbulb,
   CheckCircle,
-  Star,
   MessageSquare,
   Activity,
   TrendingUp,
@@ -256,12 +255,12 @@ export default function Home() {
                     isDark ? "text-white" : "text-[#2d3e2d]"
                   }`}
                 >
-                  Track Every Commit,
+                  Manage Gent Repositories,
                   <br />
                   <span
                     className={isDark ? "text-[#7dd3fc]" : "text-[#5A7863]"}
                   >
-                    Visualize Your Progress
+                    From Web and CLI
                   </span>
                 </h2>
 
@@ -271,26 +270,25 @@ export default function Home() {
                     isDark ? "text-gray-300" : "text-[#4a5f4a]"
                   }`}
                 >
-                  Get instant insights into your projects with our beautiful
-                  dashboard. Monitor activity, track contributions, and
-                  visualize your team's productivity with real-time statistics
-                  and elegant charts.
+                  Create repositories, open branches, inspect commits, browse
+                  files, and keep the web interface aligned with the Gent CLI
+                  and backend API.
                 </p>
 
                 {/* Feature List */}
                 <div className="space-y-4 pt-4">
                   {[
                     {
-                      icon: TrendingUp,
-                      title: "Performance Analytics",
+                      icon: GitBranch,
+                      title: "Branch-aware file browser",
                       description:
-                        "Track code velocity and team productivity metrics",
+                        "Open the tree that belongs to the selected branch",
                     },
                     {
                       icon: Users,
-                      title: "Team Insights",
+                      title: "Repository access",
                       description:
-                        "Understand collaboration patterns and contributions",
+                        "Use repository settings to manage members and roles",
                     },
                   ].map((feature, idx) => (
                     <motion.div
@@ -641,29 +639,29 @@ export default function Home() {
                         }`}
                       >
                         <TrendingUp className="w-3 h-3" />
-                        Growth Analytics
+                        Repository Snapshot
                       </div>
                       <h4
                         className={`text-lg font-bold ${
                           isDark ? "text-white" : "text-gray-900"
                         }`}
                       >
-                        Performance Over Time
+                        Branch and Object Flow
                       </h4>
                     </div>
                     <div
                       className={`text-right ${isDark ? "text-gray-400" : "text-gray-600"}`}
                     >
-                      <div className="text-xs">Last 6 months</div>
+                      <div className="text-xs">Gent API</div>
                     </div>
                   </div>
 
                   {/* Stats Row */}
                   <div className="grid grid-cols-3 gap-3 mb-6">
                     {[
-                      { label: "Users", value: "2.4K", change: "+12%" },
-                      { label: "Revenue", value: "$45K", change: "+23%" },
-                      { label: "Growth", value: "156%", change: "+8%" },
+                      { label: "Repos", value: "API", change: "live" },
+                      { label: "Branches", value: "CID", change: "mapped" },
+                      { label: "Objects", value: "SHA", change: "verified" },
                     ].map((stat, idx) => (
                       <motion.div
                         key={idx}
@@ -846,237 +844,7 @@ export default function Home() {
             </div>
           </motion.section>
 
-          {/* Section 5: Pricing Plans */}
-          <motion.section
-            className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20"
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
-            <motion.div className="text-center mb-16" variants={itemVariants}>
-              <h2
-                className={`text-4xl md:text-5xl font-bold mb-4 drop-shadow-lg ${
-                  isDark ? "text-white" : "text-[#2d3e2d]"
-                }`}
-              >
-                Simple, Transparent Pricing
-              </h2>
-              <p
-                className={`text-lg ${isDark ? "text-gray-300" : "text-[#4a5f4a]"}`}
-              >
-                Choose the perfect plan for your team. Always flexible, always
-                fair.
-              </p>
-            </motion.div>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              {[
-                {
-                  name: "Starter",
-                  price: "Free",
-                  description: "Perfect for individuals and small projects",
-                  features: [
-                    "Up to 5 repositories",
-                    "Basic collaboration",
-                    "Community support",
-                    "1 GB storage",
-                  ],
-                },
-                {
-                  name: "Professional",
-                  price: "$9",
-                  period: "/month",
-                  description: "For growing teams and projects",
-                  features: [
-                    "Unlimited repositories",
-                    "Advanced collaboration",
-                    "Priority support",
-                    "100 GB storage",
-                    "CI/CD integration",
-                  ],
-                  highlighted: true,
-                },
-                {
-                  name: "Enterprise",
-                  price: "Custom",
-                  description: "For large organizations",
-                  features: [
-                    "Everything in Professional",
-                    "Dedicated support",
-                    "Custom integrations",
-                    "Unlimited storage",
-                    "SSO & advanced security",
-                  ],
-                },
-              ].map((plan, idx) => (
-                <motion.div
-                  key={idx}
-                  className={`rounded-2xl p-8 border transition-all ${
-                    plan.highlighted
-                      ? isDark
-                        ? "bg-gradient-to-br from-white/20 to-white/10 border-white/40 shadow-2xl scale-105"
-                        : "bg-gradient-to-br from-[#2d3e2d]/20 to-[#2d3e2d]/10 border-[#2d3e2d]/40 shadow-2xl scale-105"
-                      : isDark
-                        ? "bg-white/10 border-white/20 hover:border-white/40"
-                        : "bg-white/40 border-[#2d3e2d]/30 hover:border-[#2d3e2d]/60"
-                  }`}
-                  variants={itemVariants}
-                  whileHover={{ y: -5 }}
-                >
-                  <h3
-                    className={`text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-[#2d3e2d]"}`}
-                  >
-                    {plan.name}
-                  </h3>
-                  <div className="mb-4">
-                    <span
-                      className={`text-4xl font-bold ${isDark ? "text-white" : "text-[#2d3e2d]"}`}
-                    >
-                      {plan.price}
-                    </span>
-                    {plan.period && (
-                      <span
-                        className={isDark ? "text-white/70" : "text-[#2d3e2d]"}
-                      >
-                        {plan.period}
-                      </span>
-                    )}
-                  </div>
-                  <p
-                    className={`mb-6 ${isDark ? "text-white/70" : "text-[#2d3e2d]"}`}
-                  >
-                    {plan.description}
-                  </p>
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((feature, fidx) => (
-                      <li
-                        key={fidx}
-                        className={`flex items-center gap-3 ${isDark ? "text-white/80" : "text-[#2d3e2d]"}`}
-                      >
-                        <CheckCircle
-                          className={`w-5 h-5 flex-shrink-0 ${isDark ? "text-white" : "text-[#2d3e2d]"}`}
-                        />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <motion.button
-                    className={`w-full py-3 rounded-lg font-bold transition-all ${
-                      plan.highlighted
-                        ? isDark
-                          ? "bg-white text-[#0f1419] hover:shadow-lg"
-                          : "bg-[#2d3e2d] text-white hover:shadow-lg"
-                        : isDark
-                          ? "bg-white/20 text-white border border-white/40 hover:bg-white/30"
-                          : "bg-white/40 text-[#2d3e2d] border border-[#2d3e2d]/30 hover:bg-white/60"
-                    }`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    Get Started
-                  </motion.button>
-                </motion.div>
-              ))}
-            </div>
-          </motion.section>
-
-          {/* Section 6: Testimonials */}
-          <motion.section
-            className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20"
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
-            <motion.div className="text-center mb-16" variants={itemVariants}>
-              <h2
-                className={`text-4xl md:text-5xl font-bold mb-4 drop-shadow-lg ${
-                  isDark ? "text-white" : "text-[#2d3e2d]"
-                }`}
-              >
-                Loved by Developers Worldwide
-              </h2>
-              <p
-                className={`text-lg ${isDark ? "text-gray-300" : "text-[#4a5f4a]"}`}
-              >
-                See what developers are saying about Gent
-              </p>
-            </motion.div>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              {[
-                {
-                  name: "Sarah Chen",
-                  role: "Full Stack Developer",
-                  company: "TechStartup Inc",
-                  content:
-                    "Gent has completely transformed how our team manages code. It's lightweight, intuitive, and just works. Highly recommended!",
-                  rating: 5,
-                },
-                {
-                  name: "Ahmed Hassan",
-                  role: "DevOps Engineer",
-                  company: "CloudSystems",
-                  content:
-                    "The CLI is incredibly fast and the web interface is beautiful. We migrated from other platforms and never looked back.",
-                  rating: 5,
-                },
-                {
-                  name: "Maria Rodriguez",
-                  role: "Engineering Manager",
-                  company: "Digital Solutions",
-                  content:
-                    "Our team productivity increased significantly. The collaboration features are top-notch and the support team is amazing.",
-                  rating: 5,
-                },
-              ].map((testimonial, idx) => (
-                <motion.div
-                  key={idx}
-                  className={`border rounded-xl p-6 transition-all ${
-                    isDark
-                      ? "bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20"
-                      : "bg-white/40 backdrop-blur-sm border-[#2d3e2d]/30 hover:bg-white/60"
-                  }`}
-                  variants={itemVariants}
-                  whileHover={{ y: -5 }}
-                >
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className="w-5 h-5 fill-yellow-300 text-yellow-300"
-                      />
-                    ))}
-                  </div>
-                  <p
-                    className={`mb-6 italic ${isDark ? "text-white/80" : "text-[#2d3e2d]"}`}
-                  >
-                    "{testimonial.content}"
-                  </p>
-                  <div>
-                    <p
-                      className={`font-semibold ${isDark ? "text-white" : "text-[#2d3e2d]"}`}
-                    >
-                      {testimonial.name}
-                    </p>
-                    <p
-                      className={`text-sm ${isDark ? "text-white/60" : "text-[#2d3e2d]/60"}`}
-                    >
-                      {testimonial.role}
-                    </p>
-                    <p
-                      className={`text-sm ${isDark ? "text-white/50" : "text-[#2d3e2d]/50"}`}
-                    >
-                      {testimonial.company}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.section>
-
-          {/* Section 7: CTA & Newsletter */}
+          {/* Section 5: CTA */}
           <motion.section
             className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20"
             variants={containerVariants}
@@ -1097,16 +865,15 @@ export default function Home() {
                   isDark ? "text-white" : "text-[#2d3e2d]"
                 }`}
               >
-                Ready to Transform Your Workflow?
+                Open Gent and Manage Your Repositories
               </h2>
               <p
                 className={`text-lg mb-8 max-w-2xl mx-auto ${
                   isDark ? "text-white/80" : "text-[#2d3e2d]"
                 }`}
               >
-                Join thousands of developers and teams who are already using
-                Gent to streamline their version control and collaboration.
-                Start free today, no credit card required.
+                Sign in to create repositories, browse branches, inspect files,
+                manage members, and copy the CLI-compatible repository URL.
               </p>
               <motion.div
                 className="flex flex-col sm:flex-row gap-4 justify-center"
@@ -1122,7 +889,7 @@ export default function Home() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  Start Free Now <ArrowRight className="w-5 h-5" />
+                  Open Dashboard <ArrowRight className="w-5 h-5" />
                 </motion.a>
                 <motion.a
                   href="mailto:info@gent.com"

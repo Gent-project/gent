@@ -24,7 +24,7 @@ const faqCategories = [
       },
       {
         q: "Is Gent free?",
-        a: "Yes! Gent offers a free Starter plan with up to 5 repositories, basic collaboration, and 1 GB storage. We also offer Professional and Enterprise plans for teams with more advanced needs.",
+        a: "Gent currently uses the project backend and CLI. Repository access depends on your account and repository permissions.",
       },
       {
         q: "Can I import existing repositories?",
@@ -89,34 +89,34 @@ const faqCategories = [
         a: "Gent supports repository owner access plus member roles such as read, write, and admin depending on the backend permission for that repository.",
       },
       {
-        q: "Can I set up team permissions?",
-        a: "Yes! You can create teams, assign members, and set granular permissions at the team and repository level. Perfect for organizing large organizations.",
+        q: "Can I manage repository access?",
+        a: "Yes. Repository settings let the owner add members by email and choose the role supported by the backend for that repository.",
       },
       {
-        q: "How do I handle code reviews?",
-        a: "Use pull requests to initiate code reviews. Reviewers can comment on specific lines, request changes, or approve. Merge only after required approvals.",
+        q: "How do I review changes?",
+        a: "Open the repository commits tab to inspect commit history and diffs. Branches can be used to separate work before pushing changes.",
       },
     ],
   },
   {
-    category: "Pricing & Plans",
+    category: "CLI & API",
     icon: MessageSquare,
     questions: [
       {
-        q: "Can I upgrade or downgrade my plan?",
-        a: "Yes! You can change your plan anytime. Upgrades take effect immediately, and downgrades apply at the end of your billing cycle.",
+        q: "Which clone URL should I use?",
+        a: "Use the API path shown on the repository page: https://gent-api.onrender.com/api/repos/<owner_id>/<repo_name>. The Gent CLI reads the owner id and repository name from that path.",
       },
       {
-        q: "What's included in the Professional plan?",
-        a: "Unlimited repositories, advanced collaboration, priority support, 100 GB storage, CI/CD integration, and more. Perfect for growing teams.",
+        q: "How do I connect a local repository?",
+        a: "Run gent remote add origin with the repository API URL, then use gent add, gent commit, gent push, gent pull, and gent clone.",
       },
       {
-        q: "Do you offer discounts for annual billing?",
-        a: "Yes! Annual plans come with a 20% discount compared to monthly billing. Contact our sales team for enterprise volume discounts.",
+        q: "Does the dashboard use the same backend as the CLI?",
+        a: "Yes. The dashboard calls the same Gent API endpoints for repositories, branches, commits, trees, blobs, tags, members, push, pull, and clone.",
       },
       {
-        q: "Is there a free trial for paid plans?",
-        a: "Yes! You can try the Professional plan free for 14 days. No credit card required. Upgrade anytime during or after the trial.",
+        q: "Can the web UI create the first file?",
+        a: "Yes. Empty repositories can create a first text file through the Code tab, and the generated objects are compatible with Gent CLI clone and pull.",
       },
     ],
   },

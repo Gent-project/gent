@@ -507,7 +507,8 @@ export default function Services() {
           <p className={`text-lg mb-8 max-w-2xl mx-auto ${
             isDark ? "text-white/80" : "text-[#2d3e2d]"
           }`}>
-            Join thousands of developers who are already using Gent to manage their projects and collaborate with teams. Experience the future of version control today.
+            Use Gent to create repositories, manage branches and members, and
+            sync local work through the Gent CLI and API.
           </p>
           <motion.a
             href={AUTH_PATH.LOGIN}

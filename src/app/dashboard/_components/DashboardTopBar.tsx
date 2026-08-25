@@ -1,7 +1,6 @@
 "use client";
 
-import { Search, Plus, Menu, Moon, Sun, Bell } from "lucide-react";
-import { useUnreadNotificationsCount } from "@/hooks/use-notifications";
+import { Search, Plus, Menu, Moon, Sun } from "lucide-react";
 import { getDashboardTheme } from "./dashboard-theme";
 
 interface DashboardTopBarProps {
@@ -24,7 +23,6 @@ export default function DashboardTopBar({
   repoCount,
 }: DashboardTopBarProps) {
   const t = getDashboardTheme(isDark);
-  const { data: unreadCount } = useUnreadNotificationsCount();
 
   return (
     <header

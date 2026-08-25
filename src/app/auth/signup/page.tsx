@@ -86,7 +86,7 @@ export default function SignUpPage() {
                   isDark ? "text-white/60" : "text-[#2d3e2d]/60"
                 }`}
               >
-                Join thousands of developers using Gent
+                Create your Gent account and start managing repositories
               </p>
 
               <SignUpForm />

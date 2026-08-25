@@ -99,17 +99,6 @@ All backend API endpoints have been successfully integrated into the frontend ap
 
 ---
 
-## Notifications (Not Available in Backend)
-
-| Endpoint                           | Method | Status | Note                                             |
-| ---------------------------------- | ------ | ------ | ------------------------------------------------ |
-| `/api/notifications/`              | GET    | ⛔     | Disabled - Backend doesn't provide this endpoint |
-| `/api/notifications/unread/count/` | GET    | ⛔     | Disabled - Backend doesn't provide this endpoint |
-
-**Implementation:** The hooks `useNotifications()` and `useUnreadNotificationsCount()` in `use-notifications.ts` are disabled with `enabled: false` and return static fallback data.
-
----
-
 ## Special Features
 
 ### 1. Token Refresh (Automatic)
@@ -176,8 +165,7 @@ src/
 │   ├── use-commits.ts                  # Commit operations
 │   ├── use-tags.ts                     # Tag operations
 │   ├── use-files.ts                    # Blob & tree operations
-│   ├── use-git-operations.ts           # Push & pull
-│   └── use-notifications.ts            # Notifications (disabled)
+│   └── use-git-operations.ts           # Push & pull
 ├── lib/
 │   └── axios.ts                        # Axios config & interceptors
 ├── utils/
