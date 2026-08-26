@@ -16,8 +16,9 @@
  *   Retrieves commit from commits.json, reads blob content from object store,
  *   computes diff against parent commit's tree, and displays unified diff.
  *
- * BACKEND EXPECTATIONS:
- *   GET /api/repos/:id/commits/:hash/ — returns commit object with tree
+ * BACKEND: none — fully local. Reads commits.json + the local object store.
+ *   (Remote commit_detail returns { sha, tree_sha, parent_shas[], author_name,
+ *    author_email, committed_at, message } — tree_sha is a bare string, no embedded tree.)
  *
  * ============================================================================
  */

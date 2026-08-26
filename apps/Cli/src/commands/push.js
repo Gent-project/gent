@@ -95,9 +95,15 @@ async function push(remoteName, branchName, options) {
 
         // Determine which commits to push (since last pushed ref)
         config.remoteRefs = config.remoteRefs || {};
-        const lastPushed = config.remoteRefs[`${remote}/${branch}`] || null;
+        // Everything reachable from any already-pushed ref of this remote is the
+        // boundary — a merge can pull in commits from a branch that was never
+        // pushed, so we can't bound by this branch's ref alone.
+        const remoteHave = Object.entries(config.remoteRefs)
+            .filter(([name]) => name.startsWith(`${remote}/`))
+            .map(([, sha]) => sha)
+            .filter(Boolean);
         const commits = repository.commits || [];
-        const commitsToPush = getCommitsSince(commits, localHead, lastPushed);
+        const commitsToPush = getCommitsSince(commits, localHead, remoteHave);
 
         if (commitsToPush.length === 0) {
             spinner.succeed(chalk.green('Everything up-to-date'));
@@ -178,16 +184,38 @@ async function push(remoteName, branchName, options) {
             }
         }
 
-        // Build commits for the pack
+        // Build commits for the pack. author_email must satisfy the backend's
+        // EmailField(required=True); fall back to the logged-in user's email so
+        // merge/legacy commits with a blank email don't 400 the whole push.
+        const fallbackEmail = (await authStorage.getUser())?.email || '';
         const packCommits = commitsToPush.map(c => ({
             sha: c.hash,
             message: c.message,
             tree_sha: c.treeHash || '',
             parent_shas: [c.parent, c.mergeParent].filter(Boolean),
-            author_name: typeof c.author === 'object' ? (c.author.name || 'Unknown') : (c.author || 'Unknown'),
-            author_email: typeof c.author === 'object' ? (c.author.email || '') : '',
+            author_name: (typeof c.author === 'object' ? c.author.name : c.author) || 'Unknown',
+            author_email: (typeof c.author === 'object' ? c.author.email : '') || fallbackEmail,
             committed_at: c.timestamp || new Date().toISOString()
         }));
+
+        // Only send tags whose target commit will exist on the remote after this
+        // push (in this pack, or reachable from an already-pushed remote ref).
+        // The backend validates every tag's commit and atomically 400s the whole
+        // push for any tag pointing at a commit it doesn't have.
+        const pushableShas = new Set(commitsToPush.map(c => c.hash));
+        const commitByHash = new Map(commits.map(c => [c.hash, c]));
+        for (const [refName, refHead] of Object.entries(config.remoteRefs || {})) {
+            if (!refName.startsWith(`${remote}/`)) continue;
+            let cur = refHead;
+            while (cur && !pushableShas.has(cur)) {
+                pushableShas.add(cur);
+                cur = commitByHash.get(cur)?.parent || null;
+            }
+        }
+        const tagsToPush = {};
+        for (const [name, tag] of Object.entries(repository.tags || {})) {
+            if (tag && tag.hash && pushableShas.has(tag.hash)) tagsToPush[name] = tag;
+        }
 
         // Build push payload matching PushPackRequest schema
         const payload = {
@@ -200,7 +228,7 @@ async function push(remoteName, branchName, options) {
                 name: branch,
                 commit_sha: localHead
             }],
-            tags: repository.tags || {}
+            tags: tagsToPush
         };
 
         // Send to backend
@@ -224,7 +252,7 @@ async function push(remoteName, branchName, options) {
         } else if (error.response?.status === 401) {
             console.error(chalk.red('Authentication failed — run "gent login"'));
         } else if (error.response?.status === 403) {
-            console.error(chalk.red('Permission denied — only repo owner can push'));
+            console.error(chalk.red(error.response.data?.error || error.response.data?.detail || 'Permission denied — you need write access to this repository'));
         } else if (error.response?.data) {
             console.error(chalk.red(JSON.stringify(error.response.data, null, 2)));
         } else {
@@ -235,25 +263,44 @@ async function push(remoteName, branchName, options) {
 }
 
 /**
- * Get commits from tip back to (but excluding) stopHash.
+ * Get commits reachable from tip (following BOTH parents, so merges are
+ * covered) that the remote doesn't already have. Post-order → parents precede
+ * children in the returned array.
  * @param {Array} allCommits
  * @param {String} tipHash
- * @param {String|null} stopHash
+ * @param {String[]} remoteHave - shas the remote already has (its ref tips)
  * @returns {Array}
  */
-function getCommitsSince(allCommits, tipHash, stopHash) {
+function getCommitsSince(allCommits, tipHash, remoteHave) {
     const commitMap = new Map(allCommits.map(c => [c.hash, c]));
-    const result = [];
-    let current = tipHash;
 
-    while (current && current !== stopHash) {
-        const commit = commitMap.get(current);
-        if (!commit) break;
-        result.push(commit);
-        current = commit.parent;
+    // Boundary = every commit reachable from a remote ref via both parents.
+    const have = new Set();
+    const stack = [...(remoteHave || [])].filter(Boolean);
+    while (stack.length) {
+        const sha = stack.pop();
+        if (!sha || have.has(sha)) continue;
+        const c = commitMap.get(sha);
+        if (!c) continue; // not local → treat as already-remote boundary
+        have.add(sha);
+        if (c.parent) stack.push(c.parent);
+        if (c.mergeParent) stack.push(c.mergeParent);
     }
 
-    return result.reverse(); // oldest first
+    const result = [];
+    const visited = new Set();
+    const visit = (sha) => {
+        if (!sha || visited.has(sha) || have.has(sha)) return;
+        const c = commitMap.get(sha);
+        if (!c) return;
+        visited.add(sha);
+        visit(c.parent);
+        visit(c.mergeParent);
+        result.push(c); // after both parents → oldest first
+    };
+    visit(tipHash);
+
+    return result;
 }
 
 module.exports = push;

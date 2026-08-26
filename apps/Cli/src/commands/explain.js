@@ -91,9 +91,10 @@ async function explain(ref, options = {}) {
             );
             void stagedTree;
         } else {
-            const targetHash = ref
-                ? (commits.find(c => c.hash === ref || c.hash.startsWith(ref)) || {}).hash
-                : repository.branches[repository.currentBranch];
+            const headHash = repository.branches[repository.currentBranch];
+            const targetHash = (!ref || ref === 'HEAD')
+                ? headHash
+                : (commits.find(c => c.hash === ref || c.hash.startsWith(ref)) || {}).hash;
             const commit = targetHash ? commitMap.get(targetHash) : null;
             if (!commit) {
                 console.log(chalk.yellow(ref ? `Commit '${ref}' not found` : 'No commits yet'));

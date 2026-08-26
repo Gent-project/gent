@@ -89,6 +89,9 @@ async function commit(options) {
             }
         }
 
+        // ponytail: accounts with no name set fall back to email as identity
+        if (!authorName && authorEmail) authorName = authorEmail;
+
         if (!authorName || !authorEmail) {
             spinner.stop();
             console.error(chalk.red('Author identity unknown'));

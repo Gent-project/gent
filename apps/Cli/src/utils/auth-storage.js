@@ -136,10 +136,13 @@ async function clearAuth() {
 }
 
 /**
- * Update only the access token (used after refresh)
+ * Update stored tokens after a refresh. The backend rotates refresh tokens
+ * (ROTATE_REFRESH_TOKENS + BLACKLIST_AFTER_ROTATION), so the new refresh token
+ * MUST be persisted or the next refresh sends a blacklisted token and 401s.
  * @param {string} newAccessToken - New access token
+ * @param {string} [newRefreshToken] - New (rotated) refresh token, if returned
  */
-async function updateAccessToken(newAccessToken) {
+async function updateTokens(newAccessToken, newRefreshToken) {
     const authData = await readAuthData();
 
     if (!authData) {
@@ -147,6 +150,9 @@ async function updateAccessToken(newAccessToken) {
     }
 
     authData.accessToken = newAccessToken;
+    if (newRefreshToken) {
+        authData.refreshToken = newRefreshToken;
+    }
     authData.timestamp = new Date().toISOString();
 
     const authFilePath = getAuthFilePath();
@@ -158,6 +164,11 @@ async function updateAccessToken(newAccessToken) {
     await fs.writeFile(authFilePath, JSON.stringify({ data: encryptedData }), 'utf8');
 }
 
+// Back-compat alias: same as updateTokens with no rotated refresh.
+async function updateAccessToken(newAccessToken) {
+    return updateTokens(newAccessToken);
+}
+
 module.exports = {
     saveTokens,
     getAccessToken,
@@ -165,5 +176,6 @@ module.exports = {
     getUser,
     isAuthenticated,
     clearAuth,
-    updateAccessToken
+    updateAccessToken,
+    updateTokens
 };

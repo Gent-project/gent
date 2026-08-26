@@ -116,10 +116,11 @@ apiClient.interceptors.response.use(
                     { refresh: refreshToken }
                 );
 
-                const { access } = response.data;
-
-                // Update stored access token
-                await authStorage.updateAccessToken(access);
+                // Backend rotates refresh tokens (ROTATE_REFRESH_TOKENS +
+                // BLACKLIST_AFTER_ROTATION); persist the new refresh or the
+                // next silent refresh sends a blacklisted token and 401s.
+                const { access, refresh } = response.data;
+                await authStorage.updateTokens(access, refresh);
 
                 // Update authorization header
                 originalRequest.headers.Authorization = `Bearer ${access}`;

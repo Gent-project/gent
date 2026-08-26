@@ -16,8 +16,7 @@
  *   Reads commits.json, filters by branch HEAD → parent chain, displays
  *   in reverse chronological order.
  *
- * BACKEND EXPECTATIONS:
- *   GET /api/repos/:id/commits/?branch=main&limit=10
+ * BACKEND: none — fully local. Reads commits.json; makes no HTTP request.
  *
  * ============================================================================
  */

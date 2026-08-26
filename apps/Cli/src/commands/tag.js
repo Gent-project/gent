@@ -18,9 +18,9 @@
  *   Annotated tag = includes tagger info, message, timestamp.
  *
  * BACKEND EXPECTATIONS:
- *   POST /api/repos/:id/tags/ { name, hash, message, annotated }
- *   GET  /api/repos/:id/tags/
- *   DELETE /api/repos/:id/tags/:name/
+ *   POST   /api/repos/:owner_id/:repo_name/tags/create/ { name, commit_sha, message, annotated, tagger_name, tagger_email }
+ *   DELETE /api/repos/:owner_id/:repo_name/tags/:name/
+ *   (tag list is local-only — the CLI never GETs /tags/)
  *
  * ============================================================================
  */
@@ -181,8 +181,15 @@ async function syncTagCreate(name, tagObj, taggerName, taggerEmail, gentPath) {
         await apiClient.post(url, payload);
         console.log(chalk.gray(`  ↑ Synced to remote`));
     } catch (error) {
+        // Duplicates now upsert (200) on the backend, so a 400 is a real failure
+        // — most often the tagged commit hasn't been pushed yet.
         if (error.response?.status === 400) {
-            console.log(chalk.gray(`  ⚠ Remote sync skipped (tag may already exist remotely)`));
+            const data = error.response.data;
+            const msg = (data && data.error) || (typeof data === 'object' ? JSON.stringify(data) : data) || 'Bad request';
+            console.log(chalk.yellow(`  ⚠ Remote sync failed: ${msg}`));
+            console.log(chalk.gray(`    (has the tagged commit been pushed to the remote?)`));
+        } else if (error.response?.status === 403) {
+            console.log(chalk.yellow(`  ⚠ Remote sync failed: ${error.response.data?.error || 'no write access to repository'}`));
         }
     }
 }
@@ -208,6 +215,8 @@ async function syncTagDelete(name, gentPath) {
     } catch (error) {
         if (error.response?.status === 404) {
             // Tag didn't exist remotely
+        } else if (error.response?.status === 403) {
+            console.log(chalk.yellow(`  ⚠ Remote delete failed: ${error.response.data?.error || 'no write access to repository'}`));
         }
     }
 }

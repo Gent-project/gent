@@ -23,6 +23,9 @@ module.exports = {
         LOGOUT: '/api/auth/logout/',
         REFRESH: '/api/auth/token/refresh/',
         PROFILE: '/api/auth/profile/',
+        PASSWORD_CHANGE: '/api/auth/password/change/',
+        PASSWORD_RESET: '/api/auth/password/reset/',
+        PASSWORD_RESET_CONFIRM: '/api/auth/password/reset/confirm/',
 
         // Repository management
         REPOS: '/api/repos/',
@@ -30,9 +33,13 @@ module.exports = {
         // Template: /api/repos/{owner_id}/{repo_name}/
         REPO_DETAIL: '/api/repos/{owner_id}/{repo_name}/',
         REPO_DELETE: '/api/repos/{owner_id}/{repo_name}/delete/',
+        REPO_MEMBERS: '/api/repos/{owner_id}/{repo_name}/members/',
+        REPO_MEMBER_DETAIL: '/api/repos/{owner_id}/{repo_name}/members/{user_id}/',
 
-        // Push
+        // Push / Pull / Clone
         REPO_PUSH: '/api/repos/{owner_id}/{repo_name}/push/',
+        REPO_PULL: '/api/repos/{owner_id}/{repo_name}/pull/',
+        REPO_CLONE: '/api/repos/{owner_id}/{repo_name}/clone/',
 
         // Branches
         REPO_BRANCHES: '/api/repos/{owner_id}/{repo_name}/branches/',
