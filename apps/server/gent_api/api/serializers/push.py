@@ -9,7 +9,7 @@ class PushBlobSerializer(serializers.Serializer):
     """Serializer for a blob in a push pack."""
     sha = serializers.CharField(max_length=64, required=True)
     size = serializers.IntegerField(required=True)
-    content = serializers.CharField(required=True)
+    content = serializers.CharField(required=True, allow_blank=True)
     encoding = serializers.ChoiceField(
         choices=['utf-8', 'base64'],
         default='utf-8'
@@ -152,7 +152,7 @@ class CliPushObjectSerializer(serializers.Serializer):
     """Serializer for objects in the CLI push payload."""
     hash = serializers.CharField(max_length=64, required=True)
     type = serializers.ChoiceField(choices=['blob'], required=True)
-    data = serializers.CharField(required=True)
+    data = serializers.CharField(required=True, allow_blank=True)
 
     def validate(self, attrs):
         try:

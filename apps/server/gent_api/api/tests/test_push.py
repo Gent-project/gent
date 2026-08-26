@@ -124,6 +124,61 @@ class PushAPITestCase(TestCase):
         branch = Branch.objects.get(repository=self.repo, name='main')
         self.assertEqual(branch.commit_sha, 'commit123')
 
+    def test_push_accepts_empty_blob(self):
+        blob_sha = hash_blob(b'')
+        blobs = [self._blob_entry(b'', encoding='base64')]
+        trees = [{
+            'sha': 'tree-empty',
+            'entries': [
+                {'type': 'blob', 'mode': '100644', 'name': 'empty.txt', 'sha': blob_sha}
+            ]
+        }]
+        commits = [{
+            'sha': 'commit-empty',
+            'message': 'Add empty file',
+            'tree_sha': 'tree-empty',
+            'parent_shas': [],
+            'author_name': 'Test User',
+            'author_email': 'user@example.com',
+            'committed_at': '2024-01-15T10:30:00Z'
+        }]
+        data = self._build_pack(blobs=blobs, trees=trees, commits=commits)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.post(self.push_url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        blob = Blob.objects.get(repository=self.repo, sha=blob_sha)
+        self.assertEqual(blob.size, 0)
+        self.assertEqual(blob.content, '')
+
+    def test_push_accepts_empty_blob_in_cli_payload(self):
+        blob_sha = hash_blob(b'')
+        objects = [self._cli_blob_object(b'')]
+        commits = [{
+            'hash': 'commit-empty',
+            'message': 'Add empty file',
+            'author': {'name': 'Test User', 'email': 'user@example.com'},
+            'timestamp': '2024-01-15T10:30:00Z',
+            'parent': None,
+            'mergeParent': None,
+            'treeHash': 'tree-empty',
+            'tree': [
+                {'type': 'blob', 'mode': '100644', 'name': 'empty.txt', 'hash': blob_sha}
+            ],
+            'files': [{'path': 'empty.txt', 'hash': blob_sha}],
+            'stats': {'filesChanged': 1, 'insertions': 0, 'deletions': 0}
+        }]
+        data = self._build_cli_payload(objects=objects, commits=commits)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+        response = self.client.post(self.push_url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        blob = Blob.objects.get(repository=self.repo, sha=blob_sha)
+        self.assertEqual(blob.size, 0)
+        self.assertEqual(blob.content, '')
+
     def test_push_idempotent(self):
         blob_sha = HELLO_WORLD_SHA
         blobs = [self._blob_entry('Hello, World!')]

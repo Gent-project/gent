@@ -233,7 +233,7 @@ async function push(remoteName, branchName, options) {
 
         // Send to backend
         const pushUrl = buildRepoUrl(API_ENDPOINTS.REPO_PUSH, repoInfo);
-        const response = await apiClient.post(pushUrl, payload);
+        const response = await apiClient.post(pushUrl, payload, { timeout: 120000 });
 
         // Update remote ref
         config.remoteRefs[`${remote}/${branch}`] = localHead;
