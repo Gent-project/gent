@@ -37,7 +37,7 @@ def tree_create(request, owner_ref, repo_name):
         for entry in entries:
             tree_content += f"{entry['mode']} {entry['type']} {entry['sha']}\t{entry['name']}\n"
 
-        sha = calculate_sha256(tree_content)
+        sha = serializer.validated_data.get('sha') or calculate_sha256(tree_content)
 
         tree, created = Tree.objects.get_or_create(
             repository=repository,
@@ -93,7 +93,7 @@ def blob_create(request, owner_ref, repo_name):
         content = serializer.validated_data['content']
         encoding = serializer.validated_data.get('encoding', 'utf-8')
 
-        sha = calculate_sha256(content)
+        sha = serializer.validated_data.get('sha') or calculate_sha256(content)
 
         blob_data = save_blob_content(repository, sha, content, encoding)
 
