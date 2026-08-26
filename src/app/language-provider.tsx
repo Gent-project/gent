@@ -637,6 +637,14 @@ function translateText(value: string, language: Language): string {
   return value;
 }
 
+function isTranslatedFromOriginal(
+  current: string,
+  original: string,
+  language: Language,
+) {
+  return language === "ar" && current === translateText(original, language);
+}
+
 function shouldSkipNode(node: Node): boolean {
   const parent = node.parentElement;
   if (!parent) return true;
@@ -654,14 +662,29 @@ function translateDocument(language: Language) {
   for (const node of textNodes) {
     if (shouldSkipNode(node)) continue;
     const current = node.nodeValue ?? "";
-    let original = originalTextNodes.get(node) ?? current;
-    const previousTranslation = translateText(original, language);
-    if (current !== previousTranslation && current !== original) {
+    const savedOriginal = originalTextNodes.get(node);
+    let original = savedOriginal ?? current;
+
+    if (
+      savedOriginal &&
+      language === "en" &&
+      current !== savedOriginal &&
+      !isTranslatedFromOriginal(current, savedOriginal, "ar")
+    ) {
       original = current;
       originalTextNodes.set(node, original);
-    } else if (!originalTextNodes.has(node)) {
+    } else if (
+      savedOriginal &&
+      language === "ar" &&
+      current !== savedOriginal &&
+      !isTranslatedFromOriginal(current, savedOriginal, language)
+    ) {
+      original = current;
+      originalTextNodes.set(node, original);
+    } else if (!savedOriginal) {
       originalTextNodes.set(node, original);
     }
+
     const translated = translateText(original, language);
     if (node.nodeValue !== translated) node.nodeValue = translated;
   }
@@ -671,7 +694,25 @@ function translateDocument(language: Language) {
     for (const attr of ["placeholder", "title", "aria-label"]) {
       const value = element.getAttribute(attr);
       if (!value) continue;
-      const original = originals[attr] ?? value;
+      const savedOriginal = originals[attr];
+      let original = savedOriginal ?? value;
+
+      if (
+        savedOriginal &&
+        language === "en" &&
+        value !== savedOriginal &&
+        !isTranslatedFromOriginal(value, savedOriginal, "ar")
+      ) {
+        original = value;
+      } else if (
+        savedOriginal &&
+        language === "ar" &&
+        value !== savedOriginal &&
+        !isTranslatedFromOriginal(value, savedOriginal, language)
+      ) {
+        original = value;
+      }
+
       originals[attr] = original;
       const translated = translateText(original, language);
       if (value !== translated) element.setAttribute(attr, translated);

@@ -217,9 +217,22 @@ export default function CommitDetails({
             <div className="overflow-x-auto">
               <div className="font-mono text-xs sm:text-sm">
                 {file.lines?.map((line: any, index: number) => {
-                  const isAdd = line.kind === "add";
-                  const isRemove = line.kind === "remove";
-                  const isHunk = line.kind === "hunk";
+                  const lineKind = String(line.kind ?? line.type ?? "").toLowerCase();
+                  const lineText = String(line.text ?? "");
+                  const isAdd =
+                    ["add", "added", "insert", "inserted", "addition"].includes(
+                      lineKind,
+                    ) || lineText.startsWith("+");
+                  const isRemove =
+                    [
+                      "remove",
+                      "removed",
+                      "delete",
+                      "deleted",
+                      "deletion",
+                      "del",
+                    ].includes(lineKind) || lineText.startsWith("-");
+                  const isHunk = lineKind === "hunk" || lineText.startsWith("@@");
 
                   if (isHunk) {
                     return (
@@ -295,7 +308,7 @@ export default function CommitDetails({
                         className="px-2 py-1 whitespace-pre min-w-0"
                         style={{ color: t.text }}
                       >
-                        {line.text}
+                        {lineText}
                       </pre>
                     </div>
                   );
