@@ -92,6 +92,8 @@ module.exports = {
         '.gent',
         'node_modules',
         '.git',
+        '.gitignore',
+        '.gentignore',
         '.DS_Store',
         '*.log',
         '.env',
