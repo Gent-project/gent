@@ -788,11 +788,37 @@ const translations: Record<string, string> = {
   "Development History": "سجل التطوير",
   "Combining branches, commits, and diffs gives a clearer picture of how your repository changes over time.":
     "يمنحك الجمع بين الفروع والالتزامات والفروقات صورة أوضح لكيفية تغير مستودعك مع الوقت.",
+  "Independent version control · CLI + API + Web":
+    "تحكم مستقل بالإصدارات · سطر الأوامر + الواجهة البرمجية + الويب",
+  "Gent gives you a Git-like CLI, a hosted API, and a visual dashboard for repositories, branches, commits, files, tags, and access — all working from the same version-control data.":
+    "يمنحك Gent أداة سطر أوامر شبيهة بـ Git، وواجهة برمجية مستضافة، ولوحة تحكم مرئية للمستودعات والفروع والالتزامات والملفات والوسوم والصلاحيات — تعمل جميعها من بيانات التحكم بالإصدارات نفسها.",
+  "Scroll through a commit": "مرّر عبر رحلة الالتزام",
+  "One history. Three connected surfaces.": "سجل واحد. ثلاث واجهات مترابطة.",
+  "Your files become versioned objects": "تتحول ملفاتك إلى كائنات ذات إصدارات",
+  "Gent hashes staged files and commits into a local history you can inspect and move between.":
+    "يجزّئ Gent الملفات المجهزة والالتزامات إلى سجل محلي يمكنك فحصه والتنقل بين نقاطه.",
+  "One push connects every object": "دفعة واحدة تربط كل الكائنات",
+  "The CLI sends the exact commit, tree, and blob data the Gent API understands.":
+    "ترسل أداة سطر الأوامر بيانات الالتزام والشجرة وكائنات Blob الدقيقة التي تفهمها واجهة Gent البرمجية.",
+  "The dashboard makes history visible": "لوحة التحكم تجعل السجل مرئياً",
+  "Branches, files, commits, tags, and members become one navigable project view.":
+    "تصبح الفروع والملفات والالتزامات والوسوم والأعضاء واجهة مشروع واحدة قابلة للتنقل.",
+  "local objects": "الكائنات المحلية",
+  "API sync": "مزامنة الواجهة البرمجية",
+  "web dashboard": "لوحة تحكم الويب",
+  "control room": "غرفة التحكم",
+  "Live workspace": "مساحة عمل مباشرة",
+  "Your development control room.": "غرفة التحكم بتطويرك.",
+  "Repositories, access, branches, and recent activity in one connected workspace.":
+    "المستودعات والصلاحيات والفروع والنشاط الحديث في مساحة عمل واحدة مترابطة.",
+  "Refresh data": "تحديث البيانات",
+  "Repository space": "مساحة المستودعات",
 };
 
 const dynamicTranslations: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
   [/^Manage your (\d+) repositories$/, (m) => `إدارة ${m[1]} مستودعات`],
   [/^(\d+) repos$/, (m) => `${m[1]} مستودعات`],
+  [/^(\d+) visible$/, (m) => `${m[1]} ظاهر`],
   [/^Fast-forward: (\d+) new commit\(s\)$/, (m) => `تقديم سريع: ${m[1]} التزام جديد`],
   [/^Merged (\d+) remote commit\(s\)$/, (m) => `تم دمج ${m[1]} التزام بعيد`],
   [/^Permission is granted to temporarily download one copy/, () =>

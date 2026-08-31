@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Star, GitFork, Clock, Lock, Globe, GitBranch } from "lucide-react";
+import { ArrowUpRight, Clock, Code2, Lock, Globe, GitBranch } from "lucide-react";
 import { getDashboardTheme } from "./dashboard-theme";
 import { Repository } from "@/types/repository";
 import { DASHBOARD_PATH } from "@/routes/path";
@@ -39,8 +39,9 @@ export default function RepositoryCard({
     <motion.article
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, delay: index * 0.05 }}
-      className="rounded-lg border p-5 transition-all duration-200"
+      whileHover={{ y: -4, scale: 1.005 }}
+      transition={{ duration: 0.3, delay: index * 0.045 }}
+      className="group relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl transition-all duration-300"
       style={{
         backgroundColor: t.elevated,
         borderColor: highlighted ? t.accent : t.border,
@@ -57,16 +58,29 @@ export default function RepositoryCard({
           : "none";
       }}
     >
+      <div
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-1 opacity-60 transition-all group-hover:w-1.5 group-hover:opacity-100"
+        style={{ background: t.accentGradient }}
+      />
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="flex-1 min-w-0">
+        <div className="flex min-w-0 flex-1 gap-4">
+          <div
+            className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl border sm:flex"
+            style={{ background: t.accentMuted, borderColor: t.border, color: t.accent }}
+          >
+            <Code2 className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 mb-1">
             <Link
               href={DASHBOARD_PATH.REPOSITORY(repo.owner_id, repo.name)}
-              className="text-lg font-semibold hover:underline"
+              className="inline-flex items-center gap-1 font-display text-lg font-semibold transition-colors hover:underline"
               style={{ color: t.accent }}
             >
               <span style={{ color: t.textMuted }}>{repo.owner_email.split('@')[0]}/</span>
               {repo.name}
+              <ArrowUpRight className="h-3.5 w-3.5 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
             </Link>
             <span
               className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border"
@@ -120,11 +134,12 @@ export default function RepositoryCard({
               Created {getRelativeTime(repo.created_at)}
             </span>
           </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
           <div
-            className="shrink-0 px-2.5 py-1 rounded-md text-xs font-mono border"
+            className="shrink-0 rounded-lg border px-2.5 py-1 font-mono text-[10px]"
             style={{
               borderColor: t.border,
               color: t.textMuted,

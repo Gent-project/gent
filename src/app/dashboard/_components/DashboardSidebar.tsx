@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Settings, Plus, X, LogOut, Moon, Sun } from "lucide-react";
+import { GitBranch, Home, Settings, Plus, X, LogOut, Moon, Sun } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
@@ -42,8 +42,7 @@ export default function DashboardSidebar({
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b" style={{ borderColor: t.border }}>
+      <div className="border-b p-4" style={{ borderColor: t.border }}>
         {onMobileClose && (
           <button
             onClick={onMobileClose}
@@ -54,9 +53,28 @@ export default function DashboardSidebar({
           </button>
         )}
 
-        <div className="flex items-center gap-3">
+        <Link href="/home" className="group flex items-center gap-3">
+          <span
+            className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border"
+            style={{ background: t.accentMuted, borderColor: t.border }}
+          >
+            <span className="anim-pulse-glow absolute inset-1 rounded-xl" style={{ background: `${t.accent}38` }} />
+            <GitBranch className="relative h-5 w-5" style={{ color: t.accent }} />
+          </span>
+          <span>
+            <span className="block font-display text-lg font-bold leading-none" style={{ color: t.text }}>Gent</span>
+            <span className="mt-1 block font-mono text-[9px] uppercase tracking-[0.2em]" style={{ color: t.textMuted }}>
+              control room
+            </span>
+          </span>
+        </Link>
+
+        <div
+          className="mt-5 flex items-center gap-3 rounded-2xl border p-3"
+          style={{ background: t.inputBg, borderColor: t.borderMuted }}
+        >
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold shadow-lg"
             style={{
               background: t.avatarGradient,
               color: t.successText,
@@ -79,17 +97,19 @@ export default function DashboardSidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         <Link
           href={DASHBOARD_PATH.ROOT}
           onClick={onMobileClose}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all"
           style={{
             backgroundColor:
               pathname === DASHBOARD_PATH.ROOT
                 ? t.sidebarActive
                 : "transparent",
             color: pathname === DASHBOARD_PATH.ROOT ? t.text : t.textSecondary,
+            borderColor: pathname === DASHBOARD_PATH.ROOT ? t.border : "transparent",
+            boxShadow: pathname === DASHBOARD_PATH.ROOT ? t.shadow : "none",
           }}
         >
           <Home className="w-4 h-4" />
@@ -99,7 +119,7 @@ export default function DashboardSidebar({
         <Link
           href={DASHBOARD_PATH.SETTINGS}
           onClick={onMobileClose}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all"
           style={{
             backgroundColor:
               pathname === DASHBOARD_PATH.SETTINGS
@@ -107,6 +127,7 @@ export default function DashboardSidebar({
                 : "transparent",
             color:
               pathname === DASHBOARD_PATH.SETTINGS ? t.text : t.textSecondary,
+            borderColor: pathname === DASHBOARD_PATH.SETTINGS ? t.border : "transparent",
           }}
         >
           <Settings className="w-4 h-4" />
@@ -122,7 +143,7 @@ export default function DashboardSidebar({
             onNewRepo();
             onMobileClose?.();
           }}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-semibold transition-all"
+          className="flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold shadow-lg transition-all hover:scale-[1.02]"
           style={{
             background: t.accentGradient,
             color: t.successText,
@@ -131,13 +152,16 @@ export default function DashboardSidebar({
           <Plus className="w-4 h-4" />
           New Repository
         </button>
-        <div className="mt-2 space-y-1">
+        <p className="mb-2 mt-5 px-3 font-mono text-[9px] uppercase tracking-[0.2em]" style={{ color: t.textMuted }}>
+          Repositories
+        </p>
+        <div className="space-y-1">
           {repositories.map((repo) => (
             <Link
               key={repo.id}
               href={`/dashboard/repository/${repo.owner_id}/${repo.name}`}
-              className="block px-3 py-2 rounded-lg text-sm truncate"
-              style={{ color: t.textSecondary }}
+              className="block truncate rounded-xl border border-transparent px-3 py-2 text-sm transition-all hover:translate-x-1"
+              style={{ color: t.textSecondary, background: t.sidebarHover }}
             >
               {repo.name}
             </Link>
@@ -149,24 +173,25 @@ export default function DashboardSidebar({
       <div className="p-3 border-t space-y-2" style={{ borderColor: t.border }}>
         <button
           onClick={onToggleTheme}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-          style={{ color: t.textSecondary }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors"
+          style={{ color: t.textSecondary, background: t.sidebarHover }}
         >
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           {isDark ? "Light Mode" : "Dark Mode"}
         </button>
 
         <LanguageToggle
-          className="flex items-center justify-center w-full px-3 py-2 rounded-lg text-sm font-bold border transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="flex w-full items-center justify-center rounded-xl border px-3 py-2 text-sm font-bold transition-colors"
           style={{
             borderColor: t.border,
             color: t.textSecondary,
+            background: t.inputBg,
           }}
         />
 
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10"
         >
           <LogOut className="w-4 h-4" />
           Logout
@@ -179,7 +204,7 @@ export default function DashboardSidebar({
     <>
       {/* Desktop sidebar */}
       <aside
-        className="hidden lg:flex flex-col w-[260px] border-r h-screen sticky top-0"
+        className="sticky top-0 z-20 hidden h-screen w-[276px] flex-col border-r backdrop-blur-2xl lg:flex"
         style={{
           backgroundColor: t.surface,
           borderColor: t.border,

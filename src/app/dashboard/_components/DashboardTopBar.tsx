@@ -27,7 +27,7 @@ export default function DashboardTopBar({
 
   return (
     <header
-      className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b backdrop-blur-xl"
+      className="sticky top-0 z-30 flex items-center gap-3 border-b px-4 py-3 backdrop-blur-2xl sm:px-6"
       style={{
         backgroundColor: t.topBarBg,
         borderColor: t.border,
@@ -36,14 +36,14 @@ export default function DashboardTopBar({
       <button
         type="button"
         onClick={onMenuOpen}
-        className="p-2 rounded-md lg:hidden transition-colors"
-        style={{ color: t.textMuted }}
+        className="rounded-xl border p-2 transition-colors lg:hidden"
+        style={{ color: t.textMuted, borderColor: t.border, background: t.inputBg }}
         aria-label="Open sidebar"
       >
         <Menu className="w-5 h-5" />
       </button>
 
-      <div className="flex-1 max-w-xl relative">
+      <div className="relative max-w-2xl flex-1">
         <Search
           className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
           style={{ color: t.textMuted }}
@@ -53,7 +53,7 @@ export default function DashboardTopBar({
           placeholder="Find a repository…"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 text-sm rounded-md border outline-none transition-shadow focus:ring-2"
+          className="w-full rounded-xl border py-2.5 pl-10 pr-4 text-sm shadow-sm outline-none transition-all focus:ring-2"
           style={{
             backgroundColor: t.inputBg,
             borderColor: t.border,
@@ -63,10 +63,11 @@ export default function DashboardTopBar({
       </div>
 
       <span
-        className="hidden sm:inline text-xs font-medium px-2 py-1 rounded-full"
+        className="hidden rounded-full border px-2.5 py-1 font-mono text-[10px] font-medium sm:inline"
         style={{
           backgroundColor: t.sidebarActive,
           color: t.textMuted,
+          borderColor: t.border,
         }}
       >
         {repoCount} repos
@@ -75,15 +76,15 @@ export default function DashboardTopBar({
       <button
         type="button"
         onClick={onToggleTheme}
-        className="p-2 rounded-md transition-colors hidden sm:flex"
-        style={{ color: t.textMuted }}
+        className="hidden rounded-xl border p-2 transition-colors sm:flex"
+        style={{ color: t.textMuted, borderColor: t.border, background: t.inputBg }}
         aria-label="Toggle theme"
       >
         {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
       </button>
 
       <LanguageToggle
-        className="hidden sm:flex items-center justify-center px-2.5 py-2 rounded-md text-xs font-bold border transition-colors"
+        className="hidden items-center justify-center rounded-xl border px-3 py-2 text-xs font-bold transition-colors sm:flex"
         style={{
           backgroundColor: t.elevated,
           borderColor: t.border,
@@ -94,7 +95,7 @@ export default function DashboardTopBar({
       <button
         type="button"
         onClick={onNewRepo}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all shrink-0 hover:shadow-lg"
+        className="flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold shadow-lg transition-all hover:-translate-y-0.5"
         style={{
           background: t.accentGradient,
           color: t.successText,

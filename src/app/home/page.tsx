@@ -19,6 +19,7 @@ import SiteShell from "@/app/components/site/SiteShell";
 import TiltCard from "@/app/components/site/TiltCard";
 import Reveal from "@/app/components/site/Reveal";
 import Hero3D from "@/app/components/site/Hero3D";
+import ScrollStory from "@/app/components/site/ScrollStory";
 import { useLanguage } from "@/app/language-provider";
 import { AUTH_PATH } from "@/routes/path";
 
@@ -121,7 +122,7 @@ export default function Home() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
               </span>
-              Gent version control · CLI + API + Web
+              Independent version control · CLI + API + Web
             </motion.div>
 
             <h1
@@ -137,7 +138,7 @@ export default function Home() {
                   transition={{ duration: 0.7, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
                   className="inline-block"
                 >
-                  تحكم بالإصدارات،
+                  امتلك كودك.
                   <br />
                   <span
                     className="inline-block"
@@ -146,15 +147,15 @@ export default function Home() {
                       color: "transparent",
                     }}
                   >
-                    مصنوع
+                    تتبّع
                   </span>{" "}
                   <span className="text-gradient anim-gradient inline-block">
-                    بضوء أخضر.
+                    كل تغيير.
                   </span>
                 </motion.span>
               ) : (
                 <>
-                  {["Version", "control,"].map((w, i) => (
+                  {["Own", "your code."].map((w, i) => (
                     <motion.span
                       key={w}
                       initial={{ opacity: 0, y: 28 }}
@@ -176,7 +177,7 @@ export default function Home() {
                       color: "transparent",
                     }}
                   >
-                    forged
+                    Track
                   </motion.span>{" "}
                   <motion.span
                     initial={{ opacity: 0, y: 28 }}
@@ -184,8 +185,7 @@ export default function Home() {
                     transition={{ duration: 0.7, delay: 0.32, ease: [0.22, 1, 0.36, 1] }}
                     className="relative inline-block"
                   >
-                    in{" "}
-                    <span className="text-gradient anim-gradient">green.</span>
+                    <span className="text-gradient anim-gradient">every change.</span>
                     <svg
                       aria-hidden
                       viewBox="0 0 200 12"
@@ -214,9 +214,9 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.12 }}
               className="mt-6 max-w-xl text-lg leading-8 text-muted"
             >
-              A lightweight Git-like CLI, a hosted API, and a dashboard that all
-              speak the same objects — repositories, commits, branches, tags,
-              files, and members.
+              Gent gives you a Git-like CLI, a hosted API, and a visual dashboard
+              for repositories, branches, commits, files, tags, and access — all
+              working from the same version-control data.
             </motion.p>
 
             <motion.div
@@ -287,6 +287,8 @@ export default function Home() {
           ))}
         </div>
       </div>
+
+      <ScrollStory />
 
       {/* ===================== FEATURES ===================== */}
       <section className="mx-auto max-w-6xl px-6 py-24">

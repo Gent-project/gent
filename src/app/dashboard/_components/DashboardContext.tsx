@@ -199,12 +199,23 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       <div
-        className="min-h-screen flex transition-colors duration-300"
+        className="relative isolate flex min-h-screen overflow-hidden transition-colors duration-500"
         style={{
           background: t.canvasGradient,
           color: t.text,
         }}
       >
+        <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+          <div className="grid-bg absolute inset-0 opacity-50" />
+          <div
+            className="anim-float absolute -left-40 -top-56 h-[38rem] w-[38rem] rounded-full blur-[130px]"
+            style={{ background: `${t.accent}24` }}
+          />
+          <div
+            className="anim-float-slow absolute -right-52 top-1/3 h-[34rem] w-[34rem] rounded-full blur-[140px]"
+            style={{ background: isDark ? "rgba(34,211,238,.11)" : "rgba(8,145,178,.09)" }}
+          />
+        </div>
         <DashboardSidebar
           isDark={isDark}
           onToggleTheme={() => dispatch(toggleTheme())}
@@ -213,7 +224,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           onMobileClose={() => setMobileSidebarOpen(false)}
         />
 
-        <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        <div className="relative z-10 flex min-h-screen min-w-0 flex-1 flex-col">
           <DashboardTopBar
             isDark={isDark}
             searchQuery={searchQuery}

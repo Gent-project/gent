@@ -59,7 +59,7 @@ export default function ActivityFeed() {
   if (isLoading) {
     return (
       <div
-        className="rounded-lg border p-6"
+        className="rounded-2xl border p-6 backdrop-blur-xl"
         style={{
           backgroundColor: t.elevated,
           borderColor: t.border,
@@ -86,7 +86,7 @@ export default function ActivityFeed() {
   if (isError) {
     return (
       <div
-        className="rounded-lg border p-6 text-center"
+        className="rounded-2xl border p-6 text-center backdrop-blur-xl"
         style={{
           backgroundColor: t.elevated,
           borderColor: t.border,
@@ -105,7 +105,7 @@ export default function ActivityFeed() {
   if (activities.length === 0) {
     return (
       <div
-        className="rounded-lg border p-6 text-center"
+        className="rounded-2xl border p-6 text-center backdrop-blur-xl"
         style={{
           backgroundColor: t.elevated,
           borderColor: t.border,
@@ -128,7 +128,7 @@ export default function ActivityFeed() {
 
   return (
     <div
-      className="rounded-lg border p-6"
+      className="rounded-2xl border p-6 backdrop-blur-xl"
       style={{
         backgroundColor: t.elevated,
         borderColor: t.border,
@@ -147,7 +147,8 @@ export default function ActivityFeed() {
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+            className="flex items-start gap-3 rounded-xl border border-transparent p-3 transition-all hover:-translate-y-0.5"
+            style={{ background: t.sidebarHover }}
           >
             <div
               className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
