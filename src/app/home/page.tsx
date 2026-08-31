@@ -4,236 +4,360 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
+  Boxes,
   Code2,
   GitBranch,
   GitCommit,
   GitPullRequest,
+  Server,
   Shield,
+  Sparkles,
   Terminal,
 } from "lucide-react";
-import { useSelector } from "react-redux";
 
-import SharedFooter from "@/app/components/SharedFooter";
-import SharedNavigation from "@/app/components/SharedNavigation";
+import SiteShell from "@/app/components/site/SiteShell";
+import TiltCard from "@/app/components/site/TiltCard";
+import Reveal from "@/app/components/site/Reveal";
+import Hero3D from "@/app/components/site/Hero3D";
 import { AUTH_PATH } from "@/routes/path";
-import { RootState } from "@/store";
 
-const workflow = [
+const marqueeItems = [
   "gent init",
-  "gent add README.md",
-  'gent commit -m "Initial commit"',
-  "gent remote add origin https://gent-api.onrender.com/api/repos/1/my-repo",
-  "gent push origin main",
+  "branches",
+  "commits",
+  "tags",
+  "blobs · sha-256",
+  "push packs",
+  "pull",
+  "clone",
+  "members",
+  "trees",
 ];
 
 const features = [
   {
     icon: Terminal,
     title: "Gent CLI",
+    z: 40,
     description:
-      "Initialize local repositories, stage files, commit changes, push, pull, and clone from the Gent API.",
+      "Initialize repos, stage files, commit, push, pull, and clone straight from your shell against the Gent API.",
   },
   {
     icon: Code2,
     title: "Code Browser",
+    z: 24,
     description:
-      "Open repository files from the dashboard, switch branches, read blobs, and create small text files.",
+      "Open files from the dashboard, switch branches, read blobs, and create small text files in place.",
   },
   {
     icon: GitBranch,
     title: "Branches",
+    z: 32,
     description:
-      "Create branches from existing commits and keep each branch tree separate in the Code tab.",
+      "Fork branches from any commit and keep each branch tree isolated in the Code tab.",
   },
   {
     icon: GitCommit,
     title: "Commit History",
+    z: 24,
     description:
-      "Review commit lists and diffs from the same backend data used by the CLI.",
+      "Review commit lists and diffs rendered from the exact backend data the CLI writes.",
   },
   {
     icon: GitPullRequest,
-    title: "Push and Pull",
+    title: "Push & Pull",
+    z: 40,
     description:
-      "Use Gent push packs and pull endpoints to sync local objects with the hosted repository.",
+      "Sync local objects with hosted repositories through Gent push packs and pull endpoints.",
   },
   {
     icon: Shield,
-    title: "Repository Access",
+    title: "Access Control",
+    z: 28,
     description:
-      "Private repositories and member roles are handled by the Gent backend permissions.",
+      "Private repositories and member roles enforced by the Gent backend permission model.",
+  },
+];
+
+const pipeline = [
+  {
+    icon: Terminal,
+    tag: "01 · Local",
+    title: "The CLI writes objects",
+    body: "Every add and commit hashes content into local Gent objects — the same shape the server understands.",
+  },
+  {
+    icon: Server,
+    tag: "02 · API",
+    title: "Push packs hit the API",
+    body: "Push bundles objects to gent-api.onrender.com and clone pulls them back by owner-id URL.",
+  },
+  {
+    icon: Boxes,
+    tag: "03 · Web",
+    title: "The dashboard reads them",
+    body: "Repositories, branches, commits, trees, blobs, tags and members render from those same endpoints.",
   },
 ];
 
 export default function Home() {
-  const isDark = useSelector((state: RootState) => state.theme.isDark);
-
-  const pageBg = isDark
-    ? "bg-[#0f1419] text-white"
-    : "bg-[#f4f7ef] text-[#223022]";
-  const panel = isDark
-    ? "border-white/10 bg-white/[0.04]"
-    : "border-[#5A7863]/20 bg-white/70";
-  const muted = isDark ? "text-white/65" : "text-[#4a5f4a]";
-  const accent = isDark ? "text-[#7dd3fc]" : "text-[#5A7863]";
-
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${pageBg}`}>
-      <SharedNavigation />
+    <SiteShell>
+      {/* ===================== HERO ===================== */}
+      <section className="relative mx-auto max-w-6xl px-6 pb-16 pt-36 sm:pt-44">
+        <div className="grid items-center gap-12 lg:grid-cols-[1.02fr_0.98fr]">
+          {/* copy */}
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/50 px-3 py-1.5 text-xs font-medium text-muted backdrop-blur"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
+              </span>
+              Gent version control · CLI + API + Web
+            </motion.div>
 
-      <main className="pt-24">
-        <section className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-24">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45 }}
-            className="flex flex-col justify-center"
-          >
-            <p className={`mb-4 text-sm font-semibold uppercase ${accent}`}>
-              Gent version control
-            </p>
-            <h1 className="max-w-3xl text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
-              A simple web home for the Gent CLI.
+            <h1 className="mt-6 font-display text-5xl font-bold leading-[0.98] tracking-tight sm:text-6xl lg:text-[4.6rem]">
+              {["Version", "control,"].map((w, i) => (
+                <motion.span
+                  key={w}
+                  initial={{ opacity: 0, y: 28 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.05 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                  className="mr-3 inline-block"
+                >
+                  {w}
+                </motion.span>
+              ))}
+              <br />
+              <motion.span
+                initial={{ opacity: 0, y: 28 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                className="inline-block"
+                style={{
+                  WebkitTextStroke: "1.4px var(--brand)",
+                  color: "transparent",
+                }}
+              >
+                forged
+              </motion.span>{" "}
+              <motion.span
+                initial={{ opacity: 0, y: 28 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                className="relative inline-block"
+              >
+                in{" "}
+                <span className="text-gradient anim-gradient">green</span>
+                <svg
+                  aria-hidden
+                  viewBox="0 0 200 12"
+                  className="absolute -bottom-1 left-0 h-3 w-full"
+                  preserveAspectRatio="none"
+                >
+                  <motion.path
+                    d="M2 8 C 50 2, 150 2, 198 7"
+                    stroke="var(--brand)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    fill="none"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.8, delay: 0.7 }}
+                  />
+                </svg>
+              </motion.span>
+              <span className="text-fg">.</span>
             </h1>
-            <p className={`mt-5 max-w-2xl text-base leading-7 sm:text-lg ${muted}`}>
-              Gent connects a lightweight CLI, a hosted API, and a dashboard for
-              repositories, commits, branches, tags, files, and members.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+
+            <motion.p
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.12 }}
+              className="mt-6 max-w-xl text-lg leading-8 text-muted"
+            >
+              A lightweight Git-like CLI, a hosted API, and a dashboard that all
+              speak the same objects — repositories, commits, branches, tags,
+              files, and members.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.19 }}
+              className="mt-9 flex flex-col gap-3 sm:flex-row"
+            >
               <Link
                 href={AUTH_PATH.LOGIN}
-                className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold transition ${
-                  isDark
-                    ? "bg-[#7dd3fc] text-[#071018] hover:bg-[#9be1fd]"
-                    : "bg-[#2d3e2d] text-white hover:bg-[#3b523b]"
-                }`}
+                className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl bg-brand px-6 py-3.5 text-sm font-semibold text-brand-ink transition-transform duration-200 hover:scale-[1.03]"
               >
-                Open Dashboard <ArrowRight className="h-4 w-4" />
+                <span className="anim-shimmer absolute inset-0" />
+                <span className="relative">Open the Dashboard</span>
+                <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
               <Link
                 href="/cli"
-                className={`inline-flex items-center justify-center gap-2 rounded-lg border px-5 py-3 text-sm font-semibold transition ${
-                  isDark
-                    ? "border-white/20 text-white hover:bg-white/10"
-                    : "border-[#2d3e2d]/25 text-[#2d3e2d] hover:bg-white"
-                }`}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line-strong bg-surface/40 px-6 py-3.5 text-sm font-semibold text-fg backdrop-blur transition-colors hover:border-brand/50 hover:bg-brand/5"
               >
+                <Terminal className="h-4 w-4 text-brand" />
                 Read CLI Docs
               </Link>
-            </div>
-          </motion.div>
+            </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08, duration: 0.45 }}
-            className={`rounded-xl border p-4 shadow-xl ${panel}`}
-          >
-            <div className="mb-4 flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-red-400" />
-              <span className="h-3 w-3 rounded-full bg-yellow-400" />
-              <span className="h-3 w-3 rounded-full bg-green-400" />
-              <span className={`ml-2 text-xs ${muted}`}>Gent terminal</span>
-            </div>
-            <div className="rounded-lg bg-[#0b1117] p-5 font-mono text-sm text-slate-100">
-              {workflow.map((command, index) => (
-                <motion.div
-                  key={command}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.15 + index * 0.08 }}
-                  className="mb-2 last:mb-0"
-                >
-                  <span className="text-[#7dd3fc]">$</span> {command}
-                </motion.div>
+            {/* stat strip */}
+            <motion.dl
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="mt-12 grid max-w-lg grid-cols-3 gap-6 border-t border-line pt-6"
+            >
+              {[
+                ["6", "core object types"],
+                ["1", "CLI · API · Web"],
+                ["SHA-256", "content addressed"],
+              ].map(([n, l]) => (
+                <div key={l}>
+                  <dt className="font-display text-2xl font-bold text-fg">{n}</dt>
+                  <dd className="mt-1 text-xs leading-4 text-faint">{l}</dd>
+                </div>
               ))}
-            </div>
+            </motion.dl>
+          </div>
+
+          {/* 3D parallax scene */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Hero3D />
           </motion.div>
-        </section>
+        </div>
+      </section>
 
-        <section
-          className={`border-y ${
-            isDark
-              ? "border-white/10 bg-white/[0.03]"
-              : "border-[#5A7863]/15 bg-white/45"
-          }`}
-        >
-          <div className="mx-auto grid max-w-7xl gap-4 px-4 py-10 sm:px-6 md:grid-cols-3 lg:px-8">
-            {[
-              ["API remote format", "/api/repos/<owner_id>/<repo_name>"],
-              ["Object storage", "Blob SHA-256 with Gent push packs"],
-              ["Dashboard routes", "/dashboard/repository/<owner>/<repo>"],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className={`text-xs font-semibold uppercase ${muted}`}>
-                  {label}
-                </p>
-                <p className="mt-1 break-words font-mono text-sm font-semibold">
-                  {value}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* ===================== MARQUEE ===================== */}
+      <div className="relative flex overflow-hidden border-y border-line py-4">
+        <div className="marquee-track flex shrink-0 items-center gap-8 pr-8">
+          {[...marqueeItems, ...marqueeItems].map((item, i) => (
+            <span
+              key={i}
+              className="flex items-center gap-8 font-mono text-sm text-faint"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-brand/60" />
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
 
-        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <p className={`text-sm font-semibold uppercase ${accent}`}>
-              What exists now
-            </p>
-            <h2 className="mt-3 text-3xl font-bold">
-              Built around real Gent workflows.
-            </h2>
-            <p className={`mt-3 leading-7 ${muted}`}>
-              These are the parts connected to the current CLI, API, and
-              dashboard flow.
-            </p>
-          </div>
+      {/* ===================== FEATURES ===================== */}
+      <section className="mx-auto max-w-6xl px-6 py-24">
+        <Reveal className="max-w-2xl">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-brand">
+            What exists now
+          </p>
+          <h2 className="mt-4 font-display text-4xl font-bold tracking-tight sm:text-5xl">
+            Built around real Gent workflows.
+          </h2>
+          <p className="mt-4 text-lg leading-8 text-muted">
+            Every surface below is wired to the current CLI, API, and dashboard —
+            not a mockup.
+          </p>
+        </Reveal>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature, index) => (
-              <motion.article
-                key={feature.title}
-                initial={{ opacity: 0, y: 14 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.04 }}
-                className={`rounded-lg border p-5 ${panel}`}
+        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map((f, i) => (
+            <Reveal key={f.title} delay={i * 0.06}>
+              <TiltCard
+                intensity={7}
+                glare={false}
+                className="group h-full rounded-2xl border border-line bg-surface/40 p-6 backdrop-blur transition-colors hover:border-brand/40"
               >
-                <feature.icon className={`h-5 w-5 ${accent}`} />
-                <h3 className="mt-4 text-base font-semibold">
-                  {feature.title}
+                <div
+                  className="layer-3d flex h-11 w-11 items-center justify-center rounded-xl bg-brand/12 ring-1 ring-brand/25"
+                  style={{ "--z": `${f.z}px` } as React.CSSProperties}
+                >
+                  <f.icon className="h-5 w-5 text-brand" />
+                </div>
+                <h3 className="layer-3d mt-5 font-display text-lg font-semibold" style={{ "--z": "18px" } as React.CSSProperties}>
+                  {f.title}
                 </h3>
-                <p className={`mt-2 text-sm leading-6 ${muted}`}>
-                  {feature.description}
+                <p className="mt-2 text-sm leading-6 text-muted">{f.description}</p>
+              </TiltCard>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      {/* ===================== PIPELINE ===================== */}
+      <section className="mx-auto max-w-6xl px-6 pb-24">
+        <Reveal className="mb-14 max-w-2xl">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-brand">
+            The path of a commit
+          </p>
+          <h2 className="mt-4 font-display text-4xl font-bold tracking-tight sm:text-5xl">
+            From your shell to the web.
+          </h2>
+        </Reveal>
+
+        <div className="relative grid gap-5 md:grid-cols-3">
+          {/* connecting line */}
+          <div className="pointer-events-none absolute left-0 right-0 top-8 hidden h-px bg-gradient-to-r from-brand/0 via-brand/40 to-brand/0 md:block" />
+          {pipeline.map((step, i) => (
+            <Reveal key={step.tag} delay={i * 0.12}>
+              <div className="relative h-full rounded-2xl border border-line bg-surface/40 p-6 backdrop-blur">
+                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-bg ring-1 ring-brand/30 glow-ring">
+                  <step.icon className="h-7 w-7 text-brand" />
+                </div>
+                <p className="font-mono text-xs uppercase tracking-[0.16em] text-faint">
+                  {step.tag}
                 </p>
-              </motion.article>
-            ))}
-          </div>
-        </section>
+                <h3 className="mt-2 font-display text-xl font-semibold">
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted">{step.body}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </section>
 
-        <section
-          id="workflow"
-          className="mx-auto grid max-w-7xl gap-8 px-4 pb-20 sm:px-6 lg:grid-cols-2 lg:px-8"
-        >
-          <div className={`rounded-lg border p-6 ${panel}`}>
-            <h2 className="text-2xl font-bold">From CLI to backend</h2>
-            <p className={`mt-3 leading-7 ${muted}`}>
-              The CLI stores local objects, sends push packs to the API, and
-              clones repositories from the owner-id URL shown in the dashboard.
+      {/* ===================== CTA ===================== */}
+      <section className="mx-auto max-w-6xl px-6 pb-8">
+        <Reveal>
+          <div className="border-beam glow-soft relative overflow-hidden rounded-3xl bg-surface/60 p-10 text-center backdrop-blur sm:p-16">
+            <div
+              aria-hidden
+              className="anim-pulse-glow pointer-events-none absolute left-1/2 top-0 -z-10 h-72 w-72 -translate-x-1/2 rounded-full blur-3xl"
+              style={{ background: "var(--glow)" }}
+            />
+            <h2 className="mx-auto max-w-2xl font-display text-4xl font-bold tracking-tight sm:text-5xl">
+              Spin up your first repository.
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-lg text-muted">
+              Install the CLI, push a commit, and watch it appear in the
+              dashboard seconds later.
             </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href={AUTH_PATH.SIGNIN}
+                className="group inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3.5 text-sm font-semibold text-brand-ink transition-transform hover:scale-[1.03]"
+              >
+                Create free account
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <span className="font-mono text-sm text-faint">
+                npm install -g gent-cli
+              </span>
+            </div>
           </div>
-          <div className={`rounded-lg border p-6 ${panel}`}>
-            <h2 className="text-2xl font-bold">From backend to web</h2>
-            <p className={`mt-3 leading-7 ${muted}`}>
-              The dashboard reads repositories, branches, commits, trees, blobs,
-              tags, and members directly from Gent API endpoints.
-            </p>
-          </div>
-        </section>
-      </main>
-
-      <SharedFooter />
-    </div>
+        </Reveal>
+      </section>
+    </SiteShell>
   );
 }

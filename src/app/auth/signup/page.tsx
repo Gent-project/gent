@@ -1,139 +1,39 @@
 "use client";
 
+import { GitBranch } from "lucide-react";
 import SignUpForm from "@/app/components/SignUpForm";
-import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
-import SharedNavigation from "@/app/components/SharedNavigation";
-import Link from "next/link";
-import TerminalPreview from "@/app/components/TerminalPreview";
+import AuthShell from "@/app/components/site/AuthShell";
+import AnimatedTerminal from "@/app/components/site/AnimatedTerminal";
 
 export default function SignUpPage() {
-  const isDark = useSelector((state: RootState) => state.theme.isDark);
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
-  if (!isHydrated) return null;
-
   return (
-    <div
-      className={`min-h-screen flex flex-col transition-colors duration-300 ${
-        isDark
-          ? "bg-gradient-to-br from-[#0f1419] via-[#1a1f2e] to-[#151b28]"
-          : "bg-gradient-to-br from-[#bed19e] via-[#a8c88a] to-[#9bc07a]"
-      }`}
+    <AuthShell
+      showcase={
+        <div>
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-surface/50 px-3 py-1.5 text-xs text-muted backdrop-blur">
+            <GitBranch className="h-3.5 w-3.5 text-brand" /> Start with Gent
+          </div>
+          <h2 className="font-display text-4xl font-bold leading-tight">
+            Your first repository is
+            <span className="text-gradient"> one commit away.</span>
+          </h2>
+          <p className="mt-4 max-w-md text-muted">
+            Create an account, install the CLI, and push code that shows up in
+            your dashboard seconds later.
+          </p>
+          <div className="mt-8">
+            <AnimatedTerminal />
+          </div>
+        </div>
+      }
     >
-      {/* Navigation Bar */}
-      <SharedNavigation />
-
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center py-8 px-4 mt-20">
-        <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-8 items-center">
-          {/* Left Side - Terminal Preview */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="hidden lg:block"
-          >
-            <TerminalPreview
-              title="Getting Started"
-              commands={[
-                {
-                  command: "mkdir my-project && cd my-project",
-                  comment: "Create your project",
-                },
-                { command: "gent init", comment: "Initialize Gent repository" },
-                { command: 'echo "# My Project" > README.md' },
-                { command: "gent add README.md" },
-                { command: 'gent commit -m "Initial commit"' },
-                {
-                  command:
-                    "gent remote add origin https://gent-api.onrender.com/api/repos/1/my-project",
-                },
-                { command: "gent push origin main", comment: "Push to Gent" },
-              ]}
-            />
-          </motion.div>
-
-          {/* Right Side - Signup Form */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className="w-full"
-          >
-            <div
-              className={`w-full rounded-2xl shadow-2xl p-6 sm:p-8 border transition-all ${
-                isDark
-                  ? "border-white/20 bg-[#0f1419]/95 backdrop-blur-md"
-                  : "border-[#5A7863]/30 bg-white/95 backdrop-blur-md"
-              }`}
-            >
-              <h1
-                className={`text-2xl sm:text-3xl font-bold text-center mb-2 ${
-                  isDark ? "text-white" : "text-[#2d3e2d]"
-                }`}
-              >
-                Create Account
-              </h1>
-              <p
-                className={`text-center text-sm mb-8 ${
-                  isDark ? "text-white/60" : "text-[#2d3e2d]/60"
-                }`}
-              >
-                Create your Gent account and start managing repositories
-              </p>
-
-              <SignUpForm />
-            </div>
-          </motion.div>
-        </div>
+      <h1 className="font-display text-3xl font-bold">Create account</h1>
+      <p className="mt-1 text-sm text-muted">
+        Start managing repositories with Gent.
+      </p>
+      <div className="mt-8">
+        <SignUpForm />
       </div>
-
-      {/* Footer */}
-      <footer
-        className={`w-full py-4 border-t transition-colors duration-300 ${
-          isDark
-            ? "border-white/10 bg-[#0f1419]/50"
-            : "border-[#5A7863]/20 bg-white/50"
-        }`}
-      >
-        <div className="flex flex-wrap justify-center gap-6 text-xs sm:text-sm">
-          <Link
-            href="/privacy"
-            className={`transition-colors ${
-              isDark
-                ? "text-white/60 hover:text-white"
-                : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
-            }`}
-          >
-            Privacy Policy
-          </Link>
-          <Link
-            href="/terms"
-            className={`transition-colors ${
-              isDark
-                ? "text-white/60 hover:text-white"
-                : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
-            }`}
-          >
-            Terms of Service
-          </Link>
-          <span className={isDark ? "text-white/30" : "text-[#2d3e2d]/30"}>
-            •
-          </span>
-          <span
-            className={`text-xs ${isDark ? "text-white/50" : "text-[#2d3e2d]/50"}`}
-          >
-            © 2026 Gent. All rights reserved.
-          </span>
-        </div>
-      </footer>
-    </div>
+    </AuthShell>
   );
 }

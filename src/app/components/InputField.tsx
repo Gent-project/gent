@@ -4,8 +4,6 @@ import { useId } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
 
 interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -23,34 +21,28 @@ export default function InputField({
   id,
   ...props
 }: InputFieldProps) {
-  const isDark = useSelector((state: RootState) => state.theme.isDark);
   const generatedId = useId();
   const inputId = id || generatedId;
 
   return (
-    <div className={cn("space-y-2 w-full", containerClassName)}>
+    <div className={cn("w-full space-y-2", containerClassName)}>
       {label && (
-        <Label htmlFor={inputId} className={`text-sm font-medium ${
-          isDark ? "text-white/80" : "text-[#2d3e2d]/80"
-        }`}>
+        <Label htmlFor={inputId} className="text-sm font-medium text-muted">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="ml-1 text-brand">*</span>}
         </Label>
       )}
       <Input
         id={inputId}
         className={cn(
-          "border-2 rounded-md p-2 w-full transition-all",
-          isDark
-            ? "border-white/20 bg-white/10 text-white placeholder:text-white/50 focus:border-[#7dd3fc] focus:ring-[#7dd3fc]"
-            : "border-[#5A7863]/30 bg-white/50 text-[#2d3e2d] placeholder:text-[#2d3e2d]/50 focus:border-[#5A7863] focus:ring-[#5A7863]",
-          error && "border-red-500 focus:border-red-500 focus:ring-red-500",
-          className
+          "w-full rounded-xl border border-line bg-surface/60 p-2.5 text-fg placeholder:text-faint transition-all focus-visible:border-brand/60 focus-visible:ring-2 focus-visible:ring-brand/20",
+          error && "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/20",
+          className,
         )}
         required={required}
         {...props}
       />
-      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+      {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
     </div>
   );
 }

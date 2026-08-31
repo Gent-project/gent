@@ -7,9 +7,7 @@ import { motion } from "framer-motion";
 import { validateSignUp } from "@/utils/validateSignUp";
 import { AUTH_PATH } from "@/routes/path";
 import axios from "@/lib/axios";
-import { AxiosError, isAxiosError } from "axios";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { isAxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -33,7 +31,6 @@ interface ApiError {
 
 export default function SignUpForm() {
   const router = useRouter();
-  const isDark = useSelector((state: RootState) => state.theme.isDark);
 
   const [formData, setFormData] = useState<SignUpData>({
     email: "",
@@ -184,11 +181,7 @@ export default function SignUpForm() {
         {error && (
           <div
             role="alert"
-            className={`w-full p-3 mb-4 rounded-md border text-sm font-medium ${
-              isDark
-                ? "bg-red-500/20 border-red-500/40 text-red-400"
-                : "bg-red-50 border-red-300 text-red-600"
-            }`}
+            className="mb-4 w-full rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm font-medium text-destructive"
           >
             {error}
           </div>
@@ -246,11 +239,7 @@ export default function SignUpForm() {
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            className={`absolute right-3 top-9 cursor-pointer transition-colors ${
-              isDark
-                ? "text-white/60 hover:text-white"
-                : "text-[#2d3e2d]/60 hover:text-[#2d3e2d]"
-            }`}
+            className="absolute right-3 top-9 text-faint transition-colors hover:text-fg"
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? (
@@ -278,34 +267,21 @@ export default function SignUpForm() {
         <motion.button
           type="submit"
           disabled={isLoading}
-          className={`w-full font-bold py-2 px-4 rounded-lg transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${
-            isDark
-              ? "bg-gradient-to-r from-[#7dd3fc] to-[#06b6d4] text-[#0f1419] hover:shadow-lg hover:shadow-cyan-500/50"
-              : "bg-gradient-to-r from-[#5A7863] to-[#4a6853] text-white hover:shadow-lg hover:shadow-green-500/50"
-          }`}
+          className="group relative w-full overflow-hidden rounded-xl bg-brand py-3 font-semibold text-brand-ink transition-all disabled:cursor-not-allowed disabled:opacity-70"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           variants={itemVariants}
         >
-          {isLoading ? "Creating Account..." : "Create Account"}
+          <span className="anim-shimmer absolute inset-0" />
+          <span className="relative">
+            {isLoading ? "Creating account…" : "Create account"}
+          </span>
         </motion.button>
 
         {/* Login */}
-        <motion.div
-          className={`text-center text-sm mt-4 ${
-            isDark ? "text-white/70" : "text-[#2d3e2d]/70"
-          }`}
-          variants={itemVariants}
-        >
+        <motion.div className="mt-4 text-center text-sm text-muted" variants={itemVariants}>
           Already have an account?{" "}
-          <Link
-            href={AUTH_PATH.LOGIN}
-            className={`font-medium hover:underline transition-colors ${
-              isDark
-                ? "text-[#7dd3fc] hover:text-white"
-                : "text-[#5A7863] hover:text-[#2d3e2d]"
-            }`}
-          >
+          <Link href={AUTH_PATH.LOGIN} className="font-medium text-brand hover:underline">
             sign in
           </Link>
         </motion.div>
