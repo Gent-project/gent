@@ -72,7 +72,10 @@ export default function AnimatedTerminal() {
   }, [rendered, typing]);
 
   return (
-    <div className="border-beam glow-soft overflow-hidden rounded-2xl bg-[#040a08]/95 ring-1 ring-line">
+    <div
+      data-no-translate
+      className="border-beam glow-soft overflow-hidden rounded-2xl bg-[#040a08]/95 ring-1 ring-line"
+    >
       {/* title bar */}
       <div className="flex items-center gap-2 border-b border-white/5 px-4 py-3">
         <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />

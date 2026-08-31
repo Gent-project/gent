@@ -1,6 +1,7 @@
 import Atmosphere from "./Atmosphere";
 import SharedNavigation from "../SharedNavigation";
 import SharedFooter from "../SharedFooter";
+import ScrollDepth from "./ScrollDepth";
 
 /** Standard marketing-page frame: atmosphere backdrop, nav, content, footer. */
 export default function SiteShell({
@@ -14,7 +15,8 @@ export default function SiteShell({
     <div className="relative min-h-screen">
       <Atmosphere />
       <SharedNavigation />
-      <main className="relative">{children}</main>
+      <ScrollDepth />
+      <main className="relative overflow-x-clip">{children}</main>
       {footer && <SharedFooter />}
     </div>
   );

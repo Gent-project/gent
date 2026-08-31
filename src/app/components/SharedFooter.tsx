@@ -70,6 +70,7 @@ export default function SharedFooter() {
           </p>
 
           <button
+            data-no-translate
             onClick={copy}
             className="group mt-5 inline-flex items-center gap-2 rounded-xl border border-line bg-surface/50 px-3 py-2 font-mono text-sm text-fg transition-colors hover:border-brand/40"
           >
@@ -103,7 +104,7 @@ export default function SharedFooter() {
 
       <div className="mx-auto flex max-w-6xl flex-col gap-2 border-t border-line px-6 py-6 text-xs text-faint sm:flex-row sm:items-center sm:justify-between">
         <span>© {new Date().getFullYear()} Gent. Built for developers.</span>
-        <span className="font-mono">/api/repos/&lt;owner_id&gt;/&lt;repo_name&gt;</span>
+        <span data-no-translate className="font-mono">/api/repos/&lt;owner_id&gt;/&lt;repo_name&gt;</span>
       </div>
     </footer>
   );

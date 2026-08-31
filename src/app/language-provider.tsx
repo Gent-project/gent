@@ -568,6 +568,226 @@ const translations: Record<string, string> = {
     "تحتاج صفحات المستودعات إلى معرف المالك واسم المستودع معاً. افتح المستودع من لوحة التحكم، أو استخدم رابطاً كاملاً مثل /dashboard/repository/1/my-repo.",
   "Back to Dashboard": "العودة إلى لوحة التحكم",
   "Browse repositories": "تصفح المستودعات",
+  "How it works": "كيف يعمل",
+  Services: "الخدمات",
+  "cli · api · web": "سطر الأوامر · الواجهة البرمجية · الويب",
+  Version: "تحكم",
+  "control,": "بالإصدارات،",
+  forged: "مصنوع",
+  "green.": "بضوء أخضر.",
+  "A lightweight Git-like CLI, a hosted API, and a dashboard that all speak the same objects — repositories, commits, branches, tags, files, and members.":
+    "أداة خفيفة شبيهة بـ Git، وواجهة برمجية مستضافة، ولوحة تحكم تتعامل جميعها مع الكائنات نفسها — المستودعات والالتزامات والفروع والوسوم والملفات والأعضاء.",
+  "Open the Dashboard": "فتح لوحة التحكم",
+  "core object types": "أنواع كائنات أساسية",
+  "content addressed": "محتوى معنون بالتجزئة",
+  "Every surface below is wired to the current CLI, API, and dashboard — not a mockup.":
+    "كل واجهة أدناه متصلة فعلياً بأداة سطر الأوامر والواجهة البرمجية ولوحة التحكم الحالية — وليست نموذجاً تجريبياً.",
+  "Initialize repos, stage files, commit, push, pull, and clone straight from your shell against the Gent API.":
+    "أنشئ المستودعات وجهز الملفات وسجل التغييرات وادفع واسحب واستنسخ مباشرة من الطرفية عبر واجهة Gent البرمجية.",
+  "Open files from the dashboard, switch branches, read blobs, and create small text files in place.":
+    "افتح الملفات من لوحة التحكم، وبدّل الفروع، واقرأ كائنات Blob، وأنشئ الملفات النصية الصغيرة مباشرة.",
+  "Fork branches from any commit and keep each branch tree isolated in the Code tab.":
+    "أنشئ فروعاً من أي التزام واحتفظ بشجرة كل فرع مستقلة في تبويب الملفات.",
+  "Review commit lists and diffs rendered from the exact backend data the CLI writes.":
+    "راجع قوائم الالتزامات والفروقات المعروضة من بيانات الخادم نفسها التي تكتبها أداة سطر الأوامر.",
+  "Push & Pull": "الدفع والسحب",
+  "Sync local objects with hosted repositories through Gent push packs and pull endpoints.":
+    "زامن الكائنات المحلية مع المستودعات المستضافة عبر حزم الدفع ونقاط السحب في Gent.",
+  "Access Control": "التحكم في الوصول",
+  "Private repositories and member roles enforced by the Gent backend permission model.":
+    "يفرض نموذج صلاحيات خادم Gent حماية المستودعات الخاصة وأدوار الأعضاء.",
+  "The path of a commit": "مسار الالتزام",
+  "From your shell to the web.": "من طرفيتك إلى الويب.",
+  "01 · Local": "01 · محلي",
+  "The CLI writes objects": "أداة سطر الأوامر تكتب الكائنات",
+  "Every add and commit hashes content into local Gent objects — the same shape the server understands.":
+    "تجزئ كل عملية إضافة والتزام المحتوى إلى كائنات Gent محلية — بالصيغة نفسها التي يفهمها الخادم.",
+  "02 · API": "02 · الواجهة البرمجية",
+  "Push packs hit the API": "حزم الدفع تصل إلى الواجهة البرمجية",
+  "Push bundles objects to gent-api.onrender.com and clone pulls them back by owner-id URL.":
+    "يجمع الدفع الكائنات ويرسلها إلى gent-api.onrender.com، بينما يستعيدها الاستنساخ عبر رابط معرف المالك.",
+  "03 · Web": "03 · الويب",
+  "The dashboard reads them": "لوحة التحكم تقرؤها",
+  "Repositories, branches, commits, trees, blobs, tags and members render from those same endpoints.":
+    "تُعرض المستودعات والفروع والالتزامات والأشجار وكائنات Blob والوسوم والأعضاء من نقاط الاتصال نفسها.",
+  "Spin up your first repository.": "أنشئ مستودعك الأول.",
+  "Install the CLI, push a commit, and watch it appear in the dashboard seconds later.":
+    "ثبّت أداة سطر الأوامر، وادفع التزاماً، وشاهده يظهر في لوحة التحكم خلال ثوانٍ.",
+  "A lightweight version control system — a Git-like CLI, a hosted API, and a web dashboard that read from the same objects.":
+    "نظام خفيف للتحكم بالإصدارات — أداة سطر أوامر شبيهة بـ Git، وواجهة برمجية مستضافة، ولوحة ويب تقرأ جميعها من الكائنات نفسها.",
+  Product: "المنتج",
+  Overview: "نظرة عامة",
+  Developers: "المطورون",
+  "Create account": "إنشاء حساب",
+  "© 2026 Gent. Built for developers.": "© 2026 Gent. صُمم للمطورين.",
+  "Gent, explained.": "Gent، ببساطة.",
+  "Short guides to every core feature — repositories, branches, auth, collaborators, files, and commits.":
+    "أدلة قصيرة لكل ميزة أساسية — المستودعات والفروع والمصادقة والمتعاونون والملفات والالتزامات.",
+  "Create branches, switch between them, and explore different versions of your project without touching main.":
+    "أنشئ الفروع وبدّل بينها واستكشف إصدارات مختلفة من مشروعك دون المساس بالفرع الرئيسي.",
+  Authentication: "المصادقة",
+  "Login, registration, password recovery, and password management for your Gent account.":
+    "تسجيل الدخول وإنشاء الحساب واستعادة كلمة المرور وإدارتها لحساب Gent الخاص بك.",
+  "File Browser": "متصفح الملفات",
+  "Browse files and folders, switch branches, and inspect the contents of your project.":
+    "تصفح الملفات والمجلدات، وبدّل الفروع، وافحص محتويات مشروعك.",
+  "Explore commit history and compare changes to see exactly what was added, removed, or modified.":
+    "استكشف سجل الالتزامات وقارن التغييرات لمعرفة ما أضيف أو حُذف أو عُدل بدقة.",
+  "grouped by flow.": "مرتبة حسب سير العمل.",
+  "The checked-in Gent CLI reference, kept in lock-step with the backend API contract.":
+    "مرجع أداة Gent الموجود في المشروع، والمتوافق بدقة مع عقد الواجهة البرمجية للخادم.",
+  "quick start": "بداية سريعة",
+  "your projects.": "لمشاريعك.",
+  "Version control and collaboration built to streamline your workflow — from repository management to team access.":
+    "تحكم بالإصدارات وتعاون صُمما لتبسيط سير عملك — من إدارة المستودعات إلى وصول الفريق.",
+  "Start new project": "بدء مشروع جديد",
+  "Our core services": "خدماتنا الأساسية",
+  "Comprehensive solutions for modern development teams.": "حلول متكاملة لفرق التطوير الحديثة.",
+  "Create, clone, and organize projects with an interface built around Gent objects.":
+    "أنشئ المشاريع واستنسخها ونظمها بواجهة مبنية حول كائنات Gent.",
+  "Real-time updates, comments, and notifications keep everyone in sync.":
+    "تبقي التحديثات والتعليقات والإشعارات الفورية الجميع متزامنين.",
+  "Review code changes before merging and keep quality standards high.":
+    "راجع تغييرات الكود قبل الدمج وحافظ على معايير جودة عالية.",
+  "Role-based access control and private repositories enforced by the backend.":
+    "يفرض الخادم التحكم في الوصول حسب الدور وحماية المستودعات الخاصة.",
+  "Clone, commit, and push operations complete in seconds.":
+    "تكتمل عمليات الاستنساخ والالتزام والدفع خلال ثوانٍ.",
+  "Automate testing and deployment with the tools you already use.":
+    "أتمت الاختبار والنشر باستخدام الأدوات التي تعتمدها بالفعل.",
+  "Why developers choose Gent": "لماذا يختار المطورون Gent",
+  "Features that make everyday development easier.": "ميزات تجعل التطوير اليومي أسهل.",
+  "Minimal resource usage with maximum performance from an optimized architecture.":
+    "استخدام منخفض للموارد مع أعلى أداء بفضل بنية محسّنة.",
+  "Built by developers for developers — no steep learning curve.":
+    "بناه مطورون للمطورين — دون منحنى تعلم معقد.",
+  "Grow your projects without limits; the infrastructure scales with you.":
+    "نمِّ مشاريعك بلا حدود؛ فالبنية التحتية تتوسع معك.",
+  "Works with your stack": "يعمل مع تقنياتك",
+  "Compatible with all major languages and frameworks.": "متوافق مع أهم اللغات وأطر العمل.",
+  "Build your next project on Gent": "ابنِ مشروعك القادم على Gent",
+  "Create repositories, manage branches and members, and sync local work through the Gent CLI and API.":
+    "أنشئ المستودعات وأدر الفروع والأعضاء وزامن عملك المحلي عبر أداة Gent وواجهتها البرمجية.",
+  "answered.": "بإجابات واضحة.",
+  "Focused on what exists now — the CLI, backend API, dashboard, repositories, files, branches, members, and account flows.":
+    "نركز على الموجود فعلياً — أداة سطر الأوامر وواجهة الخادم ولوحة التحكم والمستودعات والملفات والفروع والأعضاء ومسارات الحساب.",
+  "How Gent collects, uses, and protects your personal information.":
+    "كيف تجمع Gent معلوماتك الشخصية وتستخدمها وتحميها.",
+  "Last updated: August 2026": "آخر تحديث: أغسطس 2026",
+  "The terms that govern your use of Gent's CLI, API, and web dashboard.":
+    "الشروط التي تحكم استخدامك لأداة Gent وواجهتها البرمجية ولوحة الويب.",
+  "you pushed.": "بعودتك.",
+  "Your repositories, branches, and commits are waiting — synced from the same objects your CLI writes.":
+    "مستودعاتك وفروعك والتزاماتك بانتظارك — متزامنة من الكائنات نفسها التي تكتبها أداة سطر الأوامر.",
+  "← Back to Gent": "العودة إلى Gent →",
+  "Access your Gent dashboard.": "ادخل إلى لوحة تحكم Gent.",
+  "one commit away.": "على بُعد التزام واحد.",
+  "Create an account, install the CLI, and push code that shows up in your dashboard seconds later.":
+    "أنشئ حساباً وثبّت أداة سطر الأوامر وادفع كوداً يظهر في لوحة تحكمك خلال ثوانٍ.",
+  "Start managing repositories with Gent.": "ابدأ إدارة المستودعات باستخدام Gent.",
+  "Reset password": "إعادة تعيين كلمة المرور",
+  "Enter your new password below.": "أدخل كلمة المرور الجديدة أدناه.",
+  "New password": "كلمة المرور الجديدة",
+  "Confirm password": "تأكيد كلمة المرور",
+  "Back to login": "العودة إلى تسجيل الدخول",
+  "Gent version control · CLI + API + Web": "نظام Gent للتحكم بالإصدارات · سطر الأوامر + الواجهة البرمجية + الويب",
+  "CLI · API · Web": "سطر الأوامر · الواجهة البرمجية · الويب",
+  "Gent. Built for developers.": "Gent. صُمم للمطورين.",
+  "The mechanics of": "آلية عمل",
+  "Every Gent command,": "كل أوامر Gent،",
+  "Powerful services for": "خدمات قوية",
+  "Questions,": "أسئلة،",
+  "Invalid reset link": "رابط إعادة التعيين غير صالح",
+  "Passwords do not match": "كلمتا المرور غير متطابقتين",
+  "Password must be at least 8 characters": "يجب ألا تقل كلمة المرور عن 8 أحرف",
+  "Password reset successfully!": "تمت إعادة تعيين كلمة المرور بنجاح!",
+  "Failed to reset password": "فشلت إعادة تعيين كلمة المرور",
+  "Password reset!": "تمت إعادة تعيين كلمة المرور!",
+  "Redirecting you to the login page…": "جار تحويلك إلى صفحة تسجيل الدخول…",
+  "Go to login": "الذهاب إلى تسجيل الدخول",
+  "Enter new password": "أدخل كلمة المرور الجديدة",
+  "Confirm new password": "أكد كلمة المرور الجديدة",
+  "Resetting…": "جار إعادة التعيين…",
+  "Last updated:": "آخر تحديث:",
+  "August 2026": "أغسطس 2026",
+  "Gent provides a simple way to create and manage software repositories from one place.":
+    "يوفر Gent طريقة بسيطة لإنشاء مستودعات البرامج وإدارتها من مكان واحد.",
+  "Create a Repository": "إنشاء مستودع",
+  "Start a new project by creating a repository and providing the basic information about your project. You can define the name, description, and visibility to fit your project.":
+    "ابدأ مشروعاً جديداً بإنشاء مستودع وإضافة معلومات مشروعك الأساسية. يمكنك تحديد الاسم والوصف ومستوى الظهور بما يناسب مشروعك.",
+  "Manage Repository Information": "إدارة معلومات المستودع",
+  "Repository owners can update repository information when project details change. Gent keeps management organized so users easily access their projects.":
+    "يمكن لمالكي المستودعات تحديث معلوماتها عند تغير تفاصيل المشروع. يحافظ Gent على تنظيم الإدارة ليسهل على المستخدمين الوصول إلى مشاريعهم.",
+  "Explore Your Repository": "استكشف مستودعك",
+  "After creating a repository, explore its branches, files, commits, and other available information.":
+    "بعد إنشاء المستودع، استكشف فروعه وملفاته والتزاماته والمعلومات الأخرى المتاحة.",
+  "Repository Ownership": "ملكية المستودع",
+  "Permissions are managed by role. Owners get management actions; other users get access according to the permissions granted to them.":
+    "تُدار الصلاحيات حسب الدور. يحصل المالكون على إجراءات الإدارة، بينما يصل المستخدمون الآخرون وفق الصلاحيات الممنوحة لهم.",
+  "Branches let developers work on different versions of a project while keeping the main line organized.":
+    "تتيح الفروع للمطورين العمل على إصدارات مختلفة من المشروع مع إبقاء المسار الرئيسي منظماً.",
+  "Create a Branch": "إنشاء فرع",
+  "Create a new branch from an existing one to work on a feature or make changes independently.":
+    "أنشئ فرعاً جديداً من فرع موجود للعمل على ميزة أو إجراء تغييرات بصورة مستقلة.",
+  "Switch Between Branches": "التبديل بين الفروع",
+  "Select a branch and explore the files that belong to it — making it easy to work with different versions of the same repository.":
+    "اختر فرعاً واستكشف ملفاته — لتعمل بسهولة على إصدارات مختلفة من المستودع نفسه.",
+  "Branch Files": "ملفات الفرع",
+  "Each branch can contain its own version of the files. When you switch, Gent loads the corresponding tree so you explore the correct version.":
+    "يمكن أن يحتوي كل فرع على إصداره الخاص من الملفات. عند التبديل، يحمّل Gent الشجرة المقابلة لتستكشف الإصدار الصحيح.",
+  "A Typical Workflow": "سير عمل نموذجي",
+  "Select a branch, create a new one when needed, make changes, commit, and compare when necessary.":
+    "اختر فرعاً، وأنشئ فرعاً جديداً عند الحاجة، ثم غيّر وسجل وقارن عند الضرورة.",
+  "Authentication lets users securely access their accounts and repository features.":
+    "تتيح المصادقة للمستخدمين الوصول بأمان إلى حساباتهم وميزات المستودعات.",
+  "Create an Account": "إنشاء حساب",
+  "New users register through the registration form, then sign in and access their Gent workspace.":
+    "يسجل المستخدمون الجدد عبر نموذج إنشاء الحساب، ثم يسجلون الدخول إلى مساحة عمل Gent.",
+  Login: "تسجيل الدخول",
+  "Registered users sign in with their credentials. Authentication keeps personal repositories tied to the correct user.":
+    "يسجل المستخدمون المسجلون الدخول ببياناتهم. وتضمن المصادقة ربط المستودعات الشخصية بالمستخدم الصحيح.",
+  "Forgot & Reset Password": "نسيان كلمة المرور وإعادة تعيينها",
+  "If a user forgets their password, Gent provides a recovery flow, and users set a new password through the reset process.":
+    "إذا نسي المستخدم كلمة مروره، يوفر Gent مسار استعادة يتيح تعيين كلمة مرور جديدة.",
+  "Authenticated users can change their current password from account settings.":
+    "يمكن للمستخدمين المصادق عليهم تغيير كلمة المرور الحالية من إعدادات الحساب.",
+  "Gent provides collaboration features that let owners manage who works with their projects.":
+    "يوفر Gent ميزات تعاون تتيح للمالكين إدارة من يعمل على مشاريعهم.",
+  "Add Collaborators": "إضافة متعاونين",
+  "Owners add users as collaborators when they want other developers to work with the repository.":
+    "يضيف المالكون المستخدمين كمتعاونين عندما يرغبون في مشاركة العمل على المستودع مع مطورين آخرين.",
+  "Manage Access": "إدارة الوصول",
+  "Collaborators receive access according to the permissions provided, so owners keep control over important actions.":
+    "يحصل المتعاونون على الوصول وفق الصلاحيات الممنوحة، ليحتفظ المالكون بالتحكم في الإجراءات المهمة.",
+  "The owner remains responsible for the repository; some actions are restricted to users with the required permissions.":
+    "يبقى المالك مسؤولاً عن المستودع، وتُحصر بعض الإجراءات بالمستخدمين ذوي الصلاحيات المطلوبة.",
+  "Working Together": "العمل معاً",
+  "Create a repository, add collaborators, branch for tasks, commit changes, then review and compare.":
+    "أنشئ مستودعاً، وأضف المتعاونين، وأنشئ فروعاً للمهام، وسجل التغييرات، ثم راجع وقارن.",
+  "Gent's file browser lets you explore the structure and contents of your projects.":
+    "يتيح لك متصفح ملفات Gent استكشاف بنية مشاريعك ومحتوياتها.",
+  "Browse Files and Folders": "تصفح الملفات والمجلدات",
+  "Open a repository and navigate its folders and files. The tree makes it easy to understand a project's structure without leaving the platform.":
+    "افتح مستودعاً وتنقل بين مجلداته وملفاته. تسهّل الشجرة فهم بنية المشروع دون مغادرة المنصة.",
+  "Explore a Branch": "استكشف فرعاً",
+  "The browser works with branches — select a branch and view the files belonging to that version.":
+    "يعمل المتصفح مع الفروع — اختر فرعاً واعرض الملفات التابعة لذلك الإصدار.",
+  "Open & Create Files": "فتح الملفات وإنشاؤها",
+  "Select a file to inspect its contents. Users with permission can create files, which become part of the repository structure.":
+    "اختر ملفاً لفحص محتواه. ويمكن للمستخدمين المخولين إنشاء ملفات تصبح جزءاً من بنية المستودع.",
+  "Commits provide a history of changes to a repository. Gent lets you explore that history and inspect individual commits.":
+    "توفر الالتزامات سجلاً لتغييرات المستودع. ويتيح لك Gent استكشاف هذا السجل وفحص كل التزام.",
+  "View the history and inspect the changes for previous commits. Each commit carries identifying information about when and how a change was made.":
+    "اعرض السجل وافحص تغييرات الالتزامات السابقة. يحمل كل التزام معلومات تحدد وقت التغيير وكيفية إجرائه.",
+  "Commit Details": "تفاصيل الالتزام",
+  "Opening a commit provides more information about the selected change, helping you understand the evolution of your project.":
+    "يوفر فتح الالتزام معلومات إضافية عن التغيير المحدد، مما يساعدك على فهم تطور مشروعك.",
+  "Compare Changes": "مقارنة التغييرات",
+  "The diff view compares versions of the code — added and removed lines can be inspected directly.":
+    "تقارن واجهة الفروقات بين إصدارات الكود — ويمكن فحص الأسطر المضافة والمحذوفة مباشرة.",
+  "Development History": "سجل التطوير",
+  "Combining branches, commits, and diffs gives a clearer picture of how your repository changes over time.":
+    "يمنحك الجمع بين الفروع والالتزامات والفروقات صورة أوضح لكيفية تغير مستودعك مع الوقت.",
 };
 
 const dynamicTranslations: Array<[RegExp, (match: RegExpMatchArray) => string]> = [

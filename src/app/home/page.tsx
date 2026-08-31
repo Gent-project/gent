@@ -19,6 +19,7 @@ import SiteShell from "@/app/components/site/SiteShell";
 import TiltCard from "@/app/components/site/TiltCard";
 import Reveal from "@/app/components/site/Reveal";
 import Hero3D from "@/app/components/site/Hero3D";
+import { useLanguage } from "@/app/language-provider";
 import { AUTH_PATH } from "@/routes/path";
 
 const marqueeItems = [
@@ -101,6 +102,8 @@ const pipeline = [
 ];
 
 export default function Home() {
+  const { language } = useLanguage();
+
   return (
     <SiteShell>
       {/* ===================== HERO ===================== */}
@@ -121,58 +124,88 @@ export default function Home() {
               Gent version control · CLI + API + Web
             </motion.div>
 
-            <h1 className="mt-6 font-display text-5xl font-bold leading-[0.98] tracking-tight sm:text-6xl lg:text-[4.6rem]">
-              {["Version", "control,"].map((w, i) => (
+            <h1
+              className={`mt-6 font-display text-5xl font-bold tracking-tight sm:text-6xl ${
+                language === "ar" ? "leading-[1.12] lg:text-[4.15rem]" : "leading-[0.98] lg:text-[4.6rem]"
+              }`}
+            >
+              {language === "ar" ? (
                 <motion.span
-                  key={w}
+                  data-no-translate
                   initial={{ opacity: 0, y: 28 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.05 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}
-                  className="mr-3 inline-block"
+                  transition={{ duration: 0.7, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+                  className="inline-block"
                 >
-                  {w}
+                  تحكم بالإصدارات،
+                  <br />
+                  <span
+                    className="inline-block"
+                    style={{
+                      WebkitTextStroke: "1.2px var(--brand)",
+                      color: "transparent",
+                    }}
+                  >
+                    مصنوع
+                  </span>{" "}
+                  <span className="text-gradient anim-gradient inline-block">
+                    بضوء أخضر.
+                  </span>
                 </motion.span>
-              ))}
-              <br />
-              <motion.span
-                initial={{ opacity: 0, y: 28 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                className="inline-block"
-                style={{
-                  WebkitTextStroke: "1.4px var(--brand)",
-                  color: "transparent",
-                }}
-              >
-                forged
-              </motion.span>{" "}
-              <motion.span
-                initial={{ opacity: 0, y: 28 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                className="relative inline-block"
-              >
-                in{" "}
-                <span className="text-gradient anim-gradient">green</span>
-                <svg
-                  aria-hidden
-                  viewBox="0 0 200 12"
-                  className="absolute -bottom-1 left-0 h-3 w-full"
-                  preserveAspectRatio="none"
-                >
-                  <motion.path
-                    d="M2 8 C 50 2, 150 2, 198 7"
-                    stroke="var(--brand)"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    fill="none"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 0.8, delay: 0.7 }}
-                  />
-                </svg>
-              </motion.span>
-              <span className="text-fg">.</span>
+              ) : (
+                <>
+                  {["Version", "control,"].map((w, i) => (
+                    <motion.span
+                      key={w}
+                      initial={{ opacity: 0, y: 28 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.7, delay: 0.05 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                      className="mr-3 inline-block"
+                    >
+                      {w}
+                    </motion.span>
+                  ))}
+                  <br />
+                  <motion.span
+                    initial={{ opacity: 0, y: 28 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                    className="inline-block"
+                    style={{
+                      WebkitTextStroke: "1.4px var(--brand)",
+                      color: "transparent",
+                    }}
+                  >
+                    forged
+                  </motion.span>{" "}
+                  <motion.span
+                    initial={{ opacity: 0, y: 28 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                    className="relative inline-block"
+                  >
+                    in{" "}
+                    <span className="text-gradient anim-gradient">green.</span>
+                    <svg
+                      aria-hidden
+                      viewBox="0 0 200 12"
+                      className="absolute -bottom-1 left-0 h-3 w-full"
+                      preserveAspectRatio="none"
+                    >
+                      <motion.path
+                        d="M2 8 C 50 2, 150 2, 198 7"
+                        stroke="var(--brand)"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        fill="none"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 0.8, delay: 0.7 }}
+                      />
+                    </svg>
+                  </motion.span>
+                </>
+              )}
             </h1>
 
             <motion.p
