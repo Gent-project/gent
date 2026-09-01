@@ -1,0 +1,61 @@
+/** Electric-orbit palette shared by every authenticated dashboard surface. */
+export const dashboardColors = {
+  light: {
+    canvas: "#f7f7ff",
+    canvasGradient:
+      "radial-gradient(circle at 8% 0%, rgba(109, 40, 217, 0.14), transparent 32%), radial-gradient(circle at 92% 12%, rgba(8, 145, 178, 0.12), transparent 28%), linear-gradient(145deg, #f9f9ff, #efefff)",
+    surface: "rgba(255, 255, 255, 0.72)",
+    elevated: "rgba(255, 255, 255, 0.86)",
+    border: "rgba(91, 63, 180, 0.18)",
+    borderMuted: "rgba(91, 63, 180, 0.1)",
+    text: "#17152c",
+    textSecondary: "rgba(23, 21, 44, 0.82)",
+    textMuted: "rgba(52, 48, 83, 0.62)",
+    accent: "#6d28d9",
+    accentHover: "#0891b2",
+    accentMuted: "rgba(109, 40, 217, 0.1)",
+    accentGradient: "linear-gradient(110deg, #6d28d9, #0891b2 58%, #db2777)",
+    success: "#6d28d9",
+    successBg: "#6d28d9",
+    successHover: "#0891b2",
+    successText: "#ffffff",
+    sidebarActive: "rgba(109, 40, 217, 0.11)",
+    sidebarHover: "rgba(109, 40, 217, 0.07)",
+    inputBg: "rgba(255, 255, 255, 0.72)",
+    topBarBg: "rgba(247, 247, 255, 0.72)",
+    avatarGradient: "linear-gradient(135deg, #6d28d9, #0891b2 65%, #db2777)",
+    shadow: "0 22px 60px rgba(63, 38, 145, 0.14)",
+    iconAccent: "#6d28d9",
+  },
+  dark: {
+    canvas: "#070711",
+    canvasGradient:
+      "radial-gradient(circle at 8% 0%, rgba(139, 92, 246, 0.2), transparent 34%), radial-gradient(circle at 92% 10%, rgba(34, 211, 238, 0.13), transparent 30%), linear-gradient(145deg, #070711, #0c0a1d 58%, #090817)",
+    surface: "rgba(12, 10, 29, 0.78)",
+    elevated: "rgba(17, 16, 38, 0.78)",
+    border: "rgba(167, 139, 250, 0.18)",
+    borderMuted: "rgba(167, 139, 250, 0.1)",
+    text: "#f5f3ff",
+    textSecondary: "rgba(245, 243, 255, 0.84)",
+    textMuted: "rgba(181, 176, 208, 0.68)",
+    accent: "#a78bfa",
+    accentHover: "#22d3ee",
+    accentMuted: "rgba(167, 139, 250, 0.12)",
+    accentGradient: "linear-gradient(110deg, #8b5cf6, #22d3ee 58%, #f472b6)",
+    success: "#a78bfa",
+    successBg: "#a78bfa",
+    successHover: "#22d3ee",
+    successText: "#110b2b",
+    sidebarActive: "rgba(167, 139, 250, 0.13)",
+    sidebarHover: "rgba(167, 139, 250, 0.075)",
+    inputBg: "rgba(255, 255, 255, 0.055)",
+    topBarBg: "rgba(7, 7, 17, 0.7)",
+    avatarGradient: "linear-gradient(135deg, #8b5cf6, #22d3ee 65%, #f472b6)",
+    shadow: "0 24px 70px rgba(0, 0, 0, 0.46), 0 0 40px rgba(139, 92, 246, 0.08)",
+    iconAccent: "#a78bfa",
+  },
+} as const;
+
+export function getDashboardTheme(isDark: boolean) {
+  return isDark ? dashboardColors.dark : dashboardColors.light;
+}

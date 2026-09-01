@@ -1,89 +1,207 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import { motion } from "framer-motion";
+import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
+import { GitBranch } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import axios from "@/lib/axios";
+import { isAxiosError } from "axios";
+import { parseAuthResponse, storeAuthTokens } from "@/lib/auth-session";
+import { setAuth } from "@/store/slices/auth-slice";
+import { AUTH_PATH, DASHBOARD_PATH } from "@/routes/path";
+import ForgotPasswordModal from "@/app/components/ForgotPasswordModal";
+import InputField from "@/app/components/InputField";
+import AuthShell from "@/app/components/site/AuthShell";
+import AnimatedTerminal from "@/app/components/site/AnimatedTerminal";
 
-import { AuthShell } from "@/components/layout/auth-shell";
-import { TextField } from "@/components/ui/text-field";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
-import { PATHS } from "@/lib/paths";
-
-/**
- * Login page (POST /auth/login/).
- *
- * The form is intentionally minimal — email + password — because the API
- * doesn't yet expose social auth or magic-link. Validation messages are
- * inline below each field and surface mistakes before the network round-trip.
- */
 export default function LoginPage() {
-  const { login, isLoggingIn } = useAuth();
+  const router = useRouter();
+  const dispatch = useDispatch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 
-  function validate() {
-    const next: typeof errors = {};
-    if (!email.trim()) next.email = "Email is required.";
-    else if (!/\S+@\S+\.\S+/.test(email)) next.email = "That email doesn't look right.";
-    if (!password) next.password = "Password is required.";
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  }
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("signup") === "success") {
+      setSuccessMessage(
+        "Account created successfully! Please sign in with your credentials.",
+      );
+      const url = new URL(window.location.href);
+      url.searchParams.delete("signup");
+      window.history.replaceState({}, "", url.pathname);
+    }
+  }, []);
 
-  function onSubmit(e: React.FormEvent) {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!validate()) return;
-    login({ email: email.trim(), password });
-  }
+    if (isLoading) return;
+    setError("");
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim()) return setError("Email is required");
+    if (!emailRegex.test(email.trim()))
+      return setError("Please enter a valid email address");
+    if (!password) return setError("Password is required");
+    if (password.length < 8)
+      return setError("Password must be at least 8 characters");
+
+    setIsLoading(true);
+    try {
+      const response = await axios.post("/auth/login/", {
+        email: email.trim(),
+        password,
+      });
+      const { token, refreshToken, user } = parseAuthResponse(response.data);
+      if (!token) throw new Error("Login failed: token not received from server");
+      storeAuthTokens(token, refreshToken);
+      dispatch(setAuth({ token, user, refreshToken }));
+      router.replace(DASHBOARD_PATH.ROOT);
+    } catch (err: unknown) {
+      let errorMessage = "Login failed";
+      if (isAxiosError(err)) {
+        const data = err.response?.data;
+        if (data?.email) {
+          errorMessage = Array.isArray(data.email) ? data.email[0] : data.email;
+        } else if (data?.password) {
+          errorMessage = Array.isArray(data.password) ? data.password[0] : data.password;
+        } else if (data?.detail) {
+          errorMessage = Array.isArray(data.detail) ? data.detail[0] : data.detail;
+        } else if (data?.error) {
+          errorMessage = Array.isArray(data.error) ? data.error[0] : data.error;
+        } else if (data?.non_field_errors) {
+          errorMessage = Array.isArray(data.non_field_errors)
+            ? data.non_field_errors[0]
+            : data.non_field_errors;
+        } else if (typeof data === "string") {
+          errorMessage = data;
+        } else if (err.message) {
+          errorMessage = err.message;
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to your Gent account.">
-      <form onSubmit={onSubmit} className="space-y-2" noValidate>
-        <TextField
+    <AuthShell
+      showcase={
+        <div>
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-surface/50 px-3 py-1.5 text-xs text-muted backdrop-blur">
+            <GitBranch className="h-3.5 w-3.5 text-brand" /> Welcome back to Gent
+          </div>
+          <h2 className="font-display text-4xl font-bold leading-tight">
+            Pick up right where
+            <span className="text-gradient"> you pushed.</span>
+          </h2>
+          <p className="mt-4 max-w-md text-muted">
+            Your repositories, branches, and commits are waiting — synced from
+            the same objects your CLI writes.
+          </p>
+          <div className="mt-8">
+            <AnimatedTerminal />
+          </div>
+        </div>
+      }
+    >
+      <h1 className="font-display text-3xl font-bold">Sign in</h1>
+      <p className="mt-1 text-sm text-muted">Access your Gent dashboard.</p>
+
+      <form onSubmit={handleLogin} noValidate className="mt-8 space-y-4">
+        {successMessage && (
+          <div className="rounded-xl border border-brand/30 bg-brand/10 p-3 text-sm text-brand-2">
+            {successMessage}
+          </div>
+        )}
+        {error && (
+          <div
+            role="alert"
+            className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm font-medium text-destructive"
+          >
+            {error}
+          </div>
+        )}
+
+        <InputField
           label="Email"
           type="email"
-          autoComplete="email"
-          placeholder="you@example.com"
+          name="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          error={errors.email}
-          leadingIcon={<Mail />}
-        />
-        <TextField
-          label="Password"
-          type={showPw ? "text" : "password"}
-          autoComplete="current-password"
-          placeholder="Enter your password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          error={errors.password}
-          leadingIcon={<Lock />}
-          trailingIcon={
-            <button
-              type="button"
-              onClick={() => setShowPw((v) => !v)}
-              className="hover:text-foreground transition"
-              aria-label={showPw ? "Hide password" : "Show password"}
-            >
-              {showPw ? <EyeOff /> : <Eye />}
-            </button>
-          }
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (error) setError("");
+          }}
+          placeholder="user@example.com"
+          required
         />
 
-        <Button type="submit" size="lg" className="w-full" disabled={isLoggingIn}>
-          {isLoggingIn ? "Signing in…" : "Sign in"}
-        </Button>
+        <div className="relative">
+          <InputField
+            label="Password"
+            type={showPassword ? "text" : "password"}
+            name="password"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (error) setError("");
+            }}
+            placeholder="••••••••"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-9 text-faint transition-colors hover:text-fg"
+            tabIndex={-1}
+          >
+            {showPassword ? <AiFillEyeInvisible size={20} /> : <AiFillEye size={20} />}
+          </button>
+        </div>
 
-        <p className="text-center text-sm text-on-surface-variant pt-2">
-          Don't have an account?{" "}
-          <Link href={PATHS.auth.signup} className="text-primary font-semibold hover:underline">
-            Create one
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowForgotPasswordModal(true)}
+            className="text-xs text-brand hover:underline"
+          >
+            Forgot password?
+          </button>
+        </div>
+
+        <motion.button
+          type="submit"
+          className="group relative w-full overflow-hidden rounded-xl bg-brand py-3 font-semibold text-brand-ink transition-all disabled:opacity-70"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          disabled={isLoading}
+        >
+          <span className="anim-shimmer absolute inset-0" />
+          <span className="relative">{isLoading ? "Signing in…" : "Sign in"}</span>
+        </motion.button>
+
+        <p className="text-center text-sm text-muted">
+          Don&apos;t have an account?{" "}
+          <Link href={AUTH_PATH.SIGNIN} className="font-medium text-brand hover:underline">
+            create one
           </Link>
         </p>
       </form>
+
+      <ForgotPasswordModal
+        isOpen={showForgotPasswordModal}
+        onClose={() => setShowForgotPasswordModal(false)}
+      />
     </AuthShell>
   );
 }

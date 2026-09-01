@@ -3,285 +3,405 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Gent design tokens
- * ------------------
- * The palette is the project's "Flutter" scheme reproduced verbatim, then surfaced
- * to Tailwind via @theme inline variables. Names mirror the Flutter ColorScheme
- * exactly (primary, primaryContainer, onPrimaryContainer, etc.) so they read the
- * same in code reviews on either side of the stack.
- */
-@theme inline {
-  --font-sans: var(--font-cairo);
-  --font-mono: var(--font-cairo);
+/* =========================================================================
+   GENT — "electric orbit"
+   Ultraviolet, cyan, and magenta over midnight: precise, dimensional, alive.
+   ========================================================================= */
 
+@theme inline {
+  /* semantic tokens exposed to Tailwind utilities */
+  --color-bg: var(--bg);
+  --color-bg-soft: var(--bg-soft);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-brand-3: var(--brand-3);
+  --color-brand-ink: var(--brand-ink);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --font-display: var(--font-display), var(--font-geist-sans), sans-serif;
+  --font-sans: var(--font-geist-sans), sans-serif;
+  --font-mono: var(--font-mono-code), var(--font-geist-mono), monospace;
+
+  /* shadcn tokens kept for existing ui/ + dashboard components */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
-  --color-on-primary: var(--on-primary);
-  --color-primary-container: var(--primary-container);
-  --color-on-primary-container: var(--on-primary-container);
-  --color-primary-fixed: var(--primary-fixed);
-  --color-primary-fixed-dim: var(--primary-fixed-dim);
-  --color-on-primary-fixed: var(--on-primary-fixed);
-
+  --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
-  --color-secondary-container: var(--secondary-container);
-  --color-on-secondary: var(--on-secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
-  --color-tertiary: var(--tertiary);
-  --color-tertiary-fixed: var(--tertiary-fixed);
-  --color-on-tertiary: var(--on-tertiary);
-  --color-on-tertiary-container: var(--on-tertiary-container);
-
-  --color-error: var(--error);
-  --color-on-error: var(--on-error);
-  --color-error-container: var(--error-container);
-  --color-on-error-container: var(--on-error-container);
-
-  --color-surface: var(--surface);
-  --color-on-surface: var(--on-surface);
-  --color-surface-container-highest: var(--surface-container-highest);
-  --color-surface-container-high: var(--surface-container-high);
-  --color-surface-container: var(--surface-container);
-  --color-surface-container-low: var(--surface-container-low);
-  --color-surface-container-lowest: var(--surface-container-lowest);
-  --color-surface-bright: var(--surface-bright);
-  --color-surface-dim: var(--surface-dim);
-  --color-on-surface-variant: var(--on-surface-variant);
-
-  --color-outline: var(--outline);
-  --color-outline-variant: var(--outline-variant);
-  --color-inverse-surface: var(--inverse-surface);
-  --color-on-inverse-surface: var(--on-inverse-surface);
-  --color-scrim: var(--scrim);
-  --color-shadow: var(--shadow);
-
-  /* Extra/extension colors from the Flutter file */
-  --color-warning-container: var(--warning-container);
-  --color-light-green: var(--light-green);
-  --color-light-blue: var(--light-blue);
-  --color-gray: var(--gray);
-  --color-icon-gray: var(--icon-gray);
-
-  /* shadcn aliases — keep so existing primitives keep working */
-  --color-card: var(--surface-container-lowest);
-  --color-card-foreground: var(--on-surface);
-  --color-popover: var(--surface-container-lowest);
-  --color-popover-foreground: var(--on-surface);
-  --color-muted: var(--surface-container);
-  --color-muted-foreground: var(--on-surface-variant);
-  --color-accent: var(--primary-container);
-  --color-accent-foreground: var(--on-primary-container);
-  --color-destructive: var(--error);
-  --color-border: var(--outline-variant);
-  --color-input: var(--outline-variant);
-  --color-ring: var(--primary);
-  --color-primary-foreground: var(--on-primary);
-  --color-secondary-foreground: var(--on-secondary);
-
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
-  --radius-2xl: 28px;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
 }
 
+/* -------------------------------------------------------------------------
+   LIGHT THEME — luminous periwinkle
+   ------------------------------------------------------------------------- */
 :root {
-  --radius: 14px;
+  --radius: 0.75rem;
 
-  /* Light theme — mirrors AppColorScheme.light */
-  --background: #FAFAFA;
-  --foreground: #050505;
+  --bg: #f7f7ff;
+  --bg-soft: #ecebff;
+  --surface: #ffffff;
+  --surface-2: #f2f1ff;
+  --fg: #17152c;
+  --muted: #585574;
+  --faint: #7c7898;
+  --brand: #6d28d9;
+  --brand-2: #0891b2;
+  --brand-3: #db2777;
+  --brand-ink: #ffffff;
+  --line: rgba(91, 63, 180, 0.13);
+  --line-strong: rgba(91, 63, 180, 0.25);
 
-  --primary: #A09590;
-  --on-primary: #FCFBFA;
-  --primary-container: #F6F1EF;
-  --on-primary-container: #7C7470;
-  --primary-fixed: #F6F1EF;
-  --primary-fixed-dim: #F1EAE7;
-  --on-primary-fixed: #5F5855;
+  --glow: rgba(109, 40, 217, 0.32);
+  --glow-2: rgba(8, 145, 178, 0.28);
+  --grid: rgba(91, 63, 180, 0.07);
 
-  --secondary: #ABE1D0;
-  --secondary-container: #DEF3ED;
-  --on-secondary: #3F5B52;
-
-  --tertiary: #C7C176;
-  --tertiary-fixed: #EEEBC6;
-  --on-tertiary: #FBFBF3;
-  --on-tertiary-container: #787548;
-
-  --error: #E83849;
-  --on-error: #FFF8F9;
-  --error-container: #FFECEE;
-  --on-error-container: #B52B39;
-
-  --surface: #FFFFFF;
-  --on-surface: #050505;
-  --surface-container-highest: #E4E4E5;
-  --surface-container-high: #333333;
-  --surface-container: #EFEFF0;
-  --surface-container-low: #F5F5F5;
-  --surface-container-lowest: #FFFFFF;
-  --surface-bright: #EBEBEB;
-  --surface-dim: #CCCCCC;
-  --on-surface-variant: #333333;
-
-  --outline: #808080;
-  --outline-variant: #E5E5E5;
-  --inverse-surface: #0A0A0A;
-  --on-inverse-surface: #F2F2F2;
-  --scrim: #DDDDDB;
-  --shadow: rgba(15, 15, 15, 0.06);
-
-  --warning-container: #FFF5E7;
-  --light-green: #E3F8CC;
-  --light-blue: #CAFAF4;
-  --gray: #F1F1F1;
-  --icon-gray: #6C6E7B;
+  /* shadcn (light) */
+  --background: #f7f7ff;
+  --foreground: #17152c;
+  --card: #ffffff;
+  --card-foreground: #17152c;
+  --popover: #ffffff;
+  --popover-foreground: #17152c;
+  --primary: #6d28d9;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f1ff;
+  --secondary-foreground: #17152c;
+  --muted-foreground: #585574;
+  --accent: #ecebff;
+  --accent-foreground: #17152c;
+  --destructive: #d5432f;
+  --border: rgba(91, 63, 180, 0.13);
+  --input: rgba(91, 63, 180, 0.16);
+  --ring: #6d28d9;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #17152c;
+  --sidebar-primary: #6d28d9;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f2f1ff;
+  --sidebar-accent-foreground: #17152c;
+  --sidebar-border: rgba(91, 63, 180, 0.13);
+  --sidebar-ring: #6d28d9;
 }
 
+/* -------------------------------------------------------------------------
+   DARK THEME — electric midnight
+   ------------------------------------------------------------------------- */
 .dark {
-  /* Dark theme — derived from AppColorScheme.dark plus sensible surfaces.
-   * The Flutter scheme used a white surface in dark too; for the web we use
-   * true dark surfaces so the UI is actually usable at night. */
-  --background: #0E0F12;
-  --foreground: #EFF1F1;
+  --bg: #070711;
+  --bg-soft: #0b0a18;
+  --surface: #111026;
+  --surface-2: #171532;
+  --fg: #f5f3ff;
+  --muted: #b5b0d0;
+  --faint: #7e789c;
+  --brand: #a78bfa;
+  --brand-2: #22d3ee;
+  --brand-3: #f472b6;
+  --brand-ink: #110b2b;
+  --line: rgba(167, 139, 250, 0.14);
+  --line-strong: rgba(167, 139, 250, 0.28);
 
-  --primary: #77AF23;
-  --on-primary: #0E0F12;
-  --primary-container: #1A2410;
-  --on-primary-container: #C9E59A;
-  --primary-fixed: #243115;
-  --primary-fixed-dim: #2F4019;
-  --on-primary-fixed: #E3F8CC;
+  --glow: rgba(139, 92, 246, 0.48);
+  --glow-2: rgba(34, 211, 238, 0.34);
+  --grid: rgba(167, 139, 250, 0.055);
 
-  --secondary: #277CAD;
-  --secondary-container: #1A2D3A;
-  --on-secondary: #DCF2FF;
-
-  --tertiary: #C7C176;
-  --tertiary-fixed: #2A2A1A;
-  --on-tertiary: #FBFBF3;
-  --on-tertiary-container: #EEEBC6;
-
-  --error: #F7744C;
-  --on-error: #FFFAF9;
-  --error-container: #3A1F18;
-  --on-error-container: #FFD5C7;
-
-  --surface: #14161A;
-  --on-surface: #EFF1F1;
-  --surface-container-highest: #2D3036;
-  --surface-container-high: #23262B;
-  --surface-container: #1B1D22;
-  --surface-container-low: #17191D;
-  --surface-container-lowest: #101216;
-  --surface-bright: #2A2D33;
-  --surface-dim: #0C0D10;
-  --on-surface-variant: #B6B8BD;
-
-  --outline: #716E79;
-  --outline-variant: #2E3036;
-  --inverse-surface: #EFF1F1;
-  --on-inverse-surface: #2D3132;
-  --scrim: #000000;
-  --shadow: rgba(0, 0, 0, 0.6);
-
-  --warning-container: #2E2417;
-  --light-green: #1F3416;
-  --light-blue: #163132;
-  --gray: #1F2127;
-  --icon-gray: #B6B8BD;
+  /* shadcn (dark) */
+  --background: #070711;
+  --foreground: #f5f3ff;
+  --card: #111026;
+  --card-foreground: #f5f3ff;
+  --popover: #111026;
+  --popover-foreground: #f5f3ff;
+  --primary: #a78bfa;
+  --primary-foreground: #110b2b;
+  --secondary: #171532;
+  --secondary-foreground: #f5f3ff;
+  --muted-foreground: #b5b0d0;
+  --accent: #171532;
+  --accent-foreground: #f5f3ff;
+  --destructive: #ff6b57;
+  --border: rgba(167, 139, 250, 0.14);
+  --input: rgba(167, 139, 250, 0.18);
+  --ring: #a78bfa;
+  --sidebar: #111026;
+  --sidebar-foreground: #f5f3ff;
+  --sidebar-primary: #a78bfa;
+  --sidebar-primary-foreground: #110b2b;
+  --sidebar-accent: #171532;
+  --sidebar-accent-foreground: #f5f3ff;
+  --sidebar-border: rgba(167, 139, 250, 0.14);
+  --sidebar-ring: #a78bfa;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/40;
+    @apply border-border outline-ring/50;
   }
-
-  html, body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "ss01", "cv11";
+  html {
+    scroll-behavior: smooth;
   }
-
-  /* Smooth animated theme switching */
-  html.theme-transition,
-  html.theme-transition * {
-    transition:
-      background-color 0.35s ease,
-      border-color 0.35s ease,
-      color 0.25s ease,
-      fill 0.25s ease,
-      stroke 0.25s ease !important;
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-feature-settings: "ss01", "cv01";
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
 
   ::selection {
-    background: var(--primary);
-    color: var(--on-primary);
+    background: var(--brand);
+    color: var(--brand-ink);
+  }
+
+  button,
+  a,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"],
+  select,
+  label[for] {
+    @apply cursor-pointer;
+  }
+  button:disabled,
+  [disabled] {
+    @apply cursor-not-allowed;
+  }
+  select,
+  option {
+    background-color: var(--surface);
+    color: var(--fg);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--line-strong);
+    border-radius: 3px;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
   }
 }
 
+/* =========================================================================
+   UTILITY LAYER — glass, glow, 3D, backgrounds
+   ========================================================================= */
 @layer utilities {
-  /* Soft frosted glass that adapts to light/dark */
+  /* --- glass surfaces --- */
   .glass {
-    background: color-mix(in oklab, var(--surface) 70%, transparent);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    background: color-mix(in oklab, var(--surface) 72%, transparent);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--line);
+  }
+  .glass-strong {
+    background: color-mix(in oklab, var(--surface) 88%, transparent);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    border: 1px solid var(--line-strong);
   }
 
-  .gradient-mesh {
-    background:
-      radial-gradient(at 20% 10%, color-mix(in oklab, var(--primary) 18%, transparent) 0px, transparent 50%),
-      radial-gradient(at 80% 0%, color-mix(in oklab, var(--secondary) 25%, transparent) 0px, transparent 55%),
-      radial-gradient(at 0% 100%, color-mix(in oklab, var(--tertiary) 18%, transparent) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, color-mix(in oklab, var(--primary) 12%, transparent) 0px, transparent 50%);
-  }
-
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: var(--outline) transparent;
-  }
-  .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: var(--outline-variant);
-    border-radius: 999px;
-  }
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: var(--outline);
-  }
-
-  /* Subtle ambient pulse for "live" status dots */
-  @keyframes gent-pulse {
-    0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 50%, transparent); }
-    70%  { box-shadow: 0 0 0 8px color-mix(in oklab, var(--primary) 0%, transparent); }
-    100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 0%, transparent); }
-  }
-  .pulse-dot { animation: gent-pulse 1.8s infinite; }
-
-  /* Marching ants for "syncing" indicators */
-  @keyframes gent-marching {
-    to { background-position: 200% 0; }
-  }
-  .marching-ants {
-    background-image: linear-gradient(
-      90deg,
-      var(--primary) 0%, var(--primary) 50%,
-      transparent 50%, transparent 100%
+  /* --- gradient / glow text --- */
+  .text-gradient {
+    background: linear-gradient(
+      100deg,
+      var(--brand-2) 0%,
+      var(--brand) 42%,
+      var(--brand-3) 100%
     );
-    background-size: 16px 100%;
-    animation: gent-marching 1.2s linear infinite;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .text-glow {
+    text-shadow: 0 0 24px var(--glow);
   }
 
-  /* Soft floating shadow used on raised cards */
-  .shadow-soft {
+  /* --- glow border / ring --- */
+  .glow-ring {
     box-shadow:
-      0 1px 2px var(--shadow),
-      0 8px 24px -12px var(--shadow);
+      0 0 0 1px var(--line-strong),
+      0 0 40px -8px var(--glow),
+      inset 0 1px 0 0 color-mix(in oklab, var(--fg) 8%, transparent);
+  }
+  .glow-soft {
+    box-shadow: 0 24px 80px -32px var(--glow);
+  }
+
+  /* --- animated gradient border --- */
+  .border-beam {
+    position: relative;
+    isolation: isolate;
+  }
+  .border-beam::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--beam-angle, 0deg),
+      transparent 0deg,
+      var(--brand) 60deg,
+      var(--brand-3) 120deg,
+      transparent 200deg,
+      transparent 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: beam-spin 6s linear infinite;
+    z-index: -1;
+  }
+
+  /* --- 3D primitives --- */
+  .scene {
+    perspective: 1400px;
+    transform-style: preserve-3d;
+  }
+  .card-3d {
+    transform-style: preserve-3d;
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .layer-3d {
+    transform: translateZ(var(--z, 0));
+    transform-style: preserve-3d;
+  }
+
+  /* --- atmospheric backgrounds --- */
+  .grid-bg {
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(
+      ellipse 80% 60% at 50% 0%,
+      #000 40%,
+      transparent 100%
+    );
+    mask-image: radial-gradient(
+      ellipse 80% 60% at 50% 0%,
+      #000 40%,
+      transparent 100%
+    );
+  }
+  .noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* --- animations --- */
+  .anim-float {
+    animation: float 7s ease-in-out infinite;
+  }
+  .anim-float-slow {
+    animation: float 11s ease-in-out infinite;
+  }
+  .anim-pulse-glow {
+    animation: pulse-glow 4s ease-in-out infinite;
+  }
+  .anim-spin-slow {
+    animation: spin 24s linear infinite;
+  }
+  .anim-gradient {
+    background-size: 200% 200%;
+    animation: gradient-pan 6s ease infinite;
+  }
+  .anim-shimmer {
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in oklab, var(--fg) 12%, transparent) 50%,
+      transparent 80%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2.4s linear infinite;
+  }
+
+  .delay-1 { animation-delay: 0.8s; }
+  .delay-2 { animation-delay: 1.6s; }
+  .delay-3 { animation-delay: 2.4s; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-16px) translateX(6px); }
+}
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+@keyframes gradient-pan {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes beam-spin {
+  to { --beam-angle: 360deg; }
+}
+@property --beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  animation: marquee 28s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
