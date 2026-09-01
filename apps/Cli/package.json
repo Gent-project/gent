@@ -1,6 +1,6 @@
 {
   "name": "gent-cli",
-  "version": "10.0.0",
+  "version": "11.0.0",
   "description": "A modern, Git-like version control CLI with cloud sync, AI-powered superpowers (ask/review/docs/changelog), and zero-friction setup (gent setup/doctor/config).",
   "main": "src/index.js",
   "bin": {
@@ -8,8 +8,8 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --check src/index.js && node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js && node tests/offline-e2e.js",
-    "test:unit": "node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js",
+    "test": "node --check src/index.js && node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js tests/file-system.test.js && node tests/offline-e2e.js",
+    "test:unit": "node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js tests/file-system.test.js",
     "test:e2e": "node tests/offline-e2e.js",
     "test:remote:e2e": "node tests/remote-e2e.js",
     "demo": "bash demo.sh",
