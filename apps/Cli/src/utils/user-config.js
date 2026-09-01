@@ -21,6 +21,10 @@
  *     ai.api_key        Anthropic API key
  *     ai.model          Model id (e.g. claude-opus-4-7, claude-haiku-4-5)
  *     api.base_url      Backend base URL (e.g. http://localhost:8000)
+ *     web.base_url      Web app (frontend) base URL (e.g. https://gent-nu2e.onrender.com)
+ *                       Used by `gent web` / `gent share`. This is a SEPARATE
+ *                       deployment from api.base_url — never derive one from
+ *                       the other.
  *     user.name         Default author name
  *     user.email        Default author email
  *
@@ -42,6 +46,7 @@ const ALLOWED_KEYS = new Set([
     'ai.api_key',
     'ai.model',
     'api.base_url',
+    'web.base_url',
     'user.name',
     'user.email',
 ]);
@@ -49,12 +54,17 @@ const ALLOWED_KEYS = new Set([
 const DEFAULTS = {
     'ai.model': 'claude-opus-4-7',
     'api.base_url': 'https://gent-api.onrender.com',
+    // The frontend has no production deployment yet; the server's own
+    // FRONTEND_URL setting defaults to the same value. Override with
+    // `gent config set web.base_url <url>` or GENT_WEB_URL.
+    'web.base_url': 'https://gent-nu2e.onrender.com',
 };
 
 const ENV_OVERRIDES = {
     'ai.api_key': 'ANTHROPIC_API_KEY',
     'ai.model': 'GENT_AI_MODEL',
     'api.base_url': 'GENT_API_URL',
+    'web.base_url': 'GENT_WEB_URL',
 };
 
 function getConfigPath() {

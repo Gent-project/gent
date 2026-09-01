@@ -2,19 +2,23 @@
  * Web Command - Open the current repo (or a specific commit/branch) in browser.
  *
  *   gent web                       → open repo page
- *   gent web --branch <name>       → open a specific branch
- *   gent web --commit <hash>       → open a specific commit
+ *   gent web --branch <name>       → repo page (branch context only — see NOTE)
+ *   gent web --commit <hash>       → repo page (commit context only — see NOTE)
  *   gent web --print               → don't launch, just print the URL
  *
- * Builds the URL from the configured api.base_url and the remote's owner_id/repo_name.
+ * Builds the URL from the configured web.base_url (NOT api.base_url — the web
+ * app is a separate deployment) and the remote's owner_id/repo_name.
+ *
+ * NOTE: the web app has no branch or commit page today, so --branch/--commit
+ * warn and fall back to the repository page. See utils/web-urls.js.
  */
 
 const path = require('path');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const chalk = require('chalk');
 const { getGentPath, readJSON } = require('../utils/fileSystem');
 const { CONFIG_FILE, parseRemoteUrl } = require('../utils/constants');
-const userConfig = require('../utils/user-config');
+const { getWebBaseUrl, buildRepoLink, BRANCH_COMMIT_UNSUPPORTED } = require('../utils/web-urls');
 
 async function web(options = {}) {
     try {
@@ -32,13 +36,16 @@ async function web(options = {}) {
             process.exit(1);
         }
 
-        const { value: baseUrl } = await userConfig.getResolved('api.base_url');
-        // Strip /api suffix if present so we get the web host
-        const webHost = baseUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
+        const baseUrl = await getWebBaseUrl();
+        const { url, unsupported } = buildRepoLink(baseUrl, info, {
+            branch: options.branch,
+            commit: options.commit,
+        });
 
-        let url = `${webHost}/${info.owner_id}/${info.repo_name}`;
-        if (options.branch) url += `/tree/${encodeURIComponent(options.branch)}`;
-        if (options.commit) url += `/commit/${encodeURIComponent(options.commit)}`;
+        if (unsupported) {
+            console.error(chalk.yellow(`Note: --${unsupported} is not supported yet.`));
+            console.error(chalk.gray(BRANCH_COMMIT_UNSUPPORTED));
+        }
 
         if (options.print) {
             console.log(url);
@@ -57,11 +64,19 @@ async function web(options = {}) {
     }
 }
 
+/**
+ * Hand the URL to the platform's browser launcher.
+ *
+ * Uses execFile, NOT exec: the URL is passed as its own argv entry so no shell
+ * ever parses it. Interpolating it into a shell string made a `"` in
+ * web.base_url a command-injection sink, and broke any legitimate URL
+ * containing & or $.
+ */
 function openInBrowser(url) {
-    const cmd = process.platform === 'darwin' ? 'open'
-        : process.platform === 'win32' ? 'start ""'
-        : 'xdg-open';
-    exec(`${cmd} "${url}"`, (err) => {
+    const [cmd, args] = process.platform === 'darwin' ? ['open', [url]]
+        : process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]]
+        : ['xdg-open', [url]];
+    execFile(cmd, args, (err) => {
         if (err) {
             console.error(chalk.yellow('Could not auto-open. URL:'));
             console.log(url);

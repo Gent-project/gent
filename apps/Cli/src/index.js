@@ -372,17 +372,17 @@ program
 
 program
     .command('web')
-    .description('Open the current repo (or a branch/commit) on the gent web app')
-    .option('--branch <name>', 'Open a specific branch')
-    .option('--commit <hash>', 'Open a specific commit')
+    .description('Open the current repo on the gent web app')
+    .option('--branch <name>', 'Branch context (opens the repo page — no branch page yet)')
+    .option('--commit <hash>', 'Commit context (opens the repo page — no commit page yet)')
     .option('--print', 'Print the URL instead of launching a browser')
     .action(webCommand);
 
 program
     .command('share')
-    .description('Print a shareable link to current branch tip (or --branch/--commit)')
-    .option('--branch <name>', 'Link to a specific branch')
-    .option('--commit <hash>', 'Link to a specific commit')
+    .description('Print a shareable link to the current repository')
+    .option('--branch <name>', 'Branch context (link resolves to the repo page)')
+    .option('--commit <hash>', 'Commit context (link resolves to the repo page)')
     .action(shareCommand);
 
 program
