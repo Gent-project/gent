@@ -402,63 +402,83 @@ const up = (n) => `\x1b[${n}A`;
  * @param {boolean} opts.altScreen  use the alternate screen buffer
  * @returns {Promise<void>}
  */
-function play(sceneName, { loop = false, footer = true, goodbye = false, altScreen = false, maxTicks = Infinity } = {}) {
-    return new Promise((resolve) => {
-        const scene = SCENES[sceneName] || SCENES.idle;
-        const cv = new Canvas(CV_W, CV_H);
-        const state = { count: 0, tip: TIPS[Math.floor(Math.random() * TIPS.length)] };
-        const totalTicks = loop ? Infinity : Math.min(scene.cycle + 1, maxTicks); // one clean cycle, capped
-        let t = 0;
-        let printed = false;
-        let done = false;
+function runLoop(sceneName, {
+    loop = false, footer = true, goodbye = false, altScreen = false,
+    maxTicks = Infinity, clearOnStop = false, exitOnSig = false,
+} = {}) {
+    const scene = SCENES[sceneName] || SCENES.idle;
+    const cv = new Canvas(CV_W, CV_H);
+    const state = { count: 0, tip: TIPS[Math.floor(Math.random() * TIPS.length)] };
+    const totalTicks = loop ? Infinity : Math.min(scene.cycle + 1, maxTicks);
+    const blockH = CV_H + (footer ? 1 : 0);
+    let t = 0;
+    let printed = false;
+    let done = false;
+    let resolveFn;
+    const promise = new Promise((r) => { resolveFn = r; });
 
-        const footerLine = () => footer
-            ? chalk.gray('  ') +
-              (loop ? chalk.gray('Ctrl+C to leave') : C.body('Genti')) +
-              chalk.gray('   ·   more scenes: ') + C.say('gent pet push|pull|merge')
-            : '';
+    const footerLine = () => footer
+        ? chalk.gray('  ') +
+          (loop ? chalk.gray('Ctrl+C to cancel') : C.body('Genti')) +
+          chalk.gray('   ·   more scenes: ') + C.say('gent pet push|pull|merge')
+        : '';
 
-        const paint = () => {
-            cv.clear();
-            scene.fn(cv, t, state);
-            if (sceneName === 'idle' && loop && t > 0 && t % scene.cycle === 0) {
-                state.tip = TIPS[Math.floor(Math.random() * TIPS.length)];
-            }
-            const lines = cv.render().split('\n');
-            lines.push(footerLine());
-            const block = lines.map(l => CLEAR_LINE + l).join('\n');
-            if (altScreen) {
-                process.stdout.write(HOME + block);
-            } else {
-                if (printed) process.stdout.write(up(lines.length));
-                process.stdout.write(block + '\n');
-            }
-            printed = true;
-        };
+    const paint = () => {
+        cv.clear();
+        scene.fn(cv, t, state);
+        if (sceneName === 'idle' && loop && t > 0 && t % scene.cycle === 0) {
+            state.tip = TIPS[Math.floor(Math.random() * TIPS.length)];
+        }
+        const lines = cv.render().split('\n');
+        lines.push(footerLine());
+        const block = lines.map(l => CLEAR_LINE + l).join('\n');
+        if (altScreen) {
+            process.stdout.write(HOME + block);
+        } else {
+            if (printed) process.stdout.write(up(lines.length));
+            process.stdout.write(block + '\n');
+        }
+        printed = true;
+    };
 
-        const finish = () => {
-            if (done) return;
-            done = true;
-            clearInterval(timer);
-            process.removeListener('SIGINT', onSig);
-            process.stdout.write(SHOW + (altScreen ? LEAVE_ALT : ''));
-            if (goodbye) {
-                console.log(C.body('  Genti waves.') + chalk.gray(' Come back with ') + C.say('gent pet') + chalk.gray('.'));
-            }
-            resolve();
-        };
+    // Erase the inline block so the caller can print clean output in its place.
+    const eraseBlock = () => {
+        if (!printed) return;
+        process.stdout.write(up(blockH));
+        for (let i = 0; i < blockH; i++) process.stdout.write(CLEAR_LINE + (i < blockH - 1 ? '\n' : ''));
+        process.stdout.write(up(blockH - 1));
+    };
 
-        const onSig = () => finish();
+    const stop = () => {
+        if (done) return;
+        done = true;
+        clearInterval(timer);
+        process.removeListener('SIGINT', onSig);
+        if (clearOnStop && !altScreen) eraseBlock();
+        process.stdout.write(SHOW + (altScreen ? LEAVE_ALT : ''));
+        if (goodbye) {
+            console.log(C.body('  Genti waves.') + chalk.gray(' Come back with ') + C.say('gent pet') + chalk.gray('.'));
+        }
+        resolveFn();
+    };
 
-        process.stdout.write((altScreen ? ENTER_ALT + HOME : '') + HIDE);
+    const onSig = () => { stop(); if (exitOnSig) process.exit(130); };
+
+    process.stdout.write((altScreen ? ENTER_ALT + HOME : '') + HIDE);
+    paint();
+    const timer = setInterval(() => {
+        t++;
+        if (t >= totalTicks) { paint(); return stop(); }
         paint();
-        const timer = setInterval(() => {
-            t++;
-            if (t >= totalTicks) { paint(); return finish(); }
-            paint();
-        }, FRAME_MS);
-        process.on('SIGINT', onSig);
-    });
+    }, FRAME_MS);
+    process.on('SIGINT', onSig);
+
+    return { promise, stop };
+}
+
+// Play a scene to completion (or until Ctrl+C when looping). Resolves when done.
+function play(sceneName, opts = {}) {
+    return runLoop(sceneName, opts).promise;
 }
 
 /**
@@ -528,6 +548,32 @@ async function celebrate(scene) {
     } catch (_) { /* ignore — decoration only */ }
 }
 
+/**
+ * Public: run `task` while Genti animates as the live loader — carrying the
+ * crate to the cloud on push, home on pull, etc. The animation loops until the
+ * task settles, then erases itself so the command can print its own result.
+ *
+ * Safe + transparent: with no TTY / GENT_NO_PET / CI it simply awaits the task
+ * with no animation. Always returns (or throws) exactly what `task` does.
+ *
+ * @param {string} scene           'push' | 'pull' | 'merge' | …
+ * @param {() => Promise<any>} task the real async work (e.g. the network call)
+ * @returns {Promise<any>}
+ */
+async function during(scene, task) {
+    if (!process.stdout.isTTY || process.env.GENT_NO_PET || process.env.CI || !SCENES[scene]) {
+        return task();
+    }
+    const anim = runLoop(scene, { loop: true, footer: true, altScreen: false, clearOnStop: true, exitOnSig: true });
+    try {
+        return await task();
+    } finally {
+        anim.stop();
+        await anim.promise;
+    }
+}
+
 module.exports = petCommand;
 module.exports.celebrate = celebrate;
 module.exports.banner = banner;
+module.exports.during = during;

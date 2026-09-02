@@ -73,14 +73,15 @@ async function pull(remoteName, branchName, options) {
 
         // 1. Fetch commits + objects for this branch in a single call. `since`
         //    lets the server send only what we don't have on a fast-forward.
-        spinner.text = `Fetching updates for ${branch}...`;
+        // Genti walks a crate home from the cloud while we fetch.
+        spinner.stop();
         let pullData;
         try {
             const pullUrl = buildRepoUrl(API_ENDPOINTS.REPO_PULL, repoInfo);
             const query = localHead
                 ? `?branch=${encodeURIComponent(branch)}&since=${encodeURIComponent(localHead)}`
                 : `?branch=${encodeURIComponent(branch)}`;
-            pullData = await apiClient.get(pullUrl + query);
+            pullData = await pet.during('pull', () => apiClient.get(pullUrl + query));
         } catch (error) {
             if (error.response?.status === 404) {
                 spinner.succeed(chalk.green('Remote branch not found — nothing to pull'));
@@ -138,7 +139,6 @@ async function pull(remoteName, branchName, options) {
 
             spinner.succeed(chalk.green(`Fast-forward: ${newCount} new commit(s)`));
             console.log(chalk.gray(`  ${remote}/${branch} → ${remoteHead.substring(0, 7)}`));
-            await pet.celebrate('pull');
         } else {
             // Diverged — need 3-way merge
             spinner.text = 'Branches diverged, merging...';
@@ -194,7 +194,6 @@ async function pull(remoteName, branchName, options) {
             } else {
                 spinner.succeed(chalk.green(`Merged ${newCount} remote commit(s)`));
                 console.log(chalk.gray(`  Merge commit: ${mergeCommit.hash.substring(0, 7)}`));
-                await pet.celebrate('pull');
             }
         }
     } catch (error) {

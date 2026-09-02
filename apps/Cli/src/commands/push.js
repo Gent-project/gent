@@ -232,19 +232,18 @@ async function push(remoteName, branchName, options) {
             tags: tagsToPush
         };
 
-        // Send to backend
+        // Send to backend — Genti carries the crate to the cloud while we wait.
         const pushUrl = buildRepoUrl(API_ENDPOINTS.REPO_PUSH, repoInfo);
-        const response = await apiClient.post(pushUrl, payload);
+        spinner.stop();
+        const response = await pet.during('push', () => apiClient.post(pushUrl, payload));
 
         // Update remote ref
         config.remoteRefs[`${remote}/${branch}`] = localHead;
         await writeJSON(configPath, config);
 
-        spinner.succeed(chalk.green(`Pushed ${commitsToPush.length} commit(s) to ${remote}/${branch}`));
+        console.log(chalk.green(`✔ Pushed ${commitsToPush.length} commit(s) to ${remote}/${branch}`));
         console.log(chalk.gray(`  ${localHead.substring(0, 7)} → ${remote}/${branch}`));
         console.log(chalk.gray(`  ${packBlobs.length} blob(s), ${packTrees.length} tree(s) transferred`));
-
-        await pet.celebrate('push');
 
     } catch (error) {
         spinner.fail(chalk.red('Push failed'));
