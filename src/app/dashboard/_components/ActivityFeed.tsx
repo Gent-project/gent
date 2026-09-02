@@ -30,11 +30,11 @@ export default function ActivityFeed() {
       case "pull_request":
         return <Download className="w-4 h-4" style={{ color: t.accent }} />;
       case "branch_created":
-        return <GitBranch className="w-4 h-4" style={{ color: "#10b981" }} />;
+        return <GitBranch className="w-4 h-4" style={{ color: t.accentHover }} />;
       case "tag_created":
-        return <Tag className="w-4 h-4" style={{ color: "#f59e0b" }} />;
+        return <Tag className="w-4 h-4" style={{ color: t.accentTertiary }} />;
       case "repository_created":
-        return <Plus className="w-4 h-4" style={{ color: "#06b6d4" }} />;
+        return <Plus className="w-4 h-4" style={{ color: t.accentHover }} />;
       default:
         return <GitCommit className="w-4 h-4" style={{ color: t.textMuted }} />;
     }
@@ -128,43 +128,46 @@ export default function ActivityFeed() {
 
   return (
     <div
-      className="rounded-2xl border p-6 backdrop-blur-xl"
+      className="overflow-hidden rounded-2xl border backdrop-blur-xl"
       style={{
         backgroundColor: t.elevated,
         borderColor: t.border,
       }}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold" style={{ color: t.text }}>
+      <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: t.borderMuted }}>
+        <h3 className="text-base font-semibold" style={{ color: t.text }}>
           Recent Activity
         </h3>
+        <span className="rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em]" style={{ color: t.accent, borderColor: t.border, background: t.accentMuted }}>live</span>
       </div>
 
-      <div className="space-y-3">
+      <div className="relative px-5 py-2">
+        <div className="absolute bottom-5 left-[35px] top-5 w-px" style={{ background: t.borderMuted }} aria-hidden />
         {activities.slice(0, 10).map((activity, index) => (
           <motion.div
             key={activity.id}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="flex items-start gap-3 rounded-xl border border-transparent p-3 transition-all hover:-translate-y-0.5"
-            style={{ background: t.sidebarHover }}
+            className="group relative flex items-start gap-3 border-b py-4 last:border-b-0"
+            style={{ borderColor: t.borderMuted }}
           >
             <div
-              className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: t.surface }}
+              className="relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border transition-transform group-hover:scale-110"
+              style={{ backgroundColor: t.elevated, borderColor: t.border }}
             >
               {getActivityIcon(activity.type)}
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
                 <span className="font-medium text-sm" style={{ color: t.text }}>
                   {activity.title}
                 </span>
                 {activity.repository && (
                   <span
-                    className="px-2 py-0.5 text-xs rounded-full"
+                    className="rounded-full px-2 py-0.5 text-[10px]"
+                    data-no-translate
                     style={{
                       backgroundColor: t.accentMuted,
                       color: t.accent,
@@ -175,7 +178,7 @@ export default function ActivityFeed() {
                 )}
               </div>
 
-              <p className="text-xs mb-1" style={{ color: t.textMuted }}>
+              <p className="text-xs mb-1" style={{ color: t.textMuted }} data-no-translate>
                 {activity.message}
               </p>
 
@@ -184,7 +187,7 @@ export default function ActivityFeed() {
                 style={{ color: t.textMuted }}
               >
                 {activity.actor && (
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1" data-no-translate>
                     <User className="w-3 h-3" />
                     {activity.actor.name}
                   </span>

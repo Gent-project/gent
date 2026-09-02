@@ -5,6 +5,7 @@ import { Eye, EyeOff, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { usePasswordChange } from "@/hooks/use-password-change";
+import { getDashboardTheme } from "./dashboard-theme";
 
 interface ChangePasswordFormProps {
   isDark: boolean;
@@ -22,6 +23,7 @@ export default function ChangePasswordForm({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const mutation = usePasswordChange();
+  const t = getDashboardTheme(isDark);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,40 +69,30 @@ export default function ChangePasswordForm({
     );
   };
 
-  const inputClassName = `w-full px-3 py-2 pr-10 rounded-md border transition-all ${
-    isDark
-      ? "border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-[#7dd3fc]"
-      : "border-[#5A7863]/30 bg-white text-[#2d3e2d] placeholder:text-[#2d3e2d]/40 focus:border-[#5A7863]"
-  }`;
-
-  const labelClassName = `block text-sm font-medium ${
-    isDark ? "text-white/80" : "text-[#2d3e2d]/80"
-  }`;
-
-  const eyeButtonClassName = `absolute right-3 top-1/2 -translate-y-1/2 ${
-    isDark
-      ? "text-white/50 hover:text-white"
-      : "text-[#2d3e2d]/50 hover:text-[#2d3e2d]"
-  }`;
+  const inputClassName =
+    "w-full rounded-lg border px-3 py-2 pr-10 outline-none transition-all focus:ring-2 focus:ring-violet-500/20";
+  const labelClassName = "block text-sm font-medium";
+  const eyeButtonClassName =
+    "absolute right-3 top-1/2 -translate-y-1/2 transition-colors";
 
   return (
     <section
-      className="rounded-lg border overflow-hidden"
+      className="overflow-hidden rounded-2xl border"
       style={{
-        backgroundColor: isDark ? "#111820" : "#ffffff",
-        borderColor: isDark ? "rgba(255,255,255,0.12)" : "#5A7863",
+        backgroundColor: t.elevated,
+        borderColor: t.border,
       }}
     >
       <div
         className="flex items-start gap-3 px-5 py-4"
         style={{
-          backgroundColor: isDark ? "#0f1419" : "#f8faf8",
+          backgroundColor: t.surface,
         }}
       >
         <Lock
           className="w-5 h-5 mt-0.5 shrink-0"
           style={{
-            color: isDark ? "#7dd3fc" : "#5A7863",
+            color: t.accent,
           }}
         />
 
@@ -108,7 +100,7 @@ export default function ChangePasswordForm({
           <h2
             className="text-base font-semibold"
             style={{
-              color: isDark ? "#ffffff" : "#2d3e2d",
+              color: t.text,
             }}
           >
             Change Password
@@ -117,7 +109,7 @@ export default function ChangePasswordForm({
           <p
             className="text-xs mt-0.5"
             style={{
-              color: isDark ? "rgba(255,255,255,0.6)" : "rgba(45,62,45,0.65)",
+              color: t.textMuted,
             }}
           >
             Update your password to keep your account secure.
@@ -128,7 +120,7 @@ export default function ChangePasswordForm({
       <form onSubmit={handleSubmit} className="p-5 space-y-5">
         {/* Current Password */}
         <div className="space-y-2">
-          <label htmlFor="current-password" className={labelClassName}>
+          <label htmlFor="current-password" className={labelClassName} style={{ color: t.textSecondary }}>
             Current Password
           </label>
 
@@ -142,12 +134,14 @@ export default function ChangePasswordForm({
               required
               disabled={mutation.isPending}
               className={inputClassName}
+              style={{ backgroundColor: t.inputBg, borderColor: t.border, color: t.text }}
             />
 
             <button
               type="button"
               onClick={() => setShowCurrentPassword((previous) => !previous)}
               className={eyeButtonClassName}
+              style={{ color: t.textMuted }}
               aria-label={
                 showCurrentPassword
                   ? "Hide current password"
@@ -161,7 +155,7 @@ export default function ChangePasswordForm({
 
         {/* New Password */}
         <div className="space-y-2">
-          <label htmlFor="new-password" className={labelClassName}>
+          <label htmlFor="new-password" className={labelClassName} style={{ color: t.textSecondary }}>
             New Password
           </label>
 
@@ -176,12 +170,14 @@ export default function ChangePasswordForm({
               minLength={8}
               disabled={mutation.isPending}
               className={inputClassName}
+              style={{ backgroundColor: t.inputBg, borderColor: t.border, color: t.text }}
             />
 
             <button
               type="button"
               onClick={() => setShowNewPassword((previous) => !previous)}
               className={eyeButtonClassName}
+              style={{ color: t.textMuted }}
               aria-label={
                 showNewPassword ? "Hide new password" : "Show new password"
               }
@@ -193,7 +189,7 @@ export default function ChangePasswordForm({
 
         {/* Confirm Password */}
         <div className="space-y-2">
-          <label htmlFor="confirm-password" className={labelClassName}>
+          <label htmlFor="confirm-password" className={labelClassName} style={{ color: t.textSecondary }}>
             Confirm New Password
           </label>
 
@@ -208,12 +204,14 @@ export default function ChangePasswordForm({
               minLength={8}
               disabled={mutation.isPending}
               className={inputClassName}
+              style={{ backgroundColor: t.inputBg, borderColor: t.border, color: t.text }}
             />
 
             <button
               type="button"
               onClick={() => setShowConfirmPassword((previous) => !previous)}
               className={eyeButtonClassName}
+              style={{ color: t.textMuted }}
               aria-label={
                 showConfirmPassword
                   ? "Hide password confirmation"
@@ -233,11 +231,8 @@ export default function ChangePasswordForm({
             !newPassword ||
             !confirmPassword
           }
-          className={`w-full ${
-            isDark
-              ? "bg-gradient-to-r from-[#7dd3fc] to-[#06b6d4] text-[#0f1419]"
-              : "bg-gradient-to-r from-[#5A7863] to-[#4a6853] text-white"
-          }`}
+          className="w-full font-semibold"
+          style={{ background: t.accentGradient, color: t.successText }}
         >
           {mutation.isPending ? "Changing Password..." : "Change Password"}
         </Button>

@@ -11,6 +11,8 @@ import {
   Download,
   Edit,
   Copy,
+  GitCommit,
+  Hash,
 } from "lucide-react";
 import { useTree, useBlob, type TreeEntry } from "@/hooks/use-files";
 import { usePushPack } from "@/hooks/use-git-operations";
@@ -36,6 +38,17 @@ interface FileBrowserTabProps {
   defaultBranch: string;
   userEmail: string;
 }
+
+type BrowserEntry = TreeEntry & {
+  isVirtualDirectory?: boolean;
+  virtualPath?: string[];
+};
+
+const splitRepositoryPath = (value: string) =>
+  value.split(/[\\/]+/).filter(Boolean);
+
+const startsWithPath = (path: string[], prefix: string[]) =>
+  prefix.every((segment, index) => path[index] === segment);
 
 export default function FileBrowserTab({
   ownerId,
@@ -123,23 +136,77 @@ export default function FileBrowserTab({
   // console.log("[FileBrowserTab] Tree response:", tree);
   // console.log("[FileBrowserTab] Tree entries:", tree?.entries);
 
-  const currentEntries = useMemo(() => {
+  const currentEntries = useMemo<BrowserEntry[]>(() => {
     if (!tree?.entries) return [];
-    return tree.entries;
-  }, [tree?.entries]);
 
-  console.log("[FileBrowserTab] Rendered files:", currentEntries);
+    const virtualSegments = currentPath.slice(treePath.length);
+    const visibleEntries = new Map<string, BrowserEntry>();
+
+    tree.entries.forEach((entry) => {
+      const sourcePath = splitRepositoryPath(entry.path || entry.name);
+      let relativePath = sourcePath;
+
+      if (currentPath.length > 0 && startsWithPath(sourcePath, currentPath)) {
+        relativePath = sourcePath.slice(currentPath.length);
+      } else if (
+        virtualSegments.length > 0 &&
+        startsWithPath(sourcePath, virtualSegments)
+      ) {
+        relativePath = sourcePath.slice(virtualSegments.length);
+      } else if (virtualSegments.length > 0) {
+        return;
+      }
+
+      if (relativePath.length === 0) return;
+
+      const name = relativePath[0];
+      if (relativePath.length > 1) {
+        const virtualPath = [...currentPath, name];
+        const key = `tree:${virtualPath.join("/")}`;
+        if (!visibleEntries.has(key)) {
+          visibleEntries.set(key, {
+            mode: "040000",
+            name,
+            path: virtualPath.join("/"),
+            hash: key,
+            sha: key,
+            type: "tree",
+            isVirtualDirectory: true,
+            virtualPath,
+          });
+        }
+        return;
+      }
+
+      visibleEntries.set(`${entry.type}:${entry.sha}:${name}`, {
+        ...entry,
+        name,
+      });
+    });
+
+    return [...visibleEntries.values()].sort((a, b) => {
+      if (a.type !== b.type) return a.type === "tree" ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [currentPath, tree?.entries, treePath.length]);
 
   const selectedEntry = useMemo(() => {
     if (!tree?.entries || !selectedFile) return null;
     return tree.entries.find((entry) => entry.sha === selectedFile) ?? null;
   }, [selectedFile, tree?.entries]);
 
-  const handleItemClick = (item: TreeEntry) => {
+  const handleItemClick = (item: BrowserEntry) => {
     if (item.type === "tree") {
+      if (item.isVirtualDirectory) {
+        setCurrentPath(item.virtualPath ?? [...currentPath, item.name]);
+        setViewMode("tree");
+        setSelectedFile(null);
+        return;
+      }
+
       const nextTreePath = [...treePath, { name: item.name, sha: item.sha }];
       setTreePath(nextTreePath);
-      setCurrentPath(nextTreePath.map((entry) => entry.name));
+      setCurrentPath([...currentPath, item.name]);
       setViewMode("tree");
       setSelectedFile(null);
     } else {
@@ -152,10 +219,12 @@ export default function FileBrowserTab({
     if (viewMode === "file") {
       setViewMode("tree");
       setSelectedFile(null);
+    } else if (currentPath.length > treePath.length) {
+      setCurrentPath(currentPath.slice(0, -1));
     } else if (treePath.length > 0) {
       const nextTreePath = treePath.slice(0, -1);
       setTreePath(nextTreePath);
-      setCurrentPath(nextTreePath.map((entry) => entry.name));
+      setCurrentPath(currentPath.slice(0, -1));
     } else if (currentPath.length > 0) {
       setCurrentPath(currentPath.slice(0, -1));
     }
@@ -203,13 +272,15 @@ export default function FileBrowserTab({
   const handleDownloadFile = () => {
     if (!fileBlob || !selectedEntry) return;
 
-    const fileName = selectedEntry.name || selectedEntry.path || "download";
+    const fileName =
+      splitRepositoryPath(selectedEntry.path || selectedEntry.name).at(-1) ||
+      "download";
     const bytes = decodeFileContent(fileBlob.content, fileBlob.encoding);
     const blob = new Blob([bytes], { type: getDownloadMimeType(fileName) });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = fileName.split("/").pop() || "download";
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -522,54 +593,9 @@ export default function FileBrowserTab({
               push an existing project.
             </p>
 
-            {/* Git CLI Instructions */}
-            <div
-              className="max-w-2xl mx-auto text-left p-4 rounded-lg border"
-              style={{
-                backgroundColor: t.surface,
-                borderColor: t.border,
-              }}
-            >
-              <h4
-                className="text-sm font-semibold mb-3"
-                style={{ color: t.text }}
-              >
-                Quick start with Gent CLI:
-              </h4>
-              <div
-                className="p-3 rounded font-mono text-xs space-y-1"
-                style={{
-                  backgroundColor: t.inputBg,
-                  color: t.text,
-                }}
-              >
-                <div>echo &#34;# {repoName}&#34; &gt;&gt; README.md</div>
-                <div>
-                  gent remote add origin https://gent-api.onrender.com/api/repos/
-                  {ownerId}/{repoName}
-                </div>
-                <div>gent add README.md</div>
-                <div>gent commit -m &#34;Initial commit&#34;</div>
-                <div>gent push origin {defaultBranch}</div>
-              </div>
-              <button
-                onClick={() => {
-                  const commands = `echo "# ${repoName}" >> README.md
-gent remote add origin https://gent-api.onrender.com/api/repos/${ownerId}/${repoName}
-gent add README.md
-gent commit -m "Initial commit"
-gent push origin ${defaultBranch}`;
-                  navigator.clipboard.writeText(commands);
-                }}
-                className="mt-3 px-3 py-2 text-xs rounded-lg transition-colors"
-                style={{
-                  backgroundColor: t.accent,
-                  color: t.successText,
-                }}
-              >
-                Copy commands
-              </button>
-            </div>
+            <p className="mx-auto max-w-md text-xs leading-5" style={{ color: t.textMuted }}>
+              Genti will guide your first push from the repository panel.
+            </p>
           </div>
         </div>
 
@@ -615,10 +641,10 @@ gent push origin ${defaultBranch}`;
           />
 
           {/* File header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between rounded-xl border px-3 py-2" style={{ borderColor: t.border, background: t.inputBg }}>
             <button
               onClick={handleBackClick}
-              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="flex items-center gap-2 text-sm transition-colors"
               style={{ color: t.textMuted }}
             >
               <ArrowLeft className="w-4 h-4" />
@@ -628,24 +654,24 @@ gent push origin ${defaultBranch}`;
             <div className="flex items-center gap-2">
               <button
                 onClick={handleDownloadFile}
-                className="p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-                style={{ color: t.textMuted }}
+                className="rounded-lg border p-2 transition-colors"
+                style={{ color: t.textMuted, borderColor: t.border }}
                 title="Download file"
               >
                 <Download className="w-4 h-4" />
               </button>
               <button
                 onClick={handleCopyFile}
-                className="p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-                style={{ color: t.textMuted }}
+                className="rounded-lg border p-2 transition-colors"
+                style={{ color: t.textMuted, borderColor: t.border }}
                 title="Copy content"
               >
                 <Copy className="w-4 h-4" />
               </button>
               <button
                 onClick={handleEditFile}
-                className="p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-                style={{ color: t.textMuted }}
+                className="rounded-lg border p-2 transition-colors"
+                style={{ color: t.textMuted, borderColor: t.border }}
                 title="Edit file"
               >
                 <Edit className="w-4 h-4" />
@@ -658,10 +684,10 @@ gent push origin ${defaultBranch}`;
               <div className="h-64 bg-gray-300 rounded"></div>
             </div>
           ) : fileBlob ? (
-            <div>
+            <div className="overflow-hidden rounded-xl border" style={{ borderColor: t.border }}>
               {/* File info */}
               <div
-                className="flex items-center justify-between p-3 border-b"
+                className="flex items-center justify-between border-b px-4 py-3"
                 style={{
                   backgroundColor: t.surface,
                   borderColor: t.border,
@@ -678,7 +704,7 @@ gent push origin ${defaultBranch}`;
 
               {/* File content */}
               <div
-                className="p-4 overflow-auto max-h-96"
+                className="max-h-[620px] overflow-auto p-4"
                 style={{
                   backgroundColor: t.surface,
                   fontFamily:
@@ -810,54 +836,53 @@ gent push origin ${defaultBranch}`;
           onBranchChange={setSelectedBranch}
         />
 
-        {/* Back button for directories */}
-        {currentPath.length > 0 && (
-          <button
-            onClick={handleBackClick}
-            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-            style={{ color: t.textMuted }}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-        )}
+        <div className="overflow-hidden rounded-xl border" style={{ borderColor: t.border }}>
+          <div className="flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: t.border, background: t.inputBg }}>
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full" style={{ background: t.accentMuted, color: t.accent }}>
+                <GitCommit className="h-3.5 w-3.5" />
+              </span>
+              <span className="truncate text-xs font-medium" style={{ color: t.text }} data-no-translate={Boolean(selectedBranchCommit?.message) || undefined}>
+                {selectedBranchCommit?.message || "Repository tree"}
+              </span>
+            </div>
+            {selectedBranchCommit && (
+              <span className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[10px]" style={{ color: t.textMuted }}>
+                <Hash className="h-3 w-3" />{selectedBranchCommit.sha.slice(0, 7)}
+              </span>
+            )}
+          </div>
 
-        {/* File/folder list */}
-        <div className="space-y-1">
+          <div className="grid grid-cols-[minmax(0,1fr)_110px] border-b px-4 py-2 font-mono text-[9px] uppercase tracking-[0.14em] sm:grid-cols-[minmax(0,1fr)_120px_100px]" style={{ borderColor: t.borderMuted, color: t.textMuted }}>
+            <span>Name</span><span>Object</span><span className="hidden sm:block">Type</span>
+          </div>
+
+          {currentPath.length > 0 && (
+            <button onClick={handleBackClick} className="grid w-full grid-cols-[minmax(0,1fr)_110px] items-center border-b px-4 py-3 text-left text-sm transition-colors sm:grid-cols-[minmax(0,1fr)_120px_100px]" style={{ borderColor: t.borderMuted, color: t.textMuted }}>
+              <span className="flex items-center gap-3"><ArrowLeft className="h-4 w-4" /><span className="font-medium">..</span></span>
+              <span className="font-mono text-[10px]">parent</span><span className="hidden text-xs sm:block">Directory</span>
+            </button>
+          )}
+
           {currentEntries.map((item, index) => (
-            <motion.div
+            <motion.button
               key={item.sha}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: Math.min(index, 10) * 0.025 }}
               onClick={() => handleItemClick(item)}
-              className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="group grid w-full grid-cols-[minmax(0,1fr)_110px] items-center border-b px-4 py-3 text-left transition-colors last:border-b-0 sm:grid-cols-[minmax(0,1fr)_120px_100px]"
+              style={{ borderColor: t.borderMuted }}
             >
-              {item.type === "tree" ? (
-                <Folder className="w-5 h-5 text-blue-500 shrink-0" />
-              ) : (
-                <File
-                  className="w-5 h-5 shrink-0"
-                  style={{ color: t.textMuted }}
-                />
-              )}
-
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm" style={{ color: t.text }}>
-                  {item.name}
-                </div>
-              </div>
-
-              <div
-                className="flex items-center gap-3 text-xs"
-                style={{ color: t.textMuted }}
-              >
-                <span className="hidden sm:inline">
-                  {item.sha.substring(0, 7)}
-                </span>
-                <ChevronRight className="w-4 h-4" />
-              </div>
-            </motion.div>
+              <span className="flex min-w-0 items-center gap-3">
+                {item.type === "tree" ? <Folder className="h-4.5 w-4.5 shrink-0" style={{ color: t.accent }} /> : <File className="h-4.5 w-4.5 shrink-0" style={{ color: t.textMuted }} />}
+                <span className="truncate text-sm font-medium group-hover:underline" style={{ color: t.text }} data-no-translate>{item.name}</span>
+              </span>
+              <span className="flex items-center justify-between gap-2 font-mono text-[10px]" style={{ color: t.textMuted }}>
+                {item.isVirtualDirectory ? "—" : item.sha.substring(0, 7)}<ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+              </span>
+              <span className="hidden text-xs capitalize sm:block" style={{ color: t.textMuted }}>{item.type === "tree" ? "Directory" : "File"}</span>
+            </motion.button>
           ))}
         </div>
       </div>

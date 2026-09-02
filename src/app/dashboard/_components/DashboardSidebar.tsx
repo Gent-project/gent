@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GitBranch, Home, Settings, Plus, X, LogOut, Moon, Sun } from "lucide-react";
+import { FolderGit2, GitBranch, Home, Settings, Plus, X, LogOut, Moon, Sun } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
@@ -64,7 +64,7 @@ export default function DashboardSidebar({
           <span>
             <span className="block font-display text-lg font-bold leading-none" style={{ color: t.text }}>Gent</span>
             <span className="mt-1 block font-mono text-[9px] uppercase tracking-[0.2em]" style={{ color: t.textMuted }}>
-              control room
+              repository workspace
             </span>
           </span>
         </Link>
@@ -160,10 +160,15 @@ export default function DashboardSidebar({
             <Link
               key={repo.id}
               href={`/dashboard/repository/${repo.owner_id}/${repo.name}`}
-              className="block truncate rounded-xl border border-transparent px-3 py-2 text-sm transition-all hover:translate-x-1"
-              style={{ color: t.textSecondary, background: t.sidebarHover }}
+              className="flex items-center gap-2.5 truncate rounded-lg border px-3 py-2 text-sm transition-colors"
+              style={{
+                color: pathname.includes(`/repository/${repo.owner_id}/${repo.name}`) ? t.text : t.textSecondary,
+                background: pathname.includes(`/repository/${repo.owner_id}/${repo.name}`) ? t.sidebarActive : "transparent",
+                borderColor: pathname.includes(`/repository/${repo.owner_id}/${repo.name}`) ? t.border : "transparent",
+              }}
             >
-              {repo.name}
+              <FolderGit2 className="h-3.5 w-3.5 shrink-0" style={{ color: t.accent }} />
+              <span className="truncate" data-no-translate>{repo.name}</span>
             </Link>
           ))}
         </div>
