@@ -8,12 +8,14 @@ const inquirer = require('inquirer');
 const ora = require('ora');
 const boxen = require('boxen');
 const authService = require('../services/auth-service');
+const pet = require('./pet');
 
 /**
  * Register a new user
  * @param {Object} options - Command options
  */
 async function register(options) {
+    pet.banner('New here? Let\'s get you set up.', 'Create your account below.');
     console.log(chalk.cyan('\n🚀 Create your Gent account\n'));
 
     try {
@@ -119,6 +121,8 @@ ${chalk.bold('Next steps:')}
             borderStyle: 'round',
             borderColor: 'green'
         }));
+
+        await pet.celebrate('auth');
 
     } catch (error) {
         console.error(chalk.red('\n✗ Registration failed'));

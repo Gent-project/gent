@@ -8,12 +8,14 @@ const inquirer = require('inquirer');
 const ora = require('ora');
 const boxen = require('boxen');
 const authService = require('../services/auth-service');
+const pet = require('./pet');
 
 /**
  * Login user
  * @param {Object} options - Command options
  */
 async function login(options) {
+    pet.banner('Knock knock — let\'s sign you in.', 'Enter your details below.');
     console.log(chalk.cyan('\n🔐 Login to your Gent account\n'));
 
     try {
@@ -74,6 +76,8 @@ ${chalk.bold('Commands:')}
             borderStyle: 'round',
             borderColor: 'cyan'
         }));
+
+        await pet.celebrate('auth');
 
     } catch (error) {
         console.error(chalk.red('\n✗ Login failed'));

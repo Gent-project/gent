@@ -379,25 +379,35 @@ const SCENES = {
 const HIDE = '\x1b[?25l';
 const SHOW = '\x1b[?25h';
 const CLEAR_LINE = '\x1b[2K';
+const HOME = '\x1b[H';
+const ENTER_ALT = '\x1b[?1049h';   // switch to the alternate screen buffer
+const LEAVE_ALT = '\x1b[?1049l';   // …and restore the user's scrollback on exit
 const up = (n) => `\x1b[${n}A`;
 
 /**
- * Play a scene. Redraws IN PLACE (no full-screen clear, no scrollback spam).
- * Resolves when finished.
+ * Play a scene. Resolves when finished.
+ *
+ * Two redraw strategies:
+ *  - altScreen:true  → take over the whole screen (alternate buffer), redraw
+ *    from HOME each frame, restore on exit. Zero scrollback drift. Used by the
+ *    standalone `gent pet` command.
+ *  - altScreen:false → inline redraw below existing output via cursor-up, so a
+ *    command's own text stays visible above. Used by post-command celebrations.
  *
  * @param {string}  sceneName
  * @param {object}  opts
- * @param {boolean} opts.loop     keep looping until Ctrl+C (default: play once)
- * @param {boolean} opts.footer   show the "Ctrl+C to leave / try …" hint line
- * @param {boolean} opts.goodbye  print a farewell line when done
+ * @param {boolean} opts.loop       keep looping until Ctrl+C (default: play once)
+ * @param {boolean} opts.footer     show the hint line under the stage
+ * @param {boolean} opts.goodbye    print a farewell line when done
+ * @param {boolean} opts.altScreen  use the alternate screen buffer
  * @returns {Promise<void>}
  */
-function play(sceneName, { loop = false, footer = true, goodbye = false } = {}) {
+function play(sceneName, { loop = false, footer = true, goodbye = false, altScreen = false, maxTicks = Infinity } = {}) {
     return new Promise((resolve) => {
         const scene = SCENES[sceneName] || SCENES.idle;
         const cv = new Canvas(CV_W, CV_H);
         const state = { count: 0, tip: TIPS[Math.floor(Math.random() * TIPS.length)] };
-        const totalTicks = loop ? Infinity : scene.cycle + 1; // one clean cycle
+        const totalTicks = loop ? Infinity : Math.min(scene.cycle + 1, maxTicks); // one clean cycle, capped
         let t = 0;
         let printed = false;
         let done = false;
@@ -408,7 +418,6 @@ function play(sceneName, { loop = false, footer = true, goodbye = false } = {}) 
               chalk.gray('   ·   more scenes: ') + C.say('gent pet push|pull|merge')
             : '';
 
-        // Draw one frame, moving the cursor back over the previous frame.
         const paint = () => {
             cv.clear();
             scene.fn(cv, t, state);
@@ -418,8 +427,12 @@ function play(sceneName, { loop = false, footer = true, goodbye = false } = {}) 
             const lines = cv.render().split('\n');
             lines.push(footerLine());
             const block = lines.map(l => CLEAR_LINE + l).join('\n');
-            if (printed) process.stdout.write(up(lines.length));
-            process.stdout.write(block + '\n');
+            if (altScreen) {
+                process.stdout.write(HOME + block);
+            } else {
+                if (printed) process.stdout.write(up(lines.length));
+                process.stdout.write(block + '\n');
+            }
             printed = true;
         };
 
@@ -428,7 +441,7 @@ function play(sceneName, { loop = false, footer = true, goodbye = false } = {}) 
             done = true;
             clearInterval(timer);
             process.removeListener('SIGINT', onSig);
-            process.stdout.write(SHOW);
+            process.stdout.write(SHOW + (altScreen ? LEAVE_ALT : ''));
             if (goodbye) {
                 console.log(C.body('  Genti waves.') + chalk.gray(' Come back with ') + C.say('gent pet') + chalk.gray('.'));
             }
@@ -437,7 +450,7 @@ function play(sceneName, { loop = false, footer = true, goodbye = false } = {}) 
 
         const onSig = () => finish();
 
-        process.stdout.write(HIDE);
+        process.stdout.write((altScreen ? ENTER_ALT + HOME : '') + HIDE);
         paint();
         const timer = setInterval(() => {
             t++;
@@ -446,6 +459,22 @@ function play(sceneName, { loop = false, footer = true, goodbye = false } = {}) 
         }, FRAME_MS);
         process.on('SIGINT', onSig);
     });
+}
+
+/**
+ * A compact STATIC Genti header — safe to print above an interactive prompt
+ * (inquirer, etc.) because it never animates or moves the cursor.
+ * @param {string} greeting  bold line beside the mascot
+ * @param {string} [sub]     dimmer line under the greeting
+ */
+function banner(greeting, sub) {
+    if (process.env.GENT_NO_PET || !process.stdout.isTTY) return;
+    const cv = new Canvas(52, 9);
+    cv.sprite(mascot({}), 1, 0);
+    cv.sprite(legs('stand'), 1, 7);
+    cv.text(18, 2, greeting, C.body);
+    if (sub) cv.text(18, 4, sub, C.say);
+    console.log('\n' + cv.render());
 }
 
 // Static single frame for non-TTY (piped) output.
@@ -476,8 +505,9 @@ async function petCommand(scene, options = {}) {
     }
 
     if (!process.stdout.isTTY) return still(name);
-    // Default: play once. `--loop` keeps it running until Ctrl+C.
-    await play(name, { loop: !!options.loop, footer: true, goodbye: true });
+    // Default: play once, on the alternate screen so nothing pollutes scrollback.
+    // `--loop` keeps it running until Ctrl+C.
+    await play(name, { loop: !!options.loop, footer: true, goodbye: true, altScreen: true });
 }
 
 /**
@@ -492,9 +522,12 @@ async function celebrate(scene) {
         if (process.env.GENT_NO_PET || process.env.CI) return;
         if (!SCENES[scene]) return;
         console.log(); // one blank line between command output and Genti
-        await play(scene, { loop: false, footer: false, goodbye: false });
+        // Auth flows just need a quick friendly wave; action scenes tell a fuller story.
+        const maxTicks = (scene === 'auth' || scene === 'login') ? 34 : Infinity;
+        await play(scene, { loop: false, footer: false, goodbye: false, maxTicks });
     } catch (_) { /* ignore — decoration only */ }
 }
 
 module.exports = petCommand;
 module.exports.celebrate = celebrate;
+module.exports.banner = banner;
