@@ -62,7 +62,7 @@ def tree_create(request, owner_ref, repo_name):
     description='Get a tree object by SHA.'
 )
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def tree_detail(request, owner_ref, repo_name, sha):
     """Get tree details."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
@@ -120,7 +120,7 @@ def blob_create(request, owner_ref, repo_name):
     description='Get a blob object by SHA.'
 )
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def blob_detail(request, owner_ref, repo_name, sha):
     """Get blob details.
 

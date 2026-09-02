@@ -3,6 +3,7 @@ import base64
 import binascii
 from pathlib import Path
 from django.conf import settings
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import PermissionDenied
 from api.models import Repository, User
@@ -45,6 +46,9 @@ def get_repository_or_404(owner_ref, repo_name, user):
     )
 
     if not user_can_read_repo(user, repository):
+        if user is None or not user.is_authenticated:
+            # Do not confirm that a private repository exists to anonymous callers.
+            raise Http404
         raise PermissionDenied("You don't have access to this repository.")
 
     return repository

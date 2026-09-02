@@ -177,7 +177,7 @@ def _line_diff(old_text, new_text):
                 "added/removed/modified files, each with a unified line diff.",
 )
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def commit_diff(request, owner_ref, repo_name, sha):
     """Compute and return the diff for a single commit."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)

@@ -16,7 +16,7 @@ from api.permissions import CanWriteRepositoryByParams
     description='List all tags in a repository.'
 )
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def tag_list(request, owner_ref, repo_name):
     """List tags in a repository."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
