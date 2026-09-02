@@ -20,9 +20,13 @@ def get_user_repo_role(user, repository):
 
 
 def user_can_read_repo(user, repository):
-    """Return True if the user can read the repository."""
+    """Return True if the user can read the repository.
+
+    Public repositories are readable by anyone, including anonymous visitors.
+    Private repositories require an owner or member role.
+    """
     if not repository.is_private:
-        return user is not None and user.is_authenticated
+        return True
     return get_user_repo_role(user, repository) is not None
 
 

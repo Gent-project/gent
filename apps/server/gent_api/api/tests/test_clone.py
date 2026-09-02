@@ -290,9 +290,16 @@ class CloneAPITestCase(TestCase):
         response = self.client.get(self.clone_url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_clone_unauthenticated(self):
+    def test_clone_public_repo_unauthenticated(self):
         response = self.client.get(self.clone_url)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['name'], 'test-repo')
+
+    def test_clone_private_repo_unauthenticated_returns_404(self):
+        self.repo.is_private = True
+        self.repo.save(update_fields=['is_private'])
+        response = self.client.get(self.clone_url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_clone_shared_tree_across_commits(self):
         Blob.objects.create(

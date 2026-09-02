@@ -19,7 +19,7 @@ from api.permissions import CanWriteRepositoryByParams
     description='List all commits in a repository.'
 )
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def commit_list(request, owner_ref, repo_name):
     """List commits in a repository."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
@@ -103,7 +103,7 @@ def commit_create(request, owner_ref, repo_name):
     description='Get details of a specific commit.'
 )
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def commit_detail(request, owner_ref, repo_name, sha):
     """Get commit details."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)

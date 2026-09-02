@@ -16,7 +16,7 @@ from api.permissions import CanWriteRepositoryByParams
     description='List all branches in a repository.'
 )
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def branch_list(request, owner_ref, repo_name):
     """List branches in a repository."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
@@ -89,7 +89,7 @@ def branch_create(request, owner_ref, repo_name):
     description='Delete a branch. Cannot delete the default branch. Only the repository owner can delete.'
 )
 @api_view(['GET', 'PATCH', 'DELETE'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([CanWriteRepositoryByParams])
 def branch_detail(request, owner_ref, repo_name, branch_name):
     """Get, update, or delete branch details."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)

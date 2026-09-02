@@ -27,7 +27,7 @@ PULL_DESCRIPTION = (
     description=PULL_DESCRIPTION,
 )
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def pull(request, owner_ref, repo_name):
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
     branch_name = request.query_params.get('branch')

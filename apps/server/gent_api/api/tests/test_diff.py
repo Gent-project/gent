@@ -108,9 +108,15 @@ class CommitDiffAPITestCase(TestCase):
         self.assertEqual(app['additions'], 2)   # hello + world
         self.assertEqual(app['deletions'], 0)
 
-    def test_requires_authentication(self):
+    def test_public_repo_readable_unauthenticated(self):
         response = self.client.get(self._url(self.child_sha))
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_private_repo_unauthenticated_returns_404(self):
+        self.repo.is_private = True
+        self.repo.save(update_fields=['is_private'])
+        response = self.client.get(self._url(self.child_sha))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_unknown_commit_returns_404(self):
         self._auth()

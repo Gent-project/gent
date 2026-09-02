@@ -91,7 +91,7 @@ def repository_create(request):
     description='Get details of a specific repository.'
 )
 @api_view(['GET', 'PATCH'])
-@permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
+@permission_classes([CanWriteRepositoryByParams])
 def repository_detail(request, owner_ref, repo_name):
     """Get or update repository details."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
