@@ -446,6 +446,7 @@ export default function FileBrowserTab({
             onUpload={() => setShowUploadModal(true)}
             branches={branches}
             selectedBranch={selectedBranch}
+            defaultBranch={defaultBranch}
             onBranchChange={setSelectedBranch}
           />
 
@@ -503,6 +504,7 @@ export default function FileBrowserTab({
             onUpload={() => setShowUploadModal(true)}
             branches={branches}
             selectedBranch={selectedBranch}
+            defaultBranch={defaultBranch}
             onBranchChange={setSelectedBranch}
           />
 
@@ -611,6 +613,7 @@ gent push origin ${defaultBranch}`;
             onUpload={() => setShowUploadModal(true)}
             branches={branches}
             selectedBranch={selectedBranch}
+            defaultBranch={defaultBranch}
             onBranchChange={setSelectedBranch}
           />
 
@@ -807,6 +810,7 @@ gent push origin ${defaultBranch}`;
           onUpload={() => setShowUploadModal(true)}
           branches={branches}
           selectedBranch={selectedBranch}
+          defaultBranch={defaultBranch}
           onBranchChange={setSelectedBranch}
         />
 
