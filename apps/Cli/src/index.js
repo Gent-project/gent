@@ -437,8 +437,7 @@ program
 program
     .command('pet [scene]')
     .description('Meet Genti — an animated pixel mascot that acts out gent (push|pull|merge|auth)')
-    .option('--once', 'Play a few cycles, then exit (good for scripts / shell startup)')
-    .option('--stay', 'Stay on the idle scene even when signed out')
+    .option('--loop', 'Keep looping until Ctrl+C (default: play once)')
     .action(petCommand);
 
 // Help command

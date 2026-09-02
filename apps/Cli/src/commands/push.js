@@ -42,6 +42,7 @@ const { COMMITS_FILE, CONFIG_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl }
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
 const { readBlob, readTree, objectExists, readBlobAsString } = require('../utils/hash-engine');
+const pet = require('./pet');
 
 /**
  * Push commits to remote
@@ -242,6 +243,8 @@ async function push(remoteName, branchName, options) {
         spinner.succeed(chalk.green(`Pushed ${commitsToPush.length} commit(s) to ${remote}/${branch}`));
         console.log(chalk.gray(`  ${localHead.substring(0, 7)} → ${remote}/${branch}`));
         console.log(chalk.gray(`  ${packBlobs.length} blob(s), ${packTrees.length} tree(s) transferred`));
+
+        await pet.celebrate('push');
 
     } catch (error) {
         spinner.fail(chalk.red('Push failed'));

@@ -29,6 +29,7 @@ const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
 const { storeBlob, readBlob } = require('../utils/hash-engine');
 const { findMergeBase, mergeTreeEntries } = require('../utils/merge-engine');
+const pet = require('./pet');
 const { generateCommitHash } = require('../utils/helpers');
 
 /**
@@ -137,6 +138,7 @@ async function pull(remoteName, branchName, options) {
 
             spinner.succeed(chalk.green(`Fast-forward: ${newCount} new commit(s)`));
             console.log(chalk.gray(`  ${remote}/${branch} → ${remoteHead.substring(0, 7)}`));
+            await pet.celebrate('pull');
         } else {
             // Diverged — need 3-way merge
             spinner.text = 'Branches diverged, merging...';
@@ -192,6 +194,7 @@ async function pull(remoteName, branchName, options) {
             } else {
                 spinner.succeed(chalk.green(`Merged ${newCount} remote commit(s)`));
                 console.log(chalk.gray(`  Merge commit: ${mergeCommit.hash.substring(0, 7)}`));
+                await pet.celebrate('pull');
             }
         }
     } catch (error) {

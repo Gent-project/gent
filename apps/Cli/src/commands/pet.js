@@ -365,52 +365,87 @@ const TIPS = [
 ];
 
 // ── Scene registry ───────────────────────────────────────────────────────
+// `cycle` = ticks in one full loop; playing "once" runs exactly one cycle.
 const SCENES = {
-    idle:  { fn: (cv, t, st) => sceneIdle(cv, t, st.tip) },
-    push:  { fn: scenePush },
-    pull:  { fn: scenePull },
-    merge: { fn: sceneMerge },
-    auth:  { fn: (cv, t) => sceneAuth(cv, t) },
-    login: { fn: (cv, t) => sceneAuth(cv, t) },
+    idle:  { fn: (cv, t, st) => sceneIdle(cv, t, st.tip), cycle: 66 },
+    push:  { fn: scenePush,  cycle: 66 },
+    pull:  { fn: scenePull,  cycle: 64 },
+    merge: { fn: sceneMerge, cycle: 70 },
+    auth:  { fn: (cv, t) => sceneAuth(cv, t), cycle: 102 },
+    login: { fn: (cv, t) => sceneAuth(cv, t), cycle: 102 },
 };
 
 // ── ANSI helpers ─────────────────────────────────────────────────────────
-const HOME = '[H';
-const CLEAR = '[2J[H';
-const HIDE = '[?25l';
-const SHOW = '[?25h';
+const HIDE = '\x1b[?25l';
+const SHOW = '\x1b[?25h';
+const CLEAR_LINE = '\x1b[2K';
+const up = (n) => `\x1b[${n}A`;
 
-function play(sceneName, { once }) {
-    const scene = SCENES[sceneName] || SCENES.idle;
-    const cv = new Canvas(CV_W, CV_H);
-    const state = { count: 0, tip: TIPS[Math.floor(Math.random() * TIPS.length)] };
-    let t = 0;
+/**
+ * Play a scene. Redraws IN PLACE (no full-screen clear, no scrollback spam).
+ * Resolves when finished.
+ *
+ * @param {string}  sceneName
+ * @param {object}  opts
+ * @param {boolean} opts.loop     keep looping until Ctrl+C (default: play once)
+ * @param {boolean} opts.footer   show the "Ctrl+C to leave / try …" hint line
+ * @param {boolean} opts.goodbye  print a farewell line when done
+ * @returns {Promise<void>}
+ */
+function play(sceneName, { loop = false, footer = true, goodbye = false } = {}) {
+    return new Promise((resolve) => {
+        const scene = SCENES[sceneName] || SCENES.idle;
+        const cv = new Canvas(CV_W, CV_H);
+        const state = { count: 0, tip: TIPS[Math.floor(Math.random() * TIPS.length)] };
+        const totalTicks = loop ? Infinity : scene.cycle + 1; // one clean cycle
+        let t = 0;
+        let printed = false;
+        let done = false;
 
-    process.stdout.write(HIDE + CLEAR);
+        const footerLine = () => footer
+            ? chalk.gray('  ') +
+              (loop ? chalk.gray('Ctrl+C to leave') : C.body('Genti')) +
+              chalk.gray('   ·   more scenes: ') + C.say('gent pet push|pull|merge')
+            : '';
 
-    const footer = () =>
-        chalk.gray('  scene: ') + C.body(sceneName) +
-        chalk.gray('   ·   try: ') + C.say('gent pet push|pull|merge') +
-        chalk.gray('   ·   Ctrl+C to leave');
+        // Draw one frame, moving the cursor back over the previous frame.
+        const paint = () => {
+            cv.clear();
+            scene.fn(cv, t, state);
+            if (sceneName === 'idle' && loop && t > 0 && t % scene.cycle === 0) {
+                state.tip = TIPS[Math.floor(Math.random() * TIPS.length)];
+            }
+            const lines = cv.render().split('\n');
+            lines.push(footerLine());
+            const block = lines.map(l => CLEAR_LINE + l).join('\n');
+            if (printed) process.stdout.write(up(lines.length));
+            process.stdout.write(block + '\n');
+            printed = true;
+        };
 
-    const bye = () => {
-        process.stdout.write(SHOW + '\n');
-        console.log(C.body('  Genti waves. ') + chalk.gray('Come back with ') + C.say('gent pet') + chalk.gray('.'));
-    };
+        const finish = () => {
+            if (done) return;
+            done = true;
+            clearInterval(timer);
+            process.removeListener('SIGINT', onSig);
+            process.stdout.write(SHOW);
+            if (goodbye) {
+                console.log(C.body('  Genti waves.') + chalk.gray(' Come back with ') + C.say('gent pet') + chalk.gray('.'));
+            }
+            resolve();
+        };
 
-    const timer = setInterval(() => {
-        cv.clear();
-        scene.fn(cv, t, state);
-        // rotate idle tip every ~6s
-        if (sceneName === 'idle' && t > 0 && t % 66 === 0) {
-            state.tip = TIPS[Math.floor(Math.random() * TIPS.length)];
-        }
-        process.stdout.write(HOME + cv.render() + '\n' + footer() + '\n');
-        t++;
-        if (once && t > 130) { clearInterval(timer); bye(); process.exit(0); }
-    }, FRAME_MS);
+        const onSig = () => finish();
 
-    process.on('SIGINT', () => { clearInterval(timer); bye(); process.exit(0); });
+        process.stdout.write(HIDE);
+        paint();
+        const timer = setInterval(() => {
+            t++;
+            if (t >= totalTicks) { paint(); return finish(); }
+            paint();
+        }, FRAME_MS);
+        process.on('SIGINT', onSig);
+    });
 }
 
 // Static single frame for non-TTY (piped) output.
@@ -419,10 +454,9 @@ function still(sceneName) {
     const state = { count: 1, tip: TIPS[Math.floor(Math.random() * TIPS.length)] };
     (SCENES[sceneName] || SCENES.idle).fn(cv, 12, state);
     console.log(cv.render());
-    console.log(chalk.gray('  (animated in a real terminal — run ') + C.say(`gent pet ${sceneName === 'idle' ? '' : sceneName}`.trim()) + chalk.gray(')'));
 }
 
-// ── Entry ────────────────────────────────────────────────────────────────
+// ── Public: standalone `gent pet` command ────────────────────────────────
 async function petCommand(scene, options = {}) {
     if (process.env.NO_COLOR || (options && options.color === false)) chalk.level = 0;
 
@@ -435,14 +469,32 @@ async function petCommand(scene, options = {}) {
         return;
     }
 
-    // Signed-out nudge: default idle → auth scene the first time.
-    if (name === 'idle' && !options.stay) {
+    // Signed-out nudge: bare `gent pet` greets you at the door.
+    if (name === 'idle') {
         const authed = await authStorage.isAuthenticated().catch(() => false);
         if (!authed) name = 'auth';
     }
 
     if (!process.stdout.isTTY) return still(name);
-    play(name, { once: !!options.once });
+    // Default: play once. `--loop` keeps it running until Ctrl+C.
+    await play(name, { loop: !!options.loop, footer: true, goodbye: true });
+}
+
+/**
+ * Public: a one-shot celebration other commands fire after they succeed.
+ * Silent + safe in non-interactive contexts (CI, pipes, GENT_NO_PET=1).
+ * Never throws — a mascot must never break a real command.
+ */
+async function celebrate(scene) {
+    try {
+        if (!process.stdout.isTTY) return;
+        if (process.env.NO_COLOR) { /* still animate, just uncolored */ }
+        if (process.env.GENT_NO_PET || process.env.CI) return;
+        if (!SCENES[scene]) return;
+        console.log(); // one blank line between command output and Genti
+        await play(scene, { loop: false, footer: false, goodbye: false });
+    } catch (_) { /* ignore — decoration only */ }
 }
 
 module.exports = petCommand;
+module.exports.celebrate = celebrate;
