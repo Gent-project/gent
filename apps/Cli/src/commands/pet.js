@@ -1,11 +1,11 @@
 /**
  * Pet Command — "Genti", the gent mascot.
  *
- * A chunky pixel-block creature that lives in your terminal and *acts out*
+ * A mint one-eyed sky-jelly that lives in your terminal and *acts out*
  * gent workflows:
  *
  *   gent pet            → idle: Genti breathes, blinks, waves, drops a tip
- *   gent pet push       → walks a file crate to the cloud, over and over
+ *   gent pet push       → floats a file crate to the cloud, over and over
  *   gent pet pull       → carries a crate back from the cloud
  *   gent pet merge      → stands between two branches and "thinks" them together
  *   gent pet auth       → little sign-in scene
@@ -25,10 +25,10 @@ const FRAME_MS = 90;
 
 // ── Palette ──────────────────────────────────────────────────────────────
 const C = {
-    body:   chalk.hex('#c97b5a'),   // Genti's orange skin
-    shade:  chalk.hex('#9c5a3f'),   // bottom shading
-    eye:    chalk.hex('#15110f'),   // dark eye holes
-    mouth:  chalk.hex('#5a2f22'),
+    body:   chalk.hex('#55e6c1'),   // Genti's mint glow
+    shade:  chalk.hex('#168f86'),   // lower-body depth
+    eye:    chalk.hex('#7c3aed'),   // single violet eye
+    mouth:  chalk.hex('#34205f'),
     crate:  chalk.hex('#e0b64d'),   // file crate edges
     crateIn:chalk.hex('#b98a1f'),   // crate fill
     cloud:  chalk.hex('#d6def0'),   // remote / cloud
@@ -115,49 +115,27 @@ class Canvas {
 }
 
 // ── Mascot sprite ────────────────────────────────────────────────────────
-// Body is a 12-wide block with a 1-col margin (transparent) each side.
+// Wide fins, one eye, and ribbon tentacles give Genti a sky-jelly silhouette.
 function mascot({ blink = false, mouth = '_', armUp = false } = {}) {
-    const W = 12;
-    const rows = [];
-    rows[0] = ' ' + '#'.repeat(W) + ' ';
-    rows[1] = ' ' + '#'.repeat(W) + ' ';
-    rows[2] = ' ' + '#'.repeat(W) + ' ';   // eyes row
-    rows[3] = ' ' + '#'.repeat(W) + ' ';
-    rows[4] = ' ' + '#'.repeat(W) + ' ';   // mouth row
-    rows[5] = ' ' + '@'.repeat(W) + ' ';   // shaded chin
-
-    const grid = rows.map(r => r.split(''));
-    const eye = blink ? '#' : 'O';
-    // eyes at body cols 3-4 and 8-9 → +1 for margin
-    [3, 4].forEach(c => grid[2][c + 1] = eye);
-    [8, 9].forEach(c => grid[2][c + 1] = eye);
-    // mouth at cols 5-8 (row4)
-    for (let c = 5; c <= 8; c++) grid[4][c + 1] = mouth;
-    // ears (stick out at row2)
-    grid[2][0] = '#';
-    grid[2][W + 1] = '#';
-
-    let body = grid.map(r => r.join(''));
-
-    // arm (raised wave) sits to the right of the head on row1
-    if (armUp) {
-        const r1 = body[1].split('');
-        r1[W + 1] = '#';
-        body[1] = r1.join('');
-        body.unshift('             #'); // tiny raised hand
-    } else {
-        body.unshift('              ');
-    }
-    return body; // 7 rows (incl. leading arm/space row), 14 wide
+    const eye = blink ? '##' : 'OO';
+    const smile = mouth.repeat(4);
+    return [
+        armUp ? '#    ####     ' : '     ####     ',
+        armUp ? ' ## ########  ' : '  ##########  ',
+        ' ############ ',
+        '##############',
+        `  ####${eye}####  `,
+        `   ##${smile}##   `,
+        '    @@@@@@    ',
+    ];
 }
 
-// Legs are separate so they can shuffle while the body glides.
+// Ribbon tentacles trail independently so the sky-jelly appears to float.
 function legs(step) {
-    // step: 'stand' | 'a' | 'b'
     const map = {
-        stand: '   ##      ##  ',
-        a:     '   ##       #  ',
-        b:     '   #       ##  ',
+        stand: '    @ @ @     ',
+        a:     '     @ @ @    ',
+        b:     '   @ @ @      ',
     };
     return [map[step] || map.stand];
 }
@@ -419,7 +397,7 @@ function runLoop(sceneName, {
 
     const footerLine = () => footer
         ? chalk.gray('  ') +
-          (loop ? chalk.gray('Ctrl+C to cancel') : C.body('Genti')) +
+          (loop ? chalk.gray('Ctrl+C to cancel') : C.body('Genti the sky-jelly')) +
           chalk.gray('   ·   more scenes: ') + C.say('gent pet push|pull|merge')
         : '';
 
