@@ -10,10 +10,11 @@ interface GentiMascotProps {
   title?: string;
 }
 
-const BODY = "#c97b5a";
-const SHADE = "#9c5a3f";
-const EYE = "#15110f";
-const MOUTH = "#5a2f22";
+const BODY = "#55e6c1";
+const SHADE = "#168f86";
+const EYE = "#7c3aed";
+const EYE_GLOW = "#c4b5fd";
+const MOUTH = "#34205f";
 const CRATE = "#e0b64d";
 const CRATE_IN = "#b98a1f";
 const BRANCH_A = "#5ac8c9";
@@ -26,12 +27,12 @@ function Pixel({ x, y, fill = BODY }: { x: number; y: number; fill?: string }) {
 
 /**
  * Genti's browser sprite, ported from apps/Cli/src/commands/pet.js.
- * The block proportions and palette intentionally match the terminal mascot.
+ * Its wide fins, single eye, and ribbon tentacles match the terminal sky-jelly.
  */
 export default function GentiMascot({
   className = "",
   scene = "idle",
-  title = "Genti, the Gent mascot",
+  title = "Genti, the one-eyed sky-jelly mascot",
 }: GentiMascotProps) {
   const waving = scene !== "merge";
 
@@ -85,36 +86,39 @@ export default function GentiMascot({
       )}
 
       <motion.g
-        animate={scene === "merge" ? { rotate: [-1.5, 1.5, -1.5] } : undefined}
+        animate={scene === "merge" ? { rotate: [-2, 2, -2] } : undefined}
         transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-        style={{ transformOrigin: "7px 7px" }}
+        style={{ transformOrigin: "8px 6px" }}
       >
-        <rect x="1" y="2" width="12" height="5" fill={BODY} />
-        <rect x="1" y="7" width="12" height="1" fill={SHADE} />
-        <Pixel x={0} y={4} />
-        <Pixel x={13} y={4} />
+        <path d="M4 3h2V2h5v1h2v1h2v1h2v2h-2v1H2V7H0V5h2V4h2z" fill={BODY} />
+        <path d="M3 7h12v1H4v1H3z" fill={SHADE} />
 
         <motion.g
           animate={{ scaleY: [1, 1, 1, 0.08, 1, 1] }}
           transition={{ duration: 4.2, times: [0, 0.7, 0.76, 0.78, 0.8, 1], repeat: Infinity }}
-          style={{ transformOrigin: "7px 4.5px" }}
+          style={{ transformOrigin: "8.5px 5.5px" }}
         >
-          <rect x="4" y="4" width="2" height="1" fill={EYE} />
-          <rect x="9" y="4" width="2" height="1" fill={EYE} />
+          <rect x="7" y="5" width="3" height="2" rx="0.35" fill={EYE} />
+          <Pixel x={8} y={5} fill={EYE_GLOW} />
         </motion.g>
 
-        <rect x="6" y="6" width="4" height="0.65" fill={MOUTH} />
-        <rect x="3" y="9" width="2" height="1" fill={BODY} />
-        <rect x="10" y="9" width="2" height="1" fill={BODY} />
+        <rect x="7" y="7.35" width="3" height="0.5" rx="0.25" fill={MOUTH} />
+        <motion.path
+          d="M5 8v2M8 8v3M11 8v2"
+          fill="none"
+          stroke={SHADE}
+          strokeWidth="1"
+          animate={{ d: ["M5 8v2M8 8v3M11 8v2", "M5 8v3M8 8v2M11 8v3", "M5 8v2M8 8v3M11 8v2"] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        />
 
         {waving && (
           <motion.g
-            animate={{ rotate: [0, -16, 8, -16, 0] }}
+            animate={{ rotate: [0, -20, 9, -20, 0] }}
             transition={{ duration: 2.6, repeat: Infinity, repeatDelay: 1.4 }}
-            style={{ transformOrigin: "13px 4px" }}
+            style={{ transformOrigin: "2px 5px" }}
           >
-            <Pixel x={13} y={2} />
-            <Pixel x={14} y={1} />
+            <path d="M2 5H0V3h1V2h1z" fill={BODY} />
           </motion.g>
         )}
       </motion.g>
