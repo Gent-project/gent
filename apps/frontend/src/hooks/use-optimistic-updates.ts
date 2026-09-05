@@ -35,7 +35,7 @@ export const useOptimisticUpdates = () => {
     });
   };
 
-  const optimisticCreateBranch = (ownerId: number, repoName: string, newBranch: Partial<Branch>) => {
+  const optimisticCreateBranch = (ownerId: number | string, repoName: string, newBranch: Partial<Branch>) => {
     queryClient.setQueryData(['branches', ownerId, repoName], (old: Branch[] = []) => [
       {
         ...newBranch,
@@ -53,7 +53,7 @@ export const useOptimisticUpdates = () => {
     });
   };
 
-  const optimisticDeleteBranch = (ownerId: number, repoName: string, branchName: string) => {
+  const optimisticDeleteBranch = (ownerId: number | string, repoName: string, branchName: string) => {
     queryClient.setQueryData(['branches', ownerId, repoName], (old: Branch[] = []) =>
       old.filter(branch => branch.name !== branchName)
     );
@@ -65,7 +65,7 @@ export const useOptimisticUpdates = () => {
     });
   };
 
-  const optimisticCreateTag = (ownerId: number, repoName: string, newTag: Partial<Tag>) => {
+  const optimisticCreateTag = (ownerId: number | string, repoName: string, newTag: Partial<Tag>) => {
     queryClient.setQueryData(['tags', ownerId, repoName], (old: Tag[] = []) => [
       {
         ...newTag,
@@ -82,7 +82,7 @@ export const useOptimisticUpdates = () => {
     });
   };
 
-  const optimisticDeleteTag = (ownerId: number, repoName: string, tagName: string) => {
+  const optimisticDeleteTag = (ownerId: number | string, repoName: string, tagName: string) => {
     queryClient.setQueryData(['tags', ownerId, repoName], (old: Tag[] = []) =>
       old.filter(tag => tag.name !== tagName)
     );

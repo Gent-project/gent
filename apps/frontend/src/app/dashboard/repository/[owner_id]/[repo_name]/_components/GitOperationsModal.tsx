@@ -18,7 +18,7 @@ import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 interface GitOperationsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   isDark: boolean;
   repositoryUrl: string;

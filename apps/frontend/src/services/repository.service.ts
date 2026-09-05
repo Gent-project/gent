@@ -87,7 +87,7 @@ export class RepositoryService {
   }
 
   static async getRepository(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
   ): Promise<Repository> {
     const response = await axios.get(`/repos/${ownerId}/${repoName}/`);
@@ -95,7 +95,7 @@ export class RepositoryService {
   }
 
   static async updateRepository(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     payload: UpdateRepositoryPayload,
   ): Promise<Repository> {
@@ -107,7 +107,7 @@ export class RepositoryService {
   }
 
   static async deleteRepository(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
   ): Promise<void> {
     await axios.delete(`/repos/${ownerId}/${repoName}/delete/`);
@@ -115,7 +115,7 @@ export class RepositoryService {
 
   // Blob Management
   static async getBlob(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     sha: string,
   ): Promise<Blob> {
@@ -126,7 +126,7 @@ export class RepositoryService {
   }
 
   static async createBlob(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     payload: Blob,
   ): Promise<{ sha: string }> {
@@ -139,7 +139,7 @@ export class RepositoryService {
 
   // Branch Management
   static async getBranches(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
   ): Promise<Branch[]> {
     const response = await axios.get(
@@ -149,7 +149,7 @@ export class RepositoryService {
   }
 
   static async getBranch(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     branchName: string,
   ): Promise<Branch> {
@@ -160,7 +160,7 @@ export class RepositoryService {
   }
 
   static async createBranch(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     payload: CreateBranchPayload,
   ): Promise<Branch> {
@@ -172,7 +172,7 @@ export class RepositoryService {
   }
 
   static async updateBranch(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     branchName: string,
     payload: UpdateBranchPayload,
@@ -185,7 +185,7 @@ export class RepositoryService {
   }
 
   static async deleteBranch(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     branchName: string,
   ): Promise<void> {
@@ -196,7 +196,7 @@ export class RepositoryService {
 
   // Commit Management
   static async getCommits(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
   ): Promise<Commit[]> {
     const response = await axios.get(
@@ -206,7 +206,7 @@ export class RepositoryService {
   }
 
   static async getCommit(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     sha: string,
   ): Promise<Commit> {
@@ -216,7 +216,7 @@ export class RepositoryService {
     return response.data;
   }
   static async getCommitDiff(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     sha: string,
   ): Promise<any> {
@@ -227,7 +227,7 @@ export class RepositoryService {
   }
 
   static async createCommit(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     payload: CreateCommitPayload,
   ): Promise<Commit> {
@@ -239,13 +239,13 @@ export class RepositoryService {
   }
 
   // Tag Management
-  static async getTags(ownerId: number, repoName: string): Promise<Tag[]> {
+  static async getTags(ownerId: number | string, repoName: string): Promise<Tag[]> {
     const response = await axios.get(`/repos/${ownerId}/${repoName}/tags/`);
     return response.data;
   }
 
   static async createTag(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     payload: CreateTagPayload,
   ): Promise<Tag> {
@@ -257,7 +257,7 @@ export class RepositoryService {
   }
 
   static async deleteTag(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     tagName: string,
   ): Promise<void> {
@@ -266,7 +266,7 @@ export class RepositoryService {
 
   // Tree Management
   static async getTree(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     sha: string,
   ): Promise<Tree> {
@@ -277,7 +277,7 @@ export class RepositoryService {
   }
 
   static async createTree(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     payload: CreateTreePayload,
   ): Promise<Tree> {
@@ -289,13 +289,13 @@ export class RepositoryService {
   }
 
   // Git Operations
-  static async pullRepository(ownerId: number, repoName: string): Promise<any> {
+  static async pullRepository(ownerId: number | string, repoName: string): Promise<any> {
     const response = await axios.get(`/repos/${ownerId}/${repoName}/pull/`);
     return response.data;
   }
 
   static async pushRepository(
-    ownerId: number,
+    ownerId: number | string,
     repoName: string,
     payload: PushPayload,
   ): Promise<any> {

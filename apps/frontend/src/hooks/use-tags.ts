@@ -3,7 +3,7 @@ import axios from "@/lib/axios";
 import { Tag } from "@/types/repository";
 
 // Get all tags for a repository
-export const useTags = (ownerId: number, repoName: string) => {
+export const useTags = (ownerId: number | string, repoName: string) => {
   return useQuery<Tag[]>({
     queryKey: ['tags', ownerId, repoName],
     queryFn: async () => {
@@ -27,7 +27,7 @@ interface CreateTagData {
 export const useCreateTag = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<Tag, Error, { ownerId: number; repoName: string; data: CreateTagData }>({
+  return useMutation<Tag, Error, { ownerId: number | string; repoName: string; data: CreateTagData }>({
     mutationFn: async ({ ownerId, repoName, data }) => {
       const response = await axios.post(`/repos/${ownerId}/${repoName}/tags/create/`, data);
       return response.data;
@@ -42,7 +42,7 @@ export const useCreateTag = () => {
 export const useDeleteTag = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<void, Error, { ownerId: number; repoName: string; tagName: string }>({
+  return useMutation<void, Error, { ownerId: number | string; repoName: string; tagName: string }>({
     mutationFn: async ({ ownerId, repoName, tagName }) => {
       await axios.delete(`/repos/${ownerId}/${repoName}/tags/${tagName}/`);
     },

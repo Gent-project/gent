@@ -21,6 +21,11 @@ urlpatterns = [
     ),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
+    # Discovery endpoints (public)
+    path('search/repos/', views.repository_search, name='repository-search'),
+    path('search/users/', views.user_search, name='user-search'),
+    path('users/<str:owner_ref>/', views.public_user_detail, name='public-user-detail'),
+
     # Repository endpoints
     path('repos/', views.repository_list, name='repository-list'),
     path('repos/create/', views.repository_create, name='repository-create'),

@@ -80,8 +80,13 @@ apiClient.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        // If error is 401 and we haven't tried to refresh yet
+        // A public request made without credentials should keep its original
+        // 401 response. Commands such as `gent clone` use that response to
+        // explain that a private repository needs sign-in.
         if (error.response?.status === 401 && !originalRequest._retry) {
+            const refreshToken = await authStorage.getRefreshToken();
+            if (!refreshToken) return Promise.reject(error);
+
             if (isRefreshing) {
                 // If already refreshing, queue this request
                 return new Promise((resolve, reject) => {
@@ -100,14 +105,6 @@ apiClient.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                const refreshToken = await authStorage.getRefreshToken();
-
-                if (!refreshToken) {
-                    // No refresh token, user needs to login again
-                    await authStorage.clearAuth();
-                    throw new Error('Session expired. Please login again.');
-                }
-
                 // Call refresh endpoint (raw axios — bypasses our interceptor
                 // intentionally so a 401 here doesn't loop back into refresh).
                 const baseUrl = await resolveBaseUrl();
