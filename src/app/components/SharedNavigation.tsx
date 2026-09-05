@@ -132,6 +132,9 @@ export default function SharedNavigation() {
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
+
+        {/* Keep discovery visible on the home page and every public route on phones. */}
+        <GlobalSearch className="order-3 basis-full md:hidden" />
       </div>
 
       {/* mobile drawer */}
