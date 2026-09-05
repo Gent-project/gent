@@ -1,0 +1,210 @@
+{
+  "manifestVersion": 1,
+  "formatMarker": "gent-format-13",
+  "objectFormat": "sha256",
+  "repositoryFormatVersion": 1,
+  "notes": "Canonical engine capability declarations, not a claim that every tool/version is verified. CLI consumes this file; server integration is future work. See docs/git-compat/review-fixes.md for tested scope.",
+  "features": [
+    {
+      "id": "object-format.sha256",
+      "status": "supported",
+      "title": "SHA-256 object format",
+      "detail": "extensions.objectFormat=sha256, 32-byte object ids."
+    },
+    {
+      "id": "object-format.sha1",
+      "status": "unsupported",
+      "title": "SHA-1 repositories",
+      "detail": "Gent stores only SHA-256 objects.",
+      "remedy": "Convert the repository with a SHA-256 capable Git, or create a new Gent repository and re-import."
+    },
+    {
+      "id": "layout.gitfile",
+      "status": "supported",
+      "title": ".git file pointing at .gent",
+      "detail": "Gent-created repositories carry a .git gitfile; discovery follows it."
+    },
+    {
+      "id": "layout.gitdir",
+      "status": "supported",
+      "title": "Conventional .git directory",
+      "detail": "Repositories created by ordinary Git clone are opened directly."
+    },
+    {
+      "id": "layout.bare",
+      "status": "supported",
+      "title": "Bare repositories",
+      "detail": "core.bare=true; worktree operations refuse."
+    },
+    {
+      "id": "layout.worktree-linked",
+      "status": "supported",
+      "title": "Linked worktrees",
+      "detail": "commondir, gitdir and per-worktree HEAD/index are honoured."
+    },
+    {
+      "id": "refs.files",
+      "status": "supported",
+      "title": "files-based refs",
+      "detail": "Loose refs plus packed-refs with peeled tags."
+    },
+    {
+      "id": "refs.reftable",
+      "status": "unsupported",
+      "title": "reftable ref backend",
+      "detail": "extensions.refStorage=reftable is not implemented.",
+      "remedy": "Set the repository's ref backend to 'files'."
+    },
+    {
+      "id": "objects.loose",
+      "status": "supported",
+      "title": "Loose objects",
+      "detail": "zlib-compressed canonical framing."
+    },
+    {
+      "id": "objects.packed",
+      "status": "supported",
+      "title": "Packfiles (read v2/v3, write v2 full objects)",
+      "detail": "OFS_DELTA and REF_DELTA are decoded; Gent emits undeltified packs."
+    },
+    {
+      "id": "objects.alternates",
+      "status": "unsupported",
+      "title": "objects/info/alternates",
+      "detail": "Borrowed object stores are not searched.",
+      "remedy": "Run 'git repack -a' in the borrowing repository first."
+    },
+    {
+      "id": "index.v2",
+      "status": "supported",
+      "title": "Index version 2",
+      "detail": "Read and write."
+    },
+    {
+      "id": "index.v3",
+      "status": "supported",
+      "title": "Index version 3",
+      "detail": "Read only; rewritten as v2 when no v3-only flag is set."
+    },
+    {
+      "id": "index.v4",
+      "status": "supported",
+      "title": "Index version 4",
+      "detail": "Read only (path prefix compression); rewritten as v2."
+    },
+    {
+      "id": "index.split",
+      "status": "unsupported",
+      "title": "Split index",
+      "detail": "The 'link' extension is required and unimplemented.",
+      "remedy": "Run 'git update-index --no-split-index'."
+    },
+    {
+      "id": "index.sparse",
+      "status": "unsupported",
+      "title": "Sparse index / sparse checkout",
+      "detail": "'sdir' entries and cone-mode sparsity are unimplemented.",
+      "remedy": "Run 'git sparse-checkout disable'."
+    },
+    {
+      "id": "index.stages",
+      "status": "supported",
+      "title": "Conflict stages 1/2/3",
+      "detail": "Read and written for merge conflicts."
+    },
+    {
+      "id": "worktree.symlink",
+      "status": "supported",
+      "title": "Symlinks",
+      "detail": "Mode 120000; link target bytes are the blob. On filesystems without symlink support the operation refuses."
+    },
+    {
+      "id": "worktree.executable",
+      "status": "supported",
+      "title": "Executable bit",
+      "detail": "Mode 100755, honouring core.fileMode."
+    },
+    {
+      "id": "worktree.binary",
+      "status": "supported",
+      "title": "Arbitrary binary content",
+      "detail": "No text decoding on any storage path."
+    },
+    {
+      "id": "worktree.gitlink",
+      "status": "partial",
+      "title": "Submodule gitlinks",
+      "detail": "Gitlinks can be parsed and transported as object entries. Worktree mutation involving submodules refuses.",
+      "remedy": "Use an external Git for recursive submodule work."
+    },
+    {
+      "id": "attributes.eol",
+      "status": "supported",
+      "title": "text/eol/crlf attributes",
+      "detail": "text, -text, eol=lf, eol=crlf, core.autocrlf and core.eol."
+    },
+    {
+      "id": "attributes.filter",
+      "status": "unsupported",
+      "title": "clean/smudge filters and Git LFS",
+      "detail": "Any path matching a filter= attribute refuses before writing.",
+      "remedy": "Check the path out with Git, or unset the filter attribute."
+    },
+    {
+      "id": "ignore",
+      "status": "supported",
+      "title": ".gitignore / info/exclude / core.excludesFile",
+      "detail": "Full pattern syntax including negation, directory-only and ** patterns."
+    },
+    {
+      "id": "tags.lightweight",
+      "status": "supported",
+      "title": "Lightweight tags",
+      "detail": "refs/tags/* pointing at any object."
+    },
+    {
+      "id": "tags.annotated",
+      "status": "supported",
+      "title": "Annotated tags",
+      "detail": "Tag objects, peeled in packed-refs."
+    },
+    {
+      "id": "objects.signed",
+      "status": "partial",
+      "title": "Signed commits and tags",
+      "detail": "gpgsig and other extension headers are byte-preserved. Signatures are not verified and Gent does not create them."
+    },
+    {
+      "id": "transport.smart-http-v0",
+      "status": "unsupported",
+      "title": "Smart HTTP protocol v0",
+      "detail": "Not implemented yet. Canonical remote commands refuse until the server and transport phases are complete."
+    },
+    {
+      "id": "transport.smart-http-v2",
+      "status": "unsupported",
+      "title": "Smart HTTP protocol v2",
+      "detail": "Not implemented. No fallback advertisement is currently served."
+    },
+    {
+      "id": "transport.ssh",
+      "status": "unsupported",
+      "title": "SSH transport",
+      "detail": "Only HTTPS is served.",
+      "remedy": "Use the https:// remote URL."
+    },
+    {
+      "id": "transport.shallow",
+      "status": "unsupported",
+      "title": "Shallow and partial clone",
+      "detail": "deepen, deepen-since, deepen-not and filter are not advertised or accepted."
+    },
+    {
+      "id": "sequencer.external",
+      "status": "unsupported",
+      "title": "Operating during an external rebase/cherry-pick",
+      "detail": "rebase-merge/, rebase-apply/, CHERRY_PICK_HEAD, REVERT_HEAD or BISECT_LOG present.",
+      "remedy": "Finish or abort the in-progress Git operation first."
+    }
+  ]
+}

@@ -95,6 +95,7 @@ class Repository(models.Model):
     description = models.TextField(blank=True)
     is_private = models.BooleanField(default=False)
     default_branch = models.CharField(max_length=255, default='main')
+    object_format = models.CharField(max_length=10, default='legacy', choices=[('legacy', 'Legacy'), ('sha256', 'SHA-256')])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -168,18 +169,25 @@ class Branch(models.Model):
 class Commit(models.Model):
     """Git commit object."""
     repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='commits')
-    sha = models.CharField(max_length=64, unique=True, db_index=True)
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='commits')
+    sha = models.CharField(max_length=64, db_index=True)
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='commits')
     message = models.TextField()
     tree_sha = models.CharField(max_length=64)
     parent_shas = models.JSONField(default=list)
     author_name = models.CharField(max_length=255)
     author_email = models.EmailField()
     committed_at = models.DateTimeField()
+    author_timestamp = models.BigIntegerField(null=True)
+    author_timezone = models.CharField(max_length=5, blank=True)
+    committer_name = models.TextField(blank=True)
+    committer_email = models.TextField(blank=True)
+    committer_timestamp = models.BigIntegerField(null=True)
+    committer_timezone = models.CharField(max_length=5, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-committed_at']
+        unique_together = ['repository', 'sha']
         verbose_name = 'commit'
         verbose_name_plural = 'commits'
         indexes = [
@@ -250,3 +258,43 @@ class Tag(models.Model):
 
     def __str__(self):
         return f"{self.repository.owner.email}/{self.repository.name}:{self.name}"
+
+
+class GitObject(models.Model):
+    """Canonical uncompressed payload bytes. The ID includes Git framing."""
+    repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='git_objects')
+    oid = models.CharField(max_length=64)
+    type = models.CharField(max_length=6)
+    size = models.PositiveBigIntegerField()
+    data = models.BinaryField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['repository', 'oid'], name='git_object_repository_oid')]
+
+
+class GitRef(models.Model):
+    repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='git_refs')
+    name = models.CharField(max_length=1024)
+    target = models.CharField(max_length=64)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['repository', 'name'], name='git_ref_repository_name')]
+
+
+class PersonalAccessToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='access_tokens')
+    name = models.CharField(max_length=100)
+    digest = models.CharField(max_length=64, unique=True)
+    repository = models.ForeignKey(Repository, null=True, blank=True, on_delete=models.CASCADE)
+    can_write = models.BooleanField(default=False)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class GitMigrationMap(models.Model):
+    repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='git_migration_map')
+    old_oid = models.CharField(max_length=64)
+    new_oid = models.CharField(max_length=64)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['repository', 'old_oid'], name='git_migration_repository_oid')]

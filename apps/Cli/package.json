@@ -8,14 +8,17 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --check src/index.js && node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js tests/file-system.test.js tests/web-urls.test.js && node tests/offline-e2e.js",
+    "test": "node --check src/index.js && node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js tests/file-system.test.js tests/web-urls.test.js && node tests/offline-e2e.js && node --test tests/git-compat/engine.test.js tests/git-compat/cli.test.js",
     "test:unit": "node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js tests/file-system.test.js tests/web-urls.test.js",
     "test:e2e": "node tests/offline-e2e.js",
     "test:remote:e2e": "node tests/remote-e2e.js",
     "demo": "bash demo.sh",
     "link": "npm link",
     "unlink": "npm unlink",
-    "prepublishOnly": "echo 'Ready to publish gent-cli!'"
+    "prepublishOnly": "echo 'Ready to publish gent-cli!'",
+    "test:canonical": "node --test tests/git-compat/engine.test.js tests/git-compat/cli.test.js",
+    "test:independence": "node tests/git-compat/independence.js",
+    "test:interop": "node --test tests/interop/canonical.test.js"
   },
   "keywords": [
     "cli",
