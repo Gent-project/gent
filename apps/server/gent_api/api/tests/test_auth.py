@@ -3,6 +3,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.test import TestCase, override_settings
+from django.core import mail
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -283,12 +284,11 @@ class AuthenticationAPITestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     @override_settings(
-        RESEND_API_KEY='test-key',
+        EMAIL_HOST='smtp.example.test',
         FRONTEND_URL='http://localhost:3000',
-        DEFAULT_FROM_EMAIL='onboarding@resend.dev',
+        DEFAULT_FROM_EMAIL='noreply@gent.test',
     )
-    @patch('api.services.email.resend.Emails.send')
-    def test_password_reset_existing_email(self, mock_send):
+    def test_password_reset_existing_email(self):
         User.objects.create_user(email='reset@example.com', password='testpassword123')
         response = self.client.post(
             self.password_reset_url,
@@ -296,19 +296,30 @@ class AuthenticationAPITestCase(TestCase):
             format='json',
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        mock_send.assert_called_once()
-        payload = mock_send.call_args[0][0]
-        self.assertEqual(payload['from'], 'onboarding@resend.dev')
-        self.assertEqual(payload['to'], ['reset@example.com'])
-        self.assertIn(
-            'http://localhost:3000/auth/reset-password?uid=',
-            payload['html'],
-        )
-        self.assertIn('&token=', payload['html'])
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.from_email, 'noreply@gent.test')
+        self.assertEqual(sent.to, ['reset@example.com'])
+        self.assertEqual(sent.subject, 'Reset your Gent password')
+        # Plain-text part carries the link, and an HTML alternative is attached.
+        self.assertIn('http://localhost:3000/auth/reset-password?uid=', sent.body)
+        self.assertIn('&token=', sent.body)
+        html_body, mimetype = sent.alternatives[0]
+        self.assertEqual(mimetype, 'text/html')
+        self.assertIn('http://localhost:3000/auth/reset-password?uid=', html_body)
 
-    @override_settings(RESEND_API_KEY='', DEBUG=False, FRONTEND_URL='http://localhost:3000')
-    @patch('api.services.email.resend.Emails.send')
-    def test_password_reset_without_api_key_returns_200(self, mock_send):
+    @override_settings(EMAIL_HOST='smtp.example.test', FRONTEND_URL='http://localhost:3000')
+    def test_password_reset_unknown_email(self):
+        response = self.client.post(
+            self.password_reset_url,
+            {'email': 'unknown@example.com'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 0)
+
+    @override_settings(EMAIL_HOST='', DEBUG=False, FRONTEND_URL='http://localhost:3000')
+    def test_password_reset_without_email_host_returns_200(self):
         """A misconfigured deploy must not send, and must not leak account existence."""
         User.objects.create_user(email='reset@example.com', password='testpassword123')
         response = self.client.post(
@@ -318,18 +329,7 @@ class AuthenticationAPITestCase(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['message'], PASSWORD_RESET_MESSAGE)
-        mock_send.assert_not_called()
-
-    @override_settings(RESEND_API_KEY='test-key', FRONTEND_URL='http://localhost:3000')
-    @patch('api.services.email.resend.Emails.send')
-    def test_password_reset_unknown_email(self, mock_send):
-        response = self.client.post(
-            self.password_reset_url,
-            {'email': 'unknown@example.com'},
-            format='json',
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        mock_send.assert_not_called()
+        self.assertEqual(len(mail.outbox), 0)
 
     @override_settings(FRONTEND_URL='http://localhost:3000')
     def test_password_reset_confirm_success(self):
@@ -436,10 +436,10 @@ class AuthenticationAPITestCase(TestCase):
         response = self.client.post(self.token_refresh_url, refresh_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @override_settings(RESEND_API_KEY='test-key', FRONTEND_URL='http://localhost:3000')
-    @patch('api.services.email.resend.Emails.send')
-    def test_password_reset_resend_failure_returns_generic_200(self, mock_send):
-        mock_send.side_effect = Exception('Resend outage')
+    @override_settings(EMAIL_HOST='smtp.example.test', FRONTEND_URL='http://localhost:3000')
+    @patch('api.services.email.EmailMultiAlternatives.send')
+    def test_password_reset_smtp_failure_returns_generic_200(self, mock_send):
+        mock_send.side_effect = Exception('SMTP outage')
         User.objects.create_user(email='reset@example.com', password='testpassword123')
         response = self.client.post(
             self.password_reset_url,
