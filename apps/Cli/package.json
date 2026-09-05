@@ -8,10 +8,11 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --check src/index.js && node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js tests/file-system.test.js && node tests/offline-e2e.js",
+    "test": "node --check src/index.js && node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js tests/file-system.test.js tests/remote-push.integration.test.js && node tests/offline-e2e.js",
     "test:unit": "node --test tests/diff.test.js tests/merge.test.js tests/hash.test.js tests/merge-base.test.js tests/file-system.test.js",
     "test:e2e": "node tests/offline-e2e.js",
     "test:remote:e2e": "node tests/remote-e2e.js",
+    "test:integration": "node --test tests/remote-push.integration.test.js",
     "demo": "bash demo.sh",
     "link": "npm link",
     "unlink": "npm unlink",
