@@ -17,6 +17,7 @@ interface Branch {
 }
 
 interface FileToolbarProps {
+  canWrite?: boolean;
   currentPath: string[];
   repoName: string;
   isDark: boolean;
@@ -29,6 +30,7 @@ interface FileToolbarProps {
 }
 
 export default function FileToolbar({
+  canWrite = false,
   currentPath,
   repoName,
   isDark,
@@ -181,7 +183,7 @@ export default function FileToolbar({
         </div>
 
         {/* Add file */}
-        <div className="relative" ref={menuRef}>
+        <div className="relative" ref={menuRef} hidden={!canWrite}>
           <button
             type="button"
             onClick={() => setShowAddMenu((value) => !value)}

@@ -8,6 +8,7 @@ import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 import CreateTagModal from "./CreateTagModal";
 
 interface TagsTabProps {
+  canWrite?: boolean;
   tags: TagType[];
   isLoading: boolean;
   isDark: boolean;
@@ -17,7 +18,8 @@ interface TagsTabProps {
   userEmail: string;
 }
 
-export default function TagsTab({ 
+export default function TagsTab({
+  canWrite = false,
   tags, 
   isLoading, 
   isDark,
@@ -46,6 +48,7 @@ export default function TagsTab({
   };
 
   const handleDelete = async (tagName: string) => {
+    if (!canWrite) return;
     try {
       await deleteTag.mutateAsync({
         ownerId,
@@ -69,7 +72,9 @@ export default function TagsTab({
             {tags.length} {tags.length === 1 ? 'tag' : 'tags'}
           </h3>
           <button
-            onClick={() => setShowCreateModal(true)}
+            hidden={!canWrite}
+              disabled={!canWrite}
+              onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors"
             style={{
               backgroundColor: t.accent,
@@ -135,6 +140,8 @@ export default function TagsTab({
                 
                 <div className="relative">
                   <button
+                    hidden={!canWrite}
+                    disabled={!canWrite}
                     onClick={() => setDeleteConfirmation(deleteConfirmation === tag.name ? null : tag.name)}
                     className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     style={{ color: t.textMuted }}
@@ -174,6 +181,8 @@ export default function TagsTab({
               Tags help you mark important milestones in your repository.
             </p>
             <button
+              hidden={!canWrite}
+              disabled={!canWrite}
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               style={{
@@ -190,7 +199,7 @@ export default function TagsTab({
 
       {/* Create Tag Modal */}
       <CreateTagModal
-        isOpen={showCreateModal}
+        isOpen={canWrite && showCreateModal}
         onClose={() => setShowCreateModal(false)}
         ownerId={ownerId}
         repoName={repoName}

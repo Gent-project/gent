@@ -63,7 +63,9 @@ export default function LoginPage() {
       if (!token) throw new Error("Login failed: token not received from server");
       storeAuthTokens(token, refreshToken);
       dispatch(setAuth({ token, user, refreshToken }));
-      router.replace(DASHBOARD_PATH.ROOT);
+      const next = new URLSearchParams(window.location.search).get("next");
+      const safeNext = next && /^\/dashboard(?:\/|$)/.test(next) && !/[\\\r\n]/.test(next);
+      router.replace(safeNext ? next : DASHBOARD_PATH.ROOT);
     } catch (err: unknown) {
       let errorMessage = "Login failed";
       if (isAxiosError(err)) {
