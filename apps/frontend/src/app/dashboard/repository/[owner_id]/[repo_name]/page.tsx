@@ -4,29 +4,28 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
+  ArrowLeft,
+  CalendarDays,
+  Check,
+  ChevronRight,
+  Code2,
+  Copy,
+  Download,
   GitBranch,
   GitCommit,
-  Tag,
+  Globe2,
+  Info,
+  LockKeyhole,
   Settings,
-  Star,
-  Eye,
-  GitFork,
-  Download,
-  Copy,
-  Lock,
-  Globe,
-  Calendar,
-  User,
-  ArrowLeft,
-  Code2,
-  ChevronRight,
+  Tag,
+  UserRound,
 } from "lucide-react";
 import Link from "next/link";
+import { useSelector } from "react-redux";
 import { useRepository } from "@/hooks/use-repositories";
 import { useBranches } from "@/hooks/use-branches";
 import { useCommits } from "@/hooks/use-commits";
 import { useTags } from "@/hooks/use-tags";
-import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { getCloneUrl } from "@/hooks/use-git-operations";
 import GitOperationsModal from "./_components/GitOperationsModal";
@@ -35,6 +34,7 @@ import BranchesTab from "./_components/BranchesTab";
 import TagsTab from "./_components/TagsTab";
 import FileBrowserTab from "./_components/FileBrowserTab";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
+import GentiCliGuide from "@/app/dashboard/_components/GentiCliGuide";
 
 type TabType = "code" | "commits" | "branches" | "tags";
 
@@ -43,39 +43,24 @@ export default function RepositoryPage() {
   const isDark = useSelector((state: RootState) => state.theme.isDark);
   const [activeTab, setActiveTab] = useState<TabType>("code");
   const [showGitOpsModal, setShowGitOpsModal] = useState(false);
-
+  const [copied, setCopied] = useState(false);
   const ownerId = parseInt(params.owner_id as string);
   const repoName = params.repo_name as string;
 
-  const {
-    data: repository,
-    isLoading: repoLoading,
-    error: repoError,
-  } = useRepository(ownerId, repoName);
-  const { data: branches = [], isLoading: branchesLoading } = useBranches(
-    ownerId,
-    repoName,
-  );
-  const { data: commits = [], isLoading: commitsLoading } = useCommits(
-    ownerId,
-    repoName,
-  );
-  const { data: tags = [], isLoading: tagsLoading } = useTags(
-    ownerId,
-    repoName,
-  );
+  const { data: repository, isLoading: repoLoading, error: repoError } = useRepository(ownerId, repoName);
+  const { data: branches = [], isLoading: branchesLoading } = useBranches(ownerId, repoName);
+  const { data: commits = [], isLoading: commitsLoading } = useCommits(ownerId, repoName);
+  const { data: tags = [], isLoading: tagsLoading } = useTags(ownerId, repoName);
   const t = getDashboardTheme(isDark);
 
   if (repoLoading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-300 rounded w-1/3"></div>
-          <div className="h-32 bg-gray-300 rounded"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-3 h-96 bg-gray-300 rounded"></div>
-            <div className="h-64 bg-gray-300 rounded"></div>
-          </div>
+      <div className="mx-auto max-w-[1380px] animate-pulse space-y-5 px-4 py-6 sm:px-6">
+        <div className="h-5 w-56 rounded" style={{ background: t.border }} />
+        <div className="h-40 rounded-2xl border" style={{ background: t.elevated, borderColor: t.border }} />
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="h-[460px] rounded-2xl border" style={{ background: t.elevated, borderColor: t.border }} />
+          <div className="h-72 rounded-2xl border" style={{ background: t.elevated, borderColor: t.border }} />
         </div>
       </div>
     );
@@ -83,438 +68,130 @@ export default function RepositoryPage() {
 
   if (repoError || !repository) {
     return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div
-          className="rounded-lg border p-8 text-center"
-          style={{
-            backgroundColor: t.elevated,
-            borderColor: t.border,
-          }}
-        >
-          <h1 className="text-xl font-semibold mb-2" style={{ color: t.text }}>
-            Repository not found
-          </h1>
-          <p style={{ color: t.textMuted }}>
-            The repository you're looking for doesn't exist or you don't have
-            access to it.
-          </p>
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            style={{
-              backgroundColor: t.accent,
-              color: t.successText,
-            }}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
+      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+        <div className="rounded-2xl border p-10 text-center" style={{ background: t.elevated, borderColor: t.border }}>
+          <h1 className="text-xl font-semibold" style={{ color: t.text }}>Repository not found</h1>
+          <p className="mt-2 text-sm" style={{ color: t.textMuted }}>This repository does not exist or you do not have access to it.</p>
+          <Link href="/dashboard" className="mt-5 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold" style={{ background: t.accent, color: t.successText }}>
+            <ArrowLeft className="h-4 w-4" /> Back to dashboard
           </Link>
         </div>
       </div>
     );
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
+  const owner = repository.owner_email.split("@")[0];
+  const cloneUrl = getCloneUrl(repository.owner_id, repository.name);
+  const latestCommit = commits[0];
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   const tabs = [
     { id: "code" as TabType, label: "Code", icon: Code2, count: null },
-    {
-      id: "commits" as TabType,
-      label: "Commits",
-      icon: GitCommit,
-      count: commits.length,
-    },
-    {
-      id: "branches" as TabType,
-      label: "Branches",
-      icon: GitBranch,
-      count: branches.length,
-    },
+    { id: "commits" as TabType, label: "Commits", icon: GitCommit, count: commits.length },
+    { id: "branches" as TabType, label: "Branches", icon: GitBranch, count: branches.length },
     { id: "tags" as TabType, label: "Tags", icon: Tag, count: tags.length },
   ];
 
+  const copyCloneUrl = async () => {
+    await navigator.clipboard.writeText(cloneUrl);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  };
+
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <Link
-            href="/dashboard"
-            className="p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-            style={{ color: t.textMuted }}
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <nav
-            className="text-sm flex items-center gap-1"
-            style={{ color: t.textMuted }}
-          >
-            <Link href="/dashboard" className="hover:underline">
-              Dashboard
-            </Link>
-            <ChevronRight className="w-4 h-4" />
-            <span style={{ color: t.text }}>{repository.name}</span>
-          </nav>
-        </div>
+    <div className="mx-auto max-w-[1380px] px-4 py-5 sm:px-6 sm:py-7">
+      <nav className="mb-4 flex min-w-0 items-center gap-1.5 text-xs" style={{ color: t.textMuted }} aria-label="Repository breadcrumb">
+        <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Repositories</Link>
+        <ChevronRight className="h-3.5 w-3.5" />
+        <span data-no-translate>{owner}</span>
+        <ChevronRight className="h-3.5 w-3.5" />
+        <span className="truncate font-medium" style={{ color: t.text }} data-no-translate>{repository.name}</span>
+      </nav>
 
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl font-bold" style={{ color: t.text }}>
-                <span style={{ color: t.textMuted }}>
-                  {repository.owner_email.split("@")[0]}/
-                </span>
-                {repository.name}
+      <motion.header initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-2xl border" style={{ background: t.elevated, borderColor: t.border }}>
+        <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: t.accentMuted, color: t.accent }}><Code2 className="h-4.5 w-4.5" /></span>
+              <h1 className="min-w-0 text-xl font-bold tracking-tight sm:text-2xl" style={{ color: t.text }}>
+                <span data-no-translate><span style={{ color: t.textMuted }}>{owner} / </span>{repository.name}</span>
               </h1>
-              <span
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border"
-                style={{
-                  borderColor: t.border,
-                  backgroundColor: t.surface,
-                  color: t.textMuted,
-                }}
-              >
-                {repository.is_private ? (
-                  <>
-                    <Lock className="w-3 h-3" />
-                    Private
-                  </>
-                ) : (
-                  <>
-                    <Globe className="w-3 h-3" />
-                    Public
-                  </>
-                )}
+              <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold" style={{ borderColor: t.border, color: t.textMuted }}>
+                {repository.is_private ? <><LockKeyhole className="h-2.5 w-2.5" /> Private</> : <><Globe2 className="h-2.5 w-2.5" /> Public</>}
               </span>
             </div>
-
-            {repository.description && (
-              <p className="text-sm mb-3" style={{ color: t.textMuted }}>
-                {repository.description}
-              </p>
-            )}
-
-            <div
-              className="flex flex-wrap items-center gap-4 text-xs"
-              style={{ color: t.textMuted }}
-            >
-              <span className="flex items-center gap-1">
-                <User className="w-3 h-3" />
-                {repository.owner_email.split("@")[0]}
-              </span>
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                Created {formatDate(repository.created_at)}
-              </span>
-              <span className="flex items-center gap-1">
-                <GitBranch className="w-3 h-3" />
-                {repository.default_branch}
-              </span>
+            <p className="mt-3 max-w-3xl text-sm leading-6" style={{ color: t.textMuted }} data-no-translate={Boolean(repository.description) || undefined}>{repository.description || "No description provided."}</p>
+            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px]" style={{ color: t.textMuted }}>
+              <span className="inline-flex items-center gap-1.5" data-no-translate><GitBranch className="h-3 w-3" />{repository.default_branch}</span>
+              <span className="inline-flex items-center gap-1.5" data-no-translate><UserRound className="h-3 w-3" />{owner}</span>
+              <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3 w-3" />updated {formatDate(repository.updated_at)}</span>
+              {latestCommit && <span className="inline-flex items-center gap-1.5"><GitCommit className="h-3 w-3" />{latestCommit.sha.slice(0, 7)}</span>}
             </div>
           </div>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/dashboard/repository/${ownerId}/${repoName}/settings`}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors"
-              style={{
-                borderColor: t.border,
-                backgroundColor: t.surface,
-                color: t.text,
-              }}
-            >
-              <Settings className="w-4 h-4" />
-              Settings
-            </Link>
-          </div>
+          <Link href={`/dashboard/repository/${ownerId}/${repoName}/settings`} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium" style={{ borderColor: t.border, color: t.text, background: t.inputBg }}>
+            <Settings className="h-4 w-4" /> Settings
+          </Link>
         </div>
-      </motion.div>
 
-      {/* Navigation Tabs */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="border-b mb-6"
-        style={{ borderColor: t.border }}
-      >
-        <nav className="flex gap-6">
+        <nav className="flex overflow-x-auto border-t px-2 sm:px-4" style={{ borderColor: t.borderMuted }} aria-label="Repository sections">
           {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.id ? "" : "border-transparent"
-              }`}
-              style={{
-                borderBottomColor:
-                  activeTab === tab.id ? t.accent : "transparent",
-                color: activeTab === tab.id ? t.accent : t.textMuted,
-              }}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-              {tab.count !== null && tab.count > 0 && (
-                <span
-                  className="px-1.5 py-0.5 text-xs rounded-full"
-                  style={{
-                    backgroundColor: t.accentMuted,
-                    color: t.accent,
-                  }}
-                >
-                  {tab.count}
-                </span>
-              )}
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className="relative flex shrink-0 items-center gap-2 px-3 py-3 text-sm font-medium transition-colors" style={{ color: activeTab === tab.id ? t.text : t.textMuted }}>
+              <tab.icon className="h-4 w-4" />{tab.label}
+              {tab.count !== null && <span className="rounded-full px-1.5 py-0.5 font-mono text-[9px]" style={{ background: t.accentMuted, color: activeTab === tab.id ? t.accent : t.textMuted }}>{tab.count}</span>}
+              {activeTab === tab.id && <motion.span layoutId="repo-tab" className="absolute inset-x-2 bottom-0 h-0.5 rounded-full" style={{ background: t.accent }} />}
             </button>
           ))}
         </nav>
-      </motion.div>
+      </motion.header>
 
-      {/* Content Area */}
-      <motion.div
-        key={activeTab}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-1 lg:grid-cols-4 gap-6"
-      >
-        {/* Main Content */}
-        <div className="lg:col-span-3">
-          <div
-            className="rounded-lg border p-6"
-            style={{
-              backgroundColor: t.elevated,
-              borderColor: t.border,
-            }}
-          >
-            {activeTab === "code" && (
-              <FileBrowserTab
-                ownerId={ownerId}
-                repoName={repoName}
-                isDark={isDark}
-                defaultBranch={repository.default_branch}
-                userEmail={repository.owner_email}
-              />
-            )}
-
-            {/* Commits Tab */}
-            {activeTab === "commits" && (
-              <CommitsTab
-                commits={commits}
-                isLoading={commitsLoading}
-                isDark={isDark}
-                ownerName={repository.owner_email.split("@")[0]}
-                repoName={repoName}
-                ownerId={repository.owner_id}
-              />
-            )}
-
-            {/* Branches Tab */}
-            {activeTab === "branches" && (
-              <BranchesTab
-                branches={branches}
-                isLoading={branchesLoading}
-                isDark={isDark}
-                defaultBranch={repository.default_branch}
-                ownerId={ownerId}
-                repoName={repoName}
-                userEmail={repository.owner_email}
-              />
-            )}
-
-            {/* Tags Tab */}
-            {activeTab === "tags" && (
-              <TagsTab
-                tags={tags}
-                isLoading={tagsLoading}
-                isDark={isDark}
-                ownerId={ownerId}
-                repoName={repoName}
-                branches={branches}
-                userEmail={repository.owner_email}
-              />
-            )}
+      <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <section className="min-w-0 overflow-hidden rounded-2xl border" style={{ background: t.elevated, borderColor: t.border }}>
+          <div className={activeTab === "code" ? "p-3 sm:p-4" : "p-5 sm:p-6"}>
+            {activeTab === "code" && <FileBrowserTab ownerId={ownerId} repoName={repoName} isDark={isDark} defaultBranch={repository.default_branch} userEmail={repository.owner_email} />}
+            {activeTab === "commits" && <CommitsTab commits={commits} isLoading={commitsLoading} isDark={isDark} ownerName={owner} repoName={repoName} ownerId={repository.owner_id} />}
+            {activeTab === "branches" && <BranchesTab branches={branches} isLoading={branchesLoading} isDark={isDark} defaultBranch={repository.default_branch} ownerId={ownerId} repoName={repoName} userEmail={repository.owner_email} />}
+            {activeTab === "tags" && <TagsTab tags={tags} isLoading={tagsLoading} isDark={isDark} ownerId={ownerId} repoName={repoName} branches={branches} userEmail={repository.owner_email} />}
           </div>
-        </div>
+        </section>
 
-        {/* Sidebar */}
-        <div className="space-y-4">
-          {/* Clone section */}
-          <div
-            className="rounded-lg border p-4"
-            style={{
-              backgroundColor: t.elevated,
-              borderColor: t.border,
-            }}
-          >
-            <h3
-              className="text-sm font-semibold mb-3"
-              style={{ color: t.text }}
-            >
-              Clone this repository
-            </h3>
-            <div className="space-y-2">
-              <div className="flex">
-                <input
-                  type="text"
-                  value={getCloneUrl(repository.owner_id, repository.name)}
-                  readOnly
-                  className="flex-1 px-3 py-2 text-xs rounded-l-lg border"
-                  style={{
-                    backgroundColor: t.inputBg,
-                    borderColor: t.border,
-                    color: t.textSecondary,
-                  }}
-                />
-                <button
-                  onClick={() =>
-                    navigator.clipboard.writeText(
-                      getCloneUrl(repository.owner_id, repository.name),
-                    )
-                  }
-                  className="px-3 py-2 border border-l-0 rounded-r-lg text-xs transition-colors"
-                  style={{
-                    borderColor: t.border,
-                    backgroundColor: t.surface,
-                    color: t.textMuted,
-                  }}
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-              </div>
-              <button
-                onClick={() => setShowGitOpsModal(true)}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg transition-colors"
-                style={{
-                  backgroundColor: t.accent,
-                  color: t.successText,
-                }}
-              >
-                <Download className="w-4 h-4" />
-                Clone & Git Ops
+        <aside className="space-y-4">
+          <GentiCliGuide
+            isDark={isDark}
+            repository={repository}
+            hasContent={commits.length > 0}
+          />
+
+          <section className="rounded-2xl border p-4" style={{ background: t.elevated, borderColor: t.border }}>
+            <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: t.text }}><Info className="h-4 w-4" style={{ color: t.accent }} /> About</h2>
+            <p className="mt-3 text-xs leading-5" style={{ color: t.textMuted }} data-no-translate={Boolean(repository.description) || undefined}>{repository.description || "No description provided for this repository."}</p>
+            <div className="mt-4 space-y-2 border-t pt-4 text-xs" style={{ borderColor: t.borderMuted, color: t.textMuted }}>
+              <div className="flex justify-between gap-4"><span>Created</span><span>{formatDate(repository.created_at)}</span></div>
+              <div className="flex justify-between gap-4"><span>Repository ID</span><span className="font-mono">{repository.id}</span></div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border p-4" style={{ background: t.elevated, borderColor: t.border }}>
+            <h2 className="text-sm font-semibold" style={{ color: t.text }}>Clone repository</h2>
+            <div className="mt-3 flex overflow-hidden rounded-lg border" style={{ borderColor: t.border }}>
+              <input value={cloneUrl} readOnly className="min-w-0 flex-1 px-3 py-2 font-mono text-[10px] outline-none" style={{ background: t.inputBg, color: t.textMuted }} aria-label="Clone URL" />
+              <button onClick={copyCloneUrl} className="flex w-10 shrink-0 items-center justify-center border-l" style={{ borderColor: t.border, color: copied ? t.accent : t.textMuted }} aria-label="Copy clone URL">
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               </button>
             </div>
-          </div>
+            <button onClick={() => setShowGitOpsModal(true)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: t.accent, color: t.successText }}><Download className="h-3.5 w-3.5" /> Clone & Git operations</button>
+          </section>
 
-          {/* Quick stats */}
-          <div
-            className="rounded-lg border p-4"
-            style={{
-              backgroundColor: t.elevated,
-              borderColor: t.border,
-            }}
-          >
-            <h3
-              className="text-sm font-semibold mb-3"
-              style={{ color: t.text }}
-            >
-              Quick stats
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center">
-                <div className="text-lg font-bold" style={{ color: t.text }}>
-                  {commits.length}
-                </div>
-                <div className="text-xs" style={{ color: t.textMuted }}>
-                  Commits
-                </div>
+          <section className="grid grid-cols-3 overflow-hidden rounded-2xl border" style={{ background: t.elevated, borderColor: t.border }}>
+            {[{ label: "Commits", value: commits.length }, { label: "Branches", value: branches.length }, { label: "Tags", value: tags.length }].map((stat) => (
+              <div key={stat.label} className="border-r px-2 py-4 text-center last:border-r-0" style={{ borderColor: t.borderMuted }}>
+                <div className="text-lg font-bold" style={{ color: t.text }}>{stat.value}</div>
+                <div className="mt-0.5 text-[10px]" style={{ color: t.textMuted }}>{stat.label}</div>
               </div>
-              <div className="text-center">
-                <div className="text-lg font-bold" style={{ color: t.text }}>
-                  {branches.length}
-                </div>
-                <div className="text-xs" style={{ color: t.textMuted }}>
-                  Branches
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold" style={{ color: t.text }}>
-                  {tags.length}
-                </div>
-                <div className="text-xs" style={{ color: t.textMuted }}>
-                  Tags
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold" style={{ color: t.text }}>
-                  0
-                </div>
-                <div className="text-xs" style={{ color: t.textMuted }}>
-                  Contributors
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Repository stats */}
-          <div
-            className="rounded-lg border p-4"
-            style={{
-              backgroundColor: t.elevated,
-              borderColor: t.border,
-            }}
-          >
-            <h3
-              className="text-sm font-semibold mb-3"
-              style={{ color: t.text }}
-            >
-              Repository info
-            </h3>
-            <div className="space-y-2 text-xs" style={{ color: t.textMuted }}>
-              <div className="flex justify-between">
-                <span>Repository ID:</span>
-                <span className="font-mono">{repository.id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Created:</span>
-                <span>{formatDate(repository.created_at)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Updated:</span>
-                <span>{formatDate(repository.updated_at)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Owner:</span>
-                <span>{repository.owner_email.split("@")[0]}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Settings link */}
-          <Link
-            href={`/dashboard/repository/${ownerId}/${repoName}/settings`}
-            className="flex items-center justify-center gap-2 w-full p-3 text-sm font-medium rounded-lg border transition-colors"
-            style={{
-              borderColor: t.border,
-              backgroundColor: t.surface,
-              color: t.text,
-            }}
-          >
-            <Settings className="w-4 h-4" />
-            Repository settings
-          </Link>
-        </div>
+            ))}
+          </section>
+        </aside>
       </motion.div>
 
-      {/* Git Operations Modal */}
-      <GitOperationsModal
-        isOpen={showGitOpsModal}
-        onClose={() => setShowGitOpsModal(false)}
-        ownerId={ownerId}
-        repoName={repoName}
-        isDark={isDark}
-        repositoryUrl={getCloneUrl(repository.owner_id, repository.name)}
-        defaultBranch={repository.default_branch}
-      />
+      <GitOperationsModal isOpen={showGitOpsModal} onClose={() => setShowGitOpsModal(false)} ownerId={ownerId} repoName={repoName} isDark={isDark} repositoryUrl={cloneUrl} defaultBranch={repository.default_branch} />
     </div>
   );
 }

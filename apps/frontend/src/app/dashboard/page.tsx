@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Activity, Filter, FolderGit2, Globe2, LockKeyhole, Plus, RefreshCw, SortAsc } from "lucide-react";
+import { Activity, Filter, FolderGit2, GitBranch, Globe2, LockKeyhole, Plus, RefreshCw, SortAsc } from "lucide-react";
 import { useDashboard } from "./_components/DashboardContext";
 import RepositoryCard from "./_components/RepositoryCard";
 import ActivityFeed from "./_components/ActivityFeed";
@@ -11,6 +11,7 @@ import { getDashboardTheme } from "./_components/dashboard-theme";
 import { useRepositories } from "@/hooks/use-repositories";
 import { useDashboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { Repository } from "@/types/repository";
+import WorkspacePulse from "./_components/WorkspacePulse";
 
 type SortKey = "newest" | "oldest" | "name";
 
@@ -99,6 +100,7 @@ export default function DashboardPage() {
       value: isLoading ? "..." : repositories.length,
       icon: FolderGit2,
       tone: t.accent,
+      spark: [35, 52, 46, 68, 82],
     },
     {
       label: "Public",
@@ -106,7 +108,8 @@ export default function DashboardPage() {
         ? "..."
         : repositories.filter((r: Repository) => !r.is_private).length,
       icon: Globe2,
-      tone: isDark ? "#22d3ee" : "#0891b2",
+      tone: t.accentHover,
+      spark: [42, 38, 58, 62, 74],
     },
     {
       label: "Private",
@@ -114,7 +117,8 @@ export default function DashboardPage() {
         ? "..."
         : repositories.filter((r: Repository) => r.is_private).length,
       icon: LockKeyhole,
-      tone: isDark ? "#f472b6" : "#db2777",
+      tone: t.accentTertiary,
+      spark: [24, 40, 34, 46, 42],
     },
     {
       label: "Updated Today",
@@ -125,7 +129,8 @@ export default function DashboardPage() {
             return new Date(r.updated_at).toDateString() === today;
           }).length,
       icon: Activity,
-      tone: isDark ? "#c4b5fd" : "#7c3aed",
+      tone: t.accent,
+      spark: [18, 34, 28, 52, 70],
     },
   ];
 
@@ -159,110 +164,106 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6 sm:py-8">
+    <div className="relative mx-auto max-w-[1380px] px-4 py-5 sm:px-6 sm:py-7">
       <motion.section
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative mb-5 overflow-hidden rounded-[2rem] border p-6 backdrop-blur-2xl sm:p-8"
-        style={{ background: t.elevated, borderColor: t.border, boxShadow: t.shadow }}
+        className="relative mb-5 overflow-hidden rounded-2xl border p-5 sm:p-6"
+        style={{ background: t.elevated, borderColor: t.border }}
       >
-        <div className="pointer-events-none absolute -right-20 -top-28 h-80 w-80 rounded-full blur-[90px]" style={{ background: `${t.accent}30` }} />
-        <motion.div
-          aria-hidden
-          animate={{ rotate: 360 }}
-          transition={{ duration: 26, repeat: Infinity, ease: "linear" }}
-          className="pointer-events-none absolute right-8 top-1/2 hidden h-48 w-48 -translate-y-1/2 rounded-full border lg:block"
-          style={{ borderColor: t.border }}
-        >
-          <span className="absolute left-1/2 top-0 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: t.accent, boxShadow: `0 0 24px ${t.accent}` }} />
-          <span className="absolute bottom-4 right-5 h-2 w-2 rounded-full" style={{ background: isDark ? "#22d3ee" : "#0891b2" }} />
-        </motion.div>
-        <div className="relative max-w-3xl">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em]" style={{ borderColor: t.border, color: t.accent, background: t.accentMuted }}>
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: t.accent }} />
-            Live workspace
+        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full blur-[100px]" style={{ background: `${t.accent}18` }} />
+        <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+          <div className="max-w-2xl xl:py-2">
+            <div className="mb-3 inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em]" style={{ color: t.accent }}>
+              <GitBranch className="h-3.5 w-3.5" />
+              Repository workspace
+            </div>
+            <h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: t.text }}>
+              Your repositories
+            </h1>
+            <p className="mt-2 text-sm leading-6" style={{ color: t.textMuted }}>
+              Browse code, follow branch activity, and manage every project from one workspace.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => refetch()}
+                disabled={isLoading}
+                className="flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors"
+                style={{
+                  backgroundColor: t.elevated,
+                  borderColor: t.border,
+                  color: t.textSecondary,
+                }}
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+                Refresh data
+              </button>
+              <button
+                type="button"
+                onClick={openNewRepoModal}
+                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-transform hover:-translate-y-0.5"
+                style={{ background: t.accentGradient, color: t.successText }}
+              >
+                <Plus className="w-4 h-4" />
+                New repository
+              </button>
+            </div>
           </div>
-          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-5xl" style={{ color: t.text }}>
-            Your development control room.
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 sm:text-base" style={{ color: t.textMuted }}>
-            Repositories, access, branches, and recent activity in one connected workspace.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isLoading}
-            className="flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all hover:-translate-y-0.5"
-            style={{
-              backgroundColor: t.elevated,
-              borderColor: t.border,
-              color: t.textSecondary,
-            }}
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
-            />
-            Refresh data
-          </button>
-          <button
-            type="button"
-            onClick={openNewRepoModal}
-            className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold shadow-lg transition-all hover:-translate-y-0.5 hover:scale-[1.02]"
-            style={{
-              background: t.accentGradient,
-              color: t.successText,
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            New repository
-          </button>
-        </div>
+          <WorkspacePulse isDark={isDark} />
         </div>
       </motion.section>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 overflow-hidden rounded-2xl border lg:grid-cols-4" style={{ borderColor: t.border, background: t.elevated }}>
         {stats.map((stat, index) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08 + index * 0.06 }}
-            whileHover={{ y: -5, rotateX: 2, rotateY: index % 2 ? -2 : 2 }}
-            className="scene group relative overflow-hidden rounded-2xl border p-4 backdrop-blur-xl sm:p-5"
-            style={{ background: t.elevated, borderColor: t.border, boxShadow: t.shadow }}
+            whileHover={{ y: -2 }}
+            className={`group relative overflow-hidden p-4 sm:p-5 ${
+              index < 2 ? "border-b" : ""
+            } ${index % 2 === 0 ? "border-r" : ""} lg:border-b-0 ${
+              index < stats.length - 1 ? "lg:border-r" : "lg:border-r-0"
+            }`}
+            style={{ borderColor: t.borderMuted }}
           >
-            <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-20 blur-2xl" style={{ background: stat.tone }} />
             <div className="flex items-start justify-between">
               <div>
                 <p className="font-mono text-[10px] uppercase tracking-[0.16em]" style={{ color: t.textMuted }}>{stat.label}</p>
-                <p className="mt-2 font-display text-3xl font-bold" style={{ color: t.text }}>{stat.value}</p>
+                <p className="mt-1.5 font-display text-2xl font-bold" style={{ color: t.text }}>{stat.value}</p>
               </div>
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border" style={{ color: stat.tone, borderColor: `${stat.tone}45`, background: `${stat.tone}14` }}>
-                <stat.icon className="h-5 w-5" />
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ color: stat.tone, background: `${stat.tone}12` }}>
+                <stat.icon className="h-4 w-4" />
               </span>
+            </div>
+            <div className="mt-3 flex h-5 items-end gap-1" aria-hidden>
+              {stat.spark.map((height, sparkIndex) => (
+                <motion.span key={sparkIndex} initial={{ height: 0 }} animate={{ height: `${height}%` }} transition={{ delay: 0.18 + index * 0.05 + sparkIndex * 0.035 }} className="w-1.5 rounded-full" style={{ background: sparkIndex === stat.spark.length - 1 ? stat.tone : `${stat.tone}35` }} />
+              ))}
             </div>
           </motion.div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="min-w-0 space-y-6">
           {/* Repositories Section */}
           <div>
             <div className="mb-4 flex items-end justify-between">
               <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em]" style={{ color: t.accent }}>Repository space</p>
-                <h2 className="mt-1 font-display text-2xl font-semibold" style={{ color: t.text }}>Your Repositories</h2>
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em]" style={{ color: t.accent }}>Projects</p>
+                <h2 className="mt-1 font-display text-xl font-semibold" style={{ color: t.text }}>Repository index</h2>
               </div>
               <span className="text-xs" style={{ color: t.textMuted }}>{filteredRepositories.length} visible</span>
             </div>
 
             {/* Toolbar */}
             <div
-              className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border p-2.5 backdrop-blur-xl"
+              className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border p-2"
               style={{
                 backgroundColor: t.elevated,
                 borderColor: t.border,
@@ -307,7 +308,7 @@ export default function DashboardPage() {
 
             {/* Loading state */}
             {isLoading && (
-              <div className="space-y-3">
+              <div className="overflow-hidden rounded-2xl border" style={{ borderColor: t.border, background: t.elevated }}>
                 {[...Array(3)].map((_, i) => (
                   <SkeletonCard key={i} isDark={isDark} />
                 ))}
@@ -316,7 +317,7 @@ export default function DashboardPage() {
 
             {/* Repository list */}
             {!isLoading && filteredRepositories.length > 0 && (
-              <div className="space-y-3">
+              <div className="overflow-hidden rounded-2xl border" style={{ borderColor: t.border, background: t.elevated }}>
                 {filteredRepositories.map((repo: Repository, index: number) => (
                   <RepositoryCard
                     key={repo.id}
@@ -376,7 +377,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="space-y-6">
           {isLoading ? <SkeletonActivity isDark={isDark} /> : <ActivityFeed />}
         </div>
       </div>

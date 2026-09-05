@@ -170,9 +170,11 @@
     @apply border-border outline-ring/50;
   }
   html {
+    position: relative;
     scroll-behavior: smooth;
   }
   body {
+    position: relative;
     background: var(--bg);
     color: var(--fg);
     font-feature-settings: "ss01", "cv01";

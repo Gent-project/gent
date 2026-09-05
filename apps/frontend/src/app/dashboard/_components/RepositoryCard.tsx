@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowUpRight, Clock, Code2, Lock, Globe, GitBranch } from "lucide-react";
+import { ArrowUpRight, Clock3, FolderGit2, GitBranch, Globe2, LockKeyhole } from "lucide-react";
 import { getDashboardTheme } from "./dashboard-theme";
 import { Repository } from "@/types/repository";
 import { DASHBOARD_PATH } from "@/routes/path";
@@ -15,140 +15,76 @@ interface RepositoryCardProps {
 }
 
 function getRelativeTime(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
-  if (diffInSeconds < 60) return `${diffInSeconds} seconds ago`;
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
-  if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} months ago`;
-  return `${Math.floor(diffInSeconds / 31536000)} years ago`;
+  const elapsed = Math.max(0, Date.now() - new Date(dateString).getTime());
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
 }
 
-export default function RepositoryCard({
-  repo,
-  isDark,
-  index,
-  highlighted = false,
-}: RepositoryCardProps) {
+export default function RepositoryCard({ repo, isDark, index, highlighted = false }: RepositoryCardProps) {
   const t = getDashboardTheme(isDark);
+  const owner = repo.owner_email.split("@")[0];
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4, scale: 1.005 }}
-      transition={{ duration: 0.3, delay: index * 0.045 }}
-      className="group relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl transition-all duration-300"
-      style={{
-        backgroundColor: t.elevated,
-        borderColor: highlighted ? t.accent : t.border,
-        boxShadow: highlighted ? `0 0 0 1px ${t.accent}40` : "none",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = t.accent;
-        e.currentTarget.style.boxShadow = t.shadow;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = highlighted ? t.accent : t.border;
-        e.currentTarget.style.boxShadow = highlighted
-          ? `0 0 0 1px ${t.accent}40`
-          : "none";
-      }}
+      transition={{ duration: 0.24, delay: Math.min(index, 8) * 0.035 }}
+      className="group relative border-b px-4 py-4 transition-colors last:border-b-0 sm:px-5"
+      style={{ borderColor: t.borderMuted, background: highlighted ? t.accentMuted : "transparent" }}
     >
-      <div
-        aria-hidden
-        className="absolute inset-y-0 left-0 w-1 opacity-60 transition-all group-hover:w-1.5 group-hover:opacity-100"
-        style={{ background: t.accentGradient }}
-      />
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="flex min-w-0 flex-1 gap-4">
-          <div
-            className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl border sm:flex"
-            style={{ background: t.accentMuted, borderColor: t.border, color: t.accent }}
-          >
-            <Code2 className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
+      <div className="flex items-start gap-3.5">
+        <span
+          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border"
+          style={{ color: t.accent, borderColor: t.border, background: t.accentMuted }}
+        >
+          <FolderGit2 className="h-4 w-4" />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href={DASHBOARD_PATH.REPOSITORY(repo.owner_id, repo.name)}
-              className="inline-flex items-center gap-1 font-display text-lg font-semibold transition-colors hover:underline"
-              style={{ color: t.accent }}
+              className="inline-flex min-w-0 items-center gap-1.5 text-[15px] font-semibold hover:underline"
+              style={{ color: t.text }}
             >
-              <span style={{ color: t.textMuted }}>{repo.owner_email.split('@')[0]}/</span>
-              {repo.name}
-              <ArrowUpRight className="h-3.5 w-3.5 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+              <span className="truncate" data-no-translate><span style={{ color: t.textMuted }}>{owner}/</span>{repo.name}</span>
+              <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-0 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100" />
             </Link>
             <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border"
-              style={{
-                borderColor: t.border,
-                color: t.textMuted,
-              }}
+              className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+              style={{ borderColor: t.border, color: t.textMuted }}
             >
-              {repo.is_private ? (
-                <>
-                  <Lock className="w-3 h-3" />
-                  Private
-                </>
-              ) : (
-                <>
-                  <Globe className="w-3 h-3" />
-                  Public
-                </>
-              )}
+              {repo.is_private ? <><LockKeyhole className="h-2.5 w-2.5" /> Private</> : <><Globe2 className="h-2.5 w-2.5" /> Public</>}
             </span>
           </div>
 
-          {repo.description && (
-            <p
-              className="text-sm mb-3 line-clamp-2"
-              style={{ color: t.textMuted }}
-            >
-              {repo.description}
-            </p>
-          )}
+          <p className="mt-1.5 line-clamp-1 text-sm" style={{ color: t.textMuted }}>
+            <span data-no-translate={Boolean(repo.description) || undefined}>{repo.description || "No description provided."}</span>
+          </p>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs">
-            <span
-              className="inline-flex items-center gap-1"
-              style={{ color: t.textMuted }}
-            >
-              <GitBranch className="w-3.5 h-3.5" />
-              {repo.default_branch}
-            </span>
-            <span
-              className="inline-flex items-center gap-1"
-              style={{ color: t.textMuted }}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              Updated {getRelativeTime(repo.updated_at)}
-            </span>
-            <span
-              className="text-xs"
-              style={{ color: t.textMuted }}
-            >
-              Created {getRelativeTime(repo.created_at)}
-            </span>
-          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px]" style={{ color: t.textMuted }}>
+            <span className="inline-flex items-center gap-1.5" data-no-translate><GitBranch className="h-3 w-3" />{repo.default_branch}</span>
+            <span className="inline-flex items-center gap-1.5"><Clock3 className="h-3 w-3" />updated {getRelativeTime(repo.updated_at)}</span>
+            <span className="hidden sm:inline">repo:{repo.id}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div
-            className="shrink-0 rounded-lg border px-2.5 py-1 font-mono text-[10px]"
-            style={{
-              borderColor: t.border,
-              color: t.textMuted,
-              backgroundColor: t.canvas,
-            }}
-          >
-            ID: {repo.id}
-          </div>
-        </div>
+        <Link
+          href={DASHBOARD_PATH.REPOSITORY(repo.owner_id, repo.name)}
+          aria-label={`Open ${repo.name}`}
+          className="mt-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg border opacity-0 transition-all group-hover:opacity-100 sm:flex"
+          style={{ borderColor: t.border, color: t.textMuted }}
+        >
+          <ArrowUpRight className="h-4 w-4" />
+        </Link>
       </div>
     </motion.article>
   );

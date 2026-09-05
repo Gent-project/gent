@@ -202,7 +202,7 @@ export default function NewRepositoryModal({
                       className={`w-full px-3 py-2 text-sm rounded-md border outline-none transition-colors focus:ring-2 ${
                         errors.name
                           ? "border-red-500 focus:ring-red-500/20"
-                          : "focus:ring-blue-500/20"
+                          : "focus:ring-violet-500/20"
                       }`}
                       style={{
                         backgroundColor: t.inputBg,
@@ -243,7 +243,7 @@ export default function NewRepositoryModal({
                       className={`w-full px-3 py-2 text-sm rounded-md border outline-none transition-colors focus:ring-2 resize-none ${
                         errors.description
                           ? "border-red-500 focus:ring-red-500/20"
-                          : "focus:ring-blue-500/20"
+                          : "focus:ring-violet-500/20"
                       }`}
                       style={{
                         backgroundColor: t.inputBg,
@@ -271,11 +271,11 @@ export default function NewRepositoryModal({
                     </legend>
                     <label
                       className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        !formData.is_private ? "ring-2 ring-blue-500/20" : ""
+                        !formData.is_private ? "ring-2 ring-violet-500/20" : ""
                       }`}
                       style={{
                         borderColor: !formData.is_private
-                          ? "#0969da"
+                          ? t.accent
                           : t.border,
                         backgroundColor: !formData.is_private
                           ? t.accentMuted
@@ -289,7 +289,7 @@ export default function NewRepositoryModal({
                         onChange={() =>
                           setFormData({ ...formData, is_private: false })
                         }
-                        className="mt-1 cursor-pointer"
+                        className="mt-1 cursor-pointer accent-violet-600"
                       />
                       <div>
                         <div
@@ -309,10 +309,10 @@ export default function NewRepositoryModal({
                     </label>
                     <label
                       className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        formData.is_private ? "ring-2 ring-blue-500/20" : ""
+                        formData.is_private ? "ring-2 ring-violet-500/20" : ""
                       }`}
                       style={{
-                        borderColor: formData.is_private ? "#0969da" : t.border,
+                        borderColor: formData.is_private ? t.accent : t.border,
                         backgroundColor: formData.is_private
                           ? t.accentMuted
                           : "transparent",
@@ -325,7 +325,7 @@ export default function NewRepositoryModal({
                         onChange={() =>
                           setFormData({ ...formData, is_private: true })
                         }
-                        className="mt-1 cursor-pointer"
+                        className="mt-1 cursor-pointer accent-violet-600"
                       />
                       <div>
                         <div

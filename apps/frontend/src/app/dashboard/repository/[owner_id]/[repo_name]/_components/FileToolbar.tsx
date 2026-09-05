@@ -93,9 +93,9 @@ export default function FileToolbar({
   };
 
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       {/* Repository / Path */}
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         {currentPath.length > 0 ? (
           <div
             className="flex items-center gap-1 text-sm"
@@ -108,7 +108,7 @@ export default function FileToolbar({
               className="hover:underline"
               style={{ color: t.accent }}
             >
-              {repoName}
+              <span data-no-translate>{repoName}</span>
             </button>
 
             {currentPath.map((path, index) => (
@@ -117,13 +117,13 @@ export default function FileToolbar({
                 className="flex items-center gap-1 min-w-0"
               >
                 <ChevronRight className="w-4 h-4 shrink-0" />
-                <span className="truncate">{path}</span>
+                <span className="truncate" data-no-translate>{path}</span>
               </div>
             ))}
           </div>
         ) : (
           <div className="text-sm font-medium" style={{ color: t.text }}>
-            {repoName}
+            <span data-no-translate>{repoName}</span>
           </div>
         )}
       </div>
@@ -135,15 +135,16 @@ export default function FileToolbar({
           <button
             type="button"
             onClick={() => setShowBranchMenu((value) => !value)}
-            className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors"
             style={{
               borderColor: t.border,
               color: t.text,
+              background: t.inputBg,
             }}
           >
             <GitBranch className="w-3.5 h-3.5" />
 
-            <span className="max-w-32 truncate">{selectedBranch}</span>
+            <span className="max-w-32 truncate" data-no-translate>{selectedBranch}</span>
 
             <span
               className="rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none"
@@ -160,7 +161,7 @@ export default function FileToolbar({
 
           {showBranchMenu && (
             <div
-              className="absolute right-0 top-full z-20 mt-2 w-72 overflow-hidden rounded-lg border shadow-lg"
+              className="absolute left-0 top-full z-20 mt-2 w-72 overflow-hidden rounded-xl border shadow-lg sm:left-auto sm:right-0"
               style={{
                 backgroundColor: t.elevated,
                 borderColor: t.border,
@@ -236,7 +237,7 @@ export default function FileToolbar({
                         <span className="flex min-w-0 items-center gap-2">
                           <GitBranch className="w-4 h-4 shrink-0" />
 
-                          <span className="truncate">{branch.name}</span>
+                          <span className="truncate" data-no-translate>{branch.name}</span>
 
                           {isDefault && (
                             <span
@@ -272,10 +273,11 @@ export default function FileToolbar({
           <button
             type="button"
             onClick={() => setShowAddMenu((value) => !value)}
-            className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors"
             style={{
               borderColor: t.border,
               color: t.text,
+              background: t.inputBg,
             }}
           >
             <Plus className="w-3.5 h-3.5" />
@@ -285,7 +287,7 @@ export default function FileToolbar({
 
           {showAddMenu && (
             <div
-              className="absolute right-0 top-full z-10 mt-2 min-w-44 rounded-lg border py-2 shadow-lg"
+              className="absolute right-0 top-full z-10 mt-2 min-w-44 rounded-xl border py-2 shadow-lg"
               style={{
                 backgroundColor: t.elevated,
                 borderColor: t.border,

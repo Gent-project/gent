@@ -206,14 +206,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         }}
       >
         <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-          <div className="grid-bg absolute inset-0 opacity-50" />
+          <div className="grid-bg absolute inset-0 opacity-20" />
           <div
-            className="anim-float absolute -left-40 -top-56 h-[38rem] w-[38rem] rounded-full blur-[130px]"
-            style={{ background: `${t.accent}24` }}
+            className="absolute -left-40 -top-56 h-[32rem] w-[32rem] rounded-full blur-[140px]"
+            style={{ background: `${t.accent}10` }}
           />
           <div
-            className="anim-float-slow absolute -right-52 top-1/3 h-[34rem] w-[34rem] rounded-full blur-[140px]"
-            style={{ background: isDark ? "rgba(34,211,238,.11)" : "rgba(8,145,178,.09)" }}
+            className="absolute -right-52 top-1/3 h-[30rem] w-[30rem] rounded-full blur-[150px]"
+            style={{ background: `${t.accent}08` }}
           />
         </div>
         <DashboardSidebar
