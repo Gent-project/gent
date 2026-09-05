@@ -15,7 +15,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
+from api.gitcore.http import smart_http
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
@@ -24,6 +25,7 @@ from drf_spectacular.views import (
 from drf_spectacular.renderers import OpenApiJsonRenderer
 
 urlpatterns = [
+    re_path(r'^(?P<owner_ref>[^/]+)/(?P<repo_name>[^/]+)\.git/(?P<endpoint>info/refs|git-upload-pack|git-receive-pack|gent-migration)$', smart_http),
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
     

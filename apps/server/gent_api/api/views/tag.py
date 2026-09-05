@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
@@ -8,6 +9,8 @@ from api.models import Tag, Commit
 from api.serializers import TagSerializer, TagCreateSerializer
 from api.utils import get_repository_or_404, require_repo_write
 from api.permissions import CanWriteRepositoryByParams
+from api.gitcore.rest import ref_response, create_tag
+from api.gitcore.objects import GitError
 
 
 @extend_schema(
@@ -33,11 +36,12 @@ def tag_list(request, owner_ref, repo_name):
 )
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
+@transaction.atomic
 def tag_create(request, owner_ref, repo_name):
     """Create a new tag."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
-    write_denied = require_repo_write(request.user, repository)
+    write_denied = require_repo_write(request.user, repository, canonical_allowed=True)
     if write_denied:
         return write_denied
 
@@ -45,6 +49,11 @@ def tag_create(request, owner_ref, repo_name):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    if repository.object_format == 'sha256':
+        try:
+            return create_tag(repository, request.user, serializer.validated_data)
+        except GitError as error:
+            return Response({'error': str(error)}, status=400)
     commit_sha = serializer.validated_data['commit_sha']
     if not Commit.objects.filter(repository=repository, sha=commit_sha).exists():
         return Response(
@@ -81,15 +90,21 @@ def tag_create(request, owner_ref, repo_name):
 )
 @api_view(['DELETE'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
+@transaction.atomic
 def tag_delete(request, owner_ref, repo_name, tag_name):
     """Delete a tag."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
-    write_denied = require_repo_write(request.user, repository)
+    write_denied = require_repo_write(request.user, repository, canonical_allowed=True)
     if write_denied:
         return write_denied
 
     tag = get_object_or_404(Tag, repository=repository, name=tag_name)
+    if repository.object_format == 'sha256':
+        error = ref_response(repository, request.user, tag.target_oid, None, 'refs/tags/' + tag.name)
+        if error is not None:
+            return error
+        return Response({'message': 'Tag deleted successfully'})
     tag.delete()
     return Response(
         {'message': 'Tag deleted successfully'},

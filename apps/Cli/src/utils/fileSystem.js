@@ -7,6 +7,8 @@ const fs = require('fs').promises;
 const path = require('path');
 const { GENT_DIR, DEFAULT_IGNORE_PATTERNS, IGNORE_FILE } = require('./constants');
 
+const GIT_IGNORE_FILE = '.gitignore';
+
 /**
  * Check if a path exists
  * @param {String} path - Path to check
@@ -115,26 +117,90 @@ function shouldIgnore(filePath, patterns) {
     const normalizedPath = filePath.replace(/\\/g, '/');
 
     for (const pattern of patterns) {
+        const normalizedPattern = normalizeIgnorePattern(pattern);
+        if (!normalizedPattern) {
+            continue;
+        }
+
         // Exact match
-        if (normalizedPath === pattern || normalizedPath.startsWith(pattern + '/')) {
+        if (normalizedPath === normalizedPattern || normalizedPath.startsWith(normalizedPattern + '/')) {
             return true;
         }
 
+        // Basename match
+        if (!normalizedPattern.includes('/') && !normalizedPattern.includes('*')) {
+            const parts = normalizedPath.split('/');
+            if (parts.includes(normalizedPattern)) {
+                return true;
+            }
+        }
+
         // Wildcard match
-        if (pattern.includes('*')) {
-            const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
-            if (regex.test(normalizedPath)) {
+        if (normalizedPattern.includes('*')) {
+            const wildcardRegex = normalizedPattern.split('*').map(escapeRegex).join('.*');
+            const regex = new RegExp('^' + wildcardRegex + '$');
+            if (regex.test(normalizedPath) || regex.test(path.posix.basename(normalizedPath))) {
                 return true;
             }
         }
 
         // Extension match
-        if (pattern.startsWith('*.') && normalizedPath.endsWith(pattern.substring(1))) {
+        if (normalizedPattern.startsWith('*.') && normalizedPath.endsWith(normalizedPattern.substring(1))) {
             return true;
         }
     }
 
     return false;
+}
+
+function normalizeIgnorePattern(pattern) {
+    return pattern
+        .replace(/\\/g, '/')
+        .replace(/^\.\//, '')
+        .replace(/^\/+/, '')
+        .replace(/\/+$/, '');
+}
+
+function escapeRegex(pattern) {
+    return pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function parseIgnoreContent(content, basePath = '') {
+    return content.split('\n')
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith('#') && !line.startsWith('!'))
+        .map(line => normalizeIgnorePattern(path.posix.join(basePath, line)))
+        .filter(Boolean);
+}
+
+async function collectGitIgnorePatterns(rootDir, patterns) {
+    async function scan(currentDir) {
+        const entries = await fs.readdir(currentDir, { withFileTypes: true });
+        const relativeDir = path.relative(rootDir, currentDir).replace(/\\/g, '/');
+        const gitIgnore = entries.find(entry => entry.isFile() && entry.name === GIT_IGNORE_FILE);
+
+        if (gitIgnore) {
+            const ignorePath = path.join(currentDir, GIT_IGNORE_FILE);
+            const content = await fs.readFile(ignorePath, 'utf-8');
+            patterns.push(...parseIgnoreContent(content, relativeDir));
+        }
+
+        for (const entry of entries) {
+            if (!entry.isDirectory()) {
+                continue;
+            }
+
+            const fullPath = path.join(currentDir, entry.name);
+            const relativePath = path.relative(rootDir, fullPath);
+            if (shouldIgnore(relativePath, patterns)) {
+                continue;
+            }
+
+            await scan(fullPath);
+        }
+    }
+
+    await scan(rootDir);
 }
 
 /**
@@ -148,12 +214,10 @@ async function getIgnorePatterns(dir) {
 
     if (await pathExists(ignorePath)) {
         const content = await fs.readFile(ignorePath, 'utf-8');
-        const lines = content.split('\n')
-            .map(line => line.trim())
-            .filter(line => line && !line.startsWith('#'));
-
-        patterns.push(...lines);
+        patterns.push(...parseIgnoreContent(content));
     }
+
+    await collectGitIgnorePatterns(dir, patterns);
 
     return patterns;
 }

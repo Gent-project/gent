@@ -30,33 +30,34 @@ const { program } = require('commander');
 const chalk = require('chalk');
 const packageJson = require('../package.json');
 const interactive = require('./utils/interactive');
+const { route } = require('./commands/canonical');
 
 // Import core commands
-const autoCommand = require('./commands/auto');
-const initCommand = require('./commands/init');
+const autoCommand = route('auto', require('./commands/auto'));
+const initCommand = route('init', require('./commands/init'));
 const cloneCommand = require('./commands/clone');
-const statusCommand = require('./commands/status');
-const addCommand = require('./commands/add');
-const rmCommand = require('./commands/rm');
-const resetCommand = require('./commands/reset');
-const diffCommand = require('./commands/diff');
-const commitCommand = require('./commands/commit');
-const logCommand = require('./commands/log');
-const showCommand = require('./commands/show');
-const tagCommand = require('./commands/tag');
-const branchCommand = require('./commands/branch');
-const checkoutCommand = require('./commands/checkout');
-const mergeCommand = require('./commands/merge');
-const stashCommand = require('./commands/stash');
-const remoteCommand = require('./commands/remote');
-const pushCommand = require('./commands/push');
-const pullCommand = require('./commands/pull');
+const statusCommand = route('status', require('./commands/status'));
+const addCommand = route('add', require('./commands/add'));
+const rmCommand = route('rm', require('./commands/rm'));
+const resetCommand = route('reset', require('./commands/reset'));
+const diffCommand = route('diff', require('./commands/diff'));
+const commitCommand = route('commit', require('./commands/commit'));
+const logCommand = route('log', require('./commands/log'));
+const showCommand = route('show', require('./commands/show'));
+const tagCommand = route('tag', require('./commands/tag'));
+const branchCommand = route('branch', require('./commands/branch'));
+const checkoutCommand = route('checkout', require('./commands/checkout'));
+const mergeCommand = route('merge', require('./commands/merge'));
+const stashCommand = route('stash', require('./commands/stash'));
+const remoteCommand = route('remote', require('./commands/remote'));
+const pushCommand = route('push', require('./commands/push'));
+const pullCommand = route('pull', require('./commands/pull'));
 const reposCommand = require('./commands/repos');
 const membersCommand = require('./commands/members');
-const undoCommand = require('./commands/undo');
-const resolveCommand = require('./commands/resolve');
-const summaryCommand = require('./commands/summary');
-const explainCommand = require('./commands/explain');
+const undoCommand = route('undo', require('./commands/undo'));
+const resolveCommand = route('resolve', require('./commands/resolve'));
+const summaryCommand = route('summary', require('./commands/summary'));
+const explainCommand = route('explain', require('./commands/explain'));
 
 // Import auth commands
 const registerCommand = require('./commands/register');
@@ -66,18 +67,19 @@ const whoamiCommand = require('./commands/whoami');
 const passwordCommand = require('./commands/password');
 
 // Import new gent-platform commands
-const configCommand = require('./commands/config');
+const configCommand = route('config', require('./commands/config'));
 const doctorCommand = require('./commands/doctor');
 const setupCommand = require('./commands/setup');
 const aiCommand = require('./commands/ai');
-const askCommand = require('./commands/ask');
-const reviewCommand = require('./commands/review');
-const docsCommand = require('./commands/docs');
-const changelogCommand = require('./commands/changelog');
+const askCommand = route('ask', require('./commands/ask'));
+const reviewCommand = route('review', require('./commands/review'));
+const docsCommand = route('docs', require('./commands/docs'));
+const changelogCommand = route('changelog', require('./commands/changelog'));
 const webCommand = require('./commands/web');
-const shareCommand = require('./commands/share');
+const shareCommand = route('share', require('./commands/share'));
 const searchCommand = require('./commands/search');
 const templateCommand = require('./commands/template');
+const petCommand = require('./commands/pet');
 
 // Configure CLI
 program
@@ -96,8 +98,20 @@ program
     .command('init')
     .description('Initialize a new gent repository')
     .option('-y, --yes', 'Skip prompts and use defaults')
+    .option('--object-format <format>', 'Opt into the canonical SHA-256 engine')
     .option('--remote [name]', 'Create a remote repository on the backend')
     .action(initCommand);
+
+program
+    .command('migrate')
+    .description('Migrate an offline legacy repository with a verified backup')
+    .option('--dry-run', 'Inspect and validate without changing repository state')
+    .option('--continue', 'Complete an interrupted migration')
+    .option('--abort', 'Roll back an interrupted migration if no newer state exists')
+    .action(async options => {
+        try { console.log(JSON.stringify(await require('./utils/migrate').migrate(process.cwd(), options), null, 2)); }
+        catch (error) { console.error(`Error: ${error.message}`); process.exitCode = 1; }
+    });
 
 program
     .command('clone [url] [directory]')
@@ -109,6 +123,11 @@ program
         if (!url) {
             console.error(chalk.red('error: missing url — usage: gent clone <url> [directory]'));
             process.exit(1);
+        }
+        if (/^https?:/.test(url) && /\.git\/?$/.test(url)) {
+            try { console.log(`Cloned to ${await require('./utils/smart-http').clone(url, directory)}`); }
+            catch (error) { console.error(`Error: ${error.message}`); process.exitCode = 1; }
+            return;
         }
         return cloneCommand(url, directory, options);
     });
@@ -151,8 +170,8 @@ program
 program
     .command('reset [files...]')
     .description('Unstage files or reset HEAD to a commit')
-    .option('--hard <hash>', 'Reset HEAD and working tree to commit')
-    .option('--soft <hash>', 'Reset HEAD but keep staging')
+    .option('--hard [hash]', 'Reset HEAD and working tree to commit')
+    .option('--soft [hash]', 'Reset HEAD but keep staging')
     .action(resetCommand);
 
 program
@@ -220,13 +239,15 @@ program
     .command('checkout [branch]')
     .description('Switch branches or restore working tree files')
     .option('-b, --create', 'Create a new branch')
+    .option('--abort', 'Recover an interrupted canonical checkout')
+    .option('-f, --force', 'Discard local changes when switching')
     .action(async (branch, options) => {
-        if (!branch && interactive.isInteractive()) {
+        if (!branch && !options.abort && interactive.isInteractive()) {
             const picked = await interactive.promptCheckout();
             branch = picked.branch;
             options.create = picked.create; // picker decides: existing branch ⇒ switch, not create
         }
-        if (!branch) {
+        if (!branch && !options.abort) {
             console.error(chalk.red('error: missing branch — usage: gent checkout <branch>'));
             process.exit(1);
         }
@@ -237,8 +258,10 @@ program
     .command('merge [branch]')
     .description('Merge a branch into the current branch (3-way smart merge)')
     .option('-m, --message <message>', 'Merge commit message')
+    .option('--continue', 'Finish a resolved canonical merge')
+    .option('--abort', 'Abort a canonical merge')
     .action(async (branch, options) => {
-        if (!branch && interactive.isInteractive()) {
+        if (!branch && !options.continue && !options.abort && interactive.isInteractive()) {
             const picked = await interactive.promptMerge();
             if (!picked.branch) {
                 // In a repo with only one branch → nothing to merge; otherwise
@@ -251,7 +274,7 @@ program
                 branch = picked.branch;
             }
         }
-        if (!branch && !interactive.isInteractive()) {
+        if (!branch && !options.continue && !options.abort && !interactive.isInteractive()) {
             console.error(chalk.red('error: missing branch — usage: gent merge <branch>'));
             process.exit(1);
         }
@@ -267,6 +290,9 @@ program
     .command('stash [subcommand]')
     .description('Stash working tree changes (pop|list|drop|apply)')
     .option('-m, --message <message>', 'Stash message')
+    .option('--restore-index', 'Restore canonical stash staged state')
+    .option('--keep-index', 'Keep staged changes when stashing')
+    .option('-u, --include-untracked', 'Include untracked files')
     .option('-i, --index <index>', 'Stash index for pop/apply/drop')
     .action(stashCommand);
 
@@ -309,6 +335,11 @@ program
     .description('Push local commits to remote')
     .option('-f, --force', 'Force push (overwrite remote)')
     .action(pushCommand);
+
+program
+    .command('fetch [remote]')
+    .description('Fetch canonical remote branches and tags')
+    .action(route('fetch', async () => { throw new Error('fetch requires a canonical repository'); }));
 
 program
     .command('pull [remote] [branch]')
@@ -372,17 +403,17 @@ program
 
 program
     .command('web')
-    .description('Open the current repo (or a branch/commit) on the gent web app')
-    .option('--branch <name>', 'Open a specific branch')
-    .option('--commit <hash>', 'Open a specific commit')
+    .description('Open the current repo on the gent web app')
+    .option('--branch <name>', 'Branch context (opens the repo page — no branch page yet)')
+    .option('--commit <hash>', 'Commit context (opens the repo page — no commit page yet)')
     .option('--print', 'Print the URL instead of launching a browser')
     .action(webCommand);
 
 program
     .command('share')
-    .description('Print a shareable link to current branch tip (or --branch/--commit)')
-    .option('--branch <name>', 'Link to a specific branch')
-    .option('--commit <hash>', 'Link to a specific commit')
+    .description('Print a shareable link to the current repository')
+    .option('--branch <name>', 'Branch context (link resolves to the repo page)')
+    .option('--commit <hash>', 'Commit context (link resolves to the repo page)')
     .action(shareCommand);
 
 program
@@ -432,6 +463,13 @@ program
     .option('-e, --email <email>', 'Account email (for reset)')
     .action(passwordCommand);
 
+// ─── Fun ────────────────────────────────────────────────
+program
+    .command('pet [scene]')
+    .description('Meet Genti — an animated pixel mascot that acts out gent (push|pull|merge|auth)')
+    .option('--loop', 'Keep looping until Ctrl+C (default: play once)')
+    .action(petCommand);
+
 // Help command
 program
     .command('help [command]')
@@ -456,6 +494,7 @@ const HELP_GROUPS = [
     ['Account', ['register', 'login', 'logout', 'whoami', 'password']],
     ['AI', ['ask', 'review', 'docs', 'changelog', 'ai']],
     ['Config & tools', ['config', 'doctor', 'template', 'help']],
+    ['Fun', ['pet']],
 ];
 
 function configureGroupedHelp(program) {
@@ -526,6 +565,7 @@ function showQuickstart() {
     console.log(`  ${chalk.cyan('gent changelog')}          ${chalk.gray('grouped release notes')}`);
     console.log();
     console.log(chalk.gray('Full command list: ') + chalk.cyan('gent --help'));
+    console.log(chalk.gray('Say hi to your mascot: ') + chalk.cyan('gent pet'));
     console.log();
 }
 

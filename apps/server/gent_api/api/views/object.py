@@ -1,3 +1,4 @@
+from django.db import transaction
 import base64
 
 from django.shortcuts import get_object_or_404
@@ -20,6 +21,7 @@ from api.permissions import CanWriteRepositoryByParams
 )
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
+@transaction.atomic
 def tree_create(request, owner_ref, repo_name):
     """Create a new tree."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
@@ -79,6 +81,7 @@ def tree_detail(request, owner_ref, repo_name, sha):
 )
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
+@transaction.atomic
 def blob_create(request, owner_ref, repo_name):
     """Create a new blob."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
@@ -134,6 +137,18 @@ def blob_detail(request, owner_ref, repo_name, sha):
     """
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
     blob = get_object_or_404(Blob, repository=repository, sha=sha)
+    if repository.object_format == 'sha256':
+        from api.gitcore.store import read
+        from api.gitcore.objects import GitError
+        item = read(repository, sha)
+        if not item or item[0] != 'blob':
+            raise GitError('canonical blob missing')
+        raw = item[1]
+        try:
+            content, encoding = raw.decode('utf-8'), 'utf-8'
+        except UnicodeDecodeError:
+            content, encoding = base64.b64encode(raw).decode('ascii'), 'base64'
+        return Response({**BlobSerializer(blob).data, 'content': content, 'encoding': encoding})
 
     payload = BlobSerializer(blob).data
     encoding = 'utf-8'

@@ -1,69 +1,83 @@
 import type { Metadata } from "next";
-import { Cairo } from "next/font/google";
-
+import { Geist, Geist_Mono, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import QueryProvider from "./providers";
+import ReduxProvider from "./redux-provider";
+import ThemeProvider from "./theme-provider";
+import ToastProvider from "./toast-provider";
+import { LanguageProvider } from "./language-provider";
 
-import { Providers } from "@/components/providers/providers";
-import { Toaster } from "sonner";
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
 
-/**
- * Cairo is loaded once and exposed as the default sans + mono CSS variable.
- * It supports Arabic and Latin glyphs, so the UI is RTL-friendly out of the box.
- * The variable name `--font-cairo` is referenced from `globals.css`.
- */
-const cairo = Cairo({
-  subsets: ["latin", "arabic"],
-  variable: "--font-cairo",
-  display: "swap",
-  weight: ["300", "400", "500", "600", "700", "800"],
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono-code",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Gent — Modern Version Control",
-    template: "%s · Gent",
-  },
+  title: "Gent – Lightweight Version Control & Code Hosting Platform",
   description:
-    "Gent is a modern, Git-like version control platform with a fast CLI and a beautiful web dashboard. Push from your terminal, watch it appear here instantly.",
-  applicationName: "Gent",
-  icons: { icon: "/logo.png" },
-  openGraph: {
-    title: "Gent — Modern Version Control",
-    description:
-      "Push from your terminal, see it instantly on the web. Built for teams that want Git's power without its sharp edges.",
-    type: "website",
+    "Gent is a lightweight version control system with a Git-like CLI and a GitHub-inspired web interface for managing repositories, commits, and collaboration.",
+  icons: {
+    icon: "/logo.png",
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Inline theme bootstrap — runs before paint so we never flash the wrong
-         * theme. The user's preference is stored under "gent-theme". */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(() => {
-              try {
-                const stored = localStorage.getItem('gent-theme');
-                const prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                const dark = stored ? stored === 'dark' : prefers;
-                document.documentElement.classList.toggle('dark', dark);
-              } catch (e) {}
-            })();`,
+            __html: `
+              (function() {
+                try {
+                  const savedTheme = localStorage.getItem('theme');
+                  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  const isDark = savedTheme ? savedTheme === 'dark' : prefersDark;
+                  if (isDark) {
+                    document.documentElement.classList.add('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
           }}
         />
       </head>
-      <body className={`${cairo.variable} font-sans antialiased`}>
-        <Providers>
-          {children}
-          <Toaster
-            position="top-center"
-            richColors
-            closeButton
-            toastOptions={{ style: { fontFamily: "var(--font-cairo)" } }}
-          />
-        </Providers>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased`}
+      >
+        <ReduxProvider>
+          <ThemeProvider>
+            <LanguageProvider>
+              <QueryProvider>
+                <ToastProvider>
+                  {children}
+                </ToastProvider>
+              </QueryProvider>
+            </LanguageProvider>
+          </ThemeProvider>
+        </ReduxProvider>
       </body>
     </html>
   );

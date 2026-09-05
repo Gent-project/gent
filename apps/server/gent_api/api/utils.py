@@ -54,13 +54,21 @@ def get_repository_or_404(owner_ref, repo_name, user):
     return repository
 
 
-def require_repo_write(user, repository):
+def require_repo_write(user, repository, canonical_allowed=False):
     """Return a 403 Response if the user lacks write access, else None."""
     if not user_can_write_repo(user, repository):
         return Response(
             {'error': 'You do not have write access to this repository.'},
             status=status.HTTP_403_FORBIDDEN,
         )
+    # Serialize legacy writes with canonical publication and migration cutover.
+    locked = Repository.objects.select_for_update().get(pk=repository.pk)
+    repository.object_format = locked.object_format
+    repository.default_branch = locked.default_branch
+    if not user_can_write_repo(user, locked):
+        return Response({'error': 'Write access revoked.'}, status=403)
+    if repository.object_format == 'sha256' and not canonical_allowed:
+        return Response({'error': 'Use canonical smart HTTP for object and ref writes.'}, status=409)
     return None
 
 
@@ -87,3 +95,10 @@ def save_blob_content(repository, sha, content, encoding='utf-8', content_bytes=
             f.write(content_bytes)
 
         return {'content': None, 'file_path': str(file_path), 'size': size}
+
+
+def resolve_migrated_commit(repository, sha):
+    if repository.object_format != 'sha256':
+        return sha
+    from api.models import GitMigrationMap
+    return GitMigrationMap.objects.filter(repository=repository, old_oid=sha).values_list('new_oid', flat=True).first() or sha

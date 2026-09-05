@@ -1,0 +1,332 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Upload,
+  Check,
+  GitBranch,
+  Search,
+} from "lucide-react";
+import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
+
+interface Branch {
+  id: number | string;
+  name: string;
+}
+
+interface FileToolbarProps {
+  currentPath: string[];
+  repoName: string;
+  isDark: boolean;
+  onCreate: () => void;
+  onUpload: () => void;
+  /** False for anonymous/read-only visitors: hides the "Add file" menu. */
+  canWrite?: boolean;
+
+  branches: Branch[];
+  selectedBranch: string;
+  defaultBranch: string;
+  onBranchChange: (branchName: string) => void;
+}
+
+export default function FileToolbar({
+  currentPath,
+  repoName,
+  isDark,
+  onCreate,
+  onUpload,
+  canWrite = false,
+  branches,
+  selectedBranch,
+  defaultBranch,
+  onBranchChange,
+}: FileToolbarProps) {
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showBranchMenu, setShowBranchMenu] = useState(false);
+  const [branchQuery, setBranchQuery] = useState("");
+
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const branchMenuRef = useRef<HTMLDivElement | null>(null);
+  const branchSearchRef = useRef<HTMLInputElement | null>(null);
+
+  const t = getDashboardTheme(isDark);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (menuRef.current && !menuRef.current.contains(target)) {
+        setShowAddMenu(false);
+      }
+
+      if (branchMenuRef.current && !branchMenuRef.current.contains(target)) {
+        setShowBranchMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Reset the filter and focus the search field each time the menu opens.
+  useEffect(() => {
+    if (!showBranchMenu) return;
+
+    setBranchQuery("");
+    branchSearchRef.current?.focus();
+  }, [showBranchMenu]);
+
+  const filteredBranches = useMemo(() => {
+    const query = branchQuery.trim().toLowerCase();
+
+    if (!query) return branches;
+
+    return branches.filter((branch) =>
+      branch.name.toLowerCase().includes(query),
+    );
+  }, [branches, branchQuery]);
+
+  const handleBranchChange = (branchName: string) => {
+    onBranchChange(branchName);
+    setShowBranchMenu(false);
+  };
+
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* Repository / Path */}
+      <div className="min-w-0 flex-1">
+        {currentPath.length > 0 ? (
+          <div
+            className="flex items-center gap-1 text-sm"
+            style={{ color: t.textMuted }}
+          >
+            <button
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("repo:reset-path"))
+              }
+              className="hover:underline"
+              style={{ color: t.accent }}
+            >
+              <span data-no-translate>{repoName}</span>
+            </button>
+
+            {currentPath.map((path, index) => (
+              <div
+                key={`${path}-${index}`}
+                className="flex items-center gap-1 min-w-0"
+              >
+                <ChevronRight className="w-4 h-4 shrink-0" />
+                <span className="truncate" data-no-translate>{path}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm font-medium" style={{ color: t.text }}>
+            <span data-no-translate>{repoName}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Branch selector */}
+        <div className="relative" ref={branchMenuRef}>
+          <button
+            type="button"
+            onClick={() => setShowBranchMenu((value) => !value)}
+            className="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors"
+            style={{
+              borderColor: t.border,
+              color: t.text,
+              background: t.inputBg,
+            }}
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+
+            <span className="max-w-32 truncate" data-no-translate>{selectedBranch}</span>
+
+            <span
+              className="rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none"
+              style={{
+                backgroundColor: t.accentMuted,
+                color: t.accent,
+              }}
+            >
+              {branches.length}
+            </span>
+
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+
+          {showBranchMenu && (
+            <div
+              className="absolute left-0 top-full z-20 mt-2 w-72 overflow-hidden rounded-xl border shadow-lg sm:left-auto sm:right-0"
+              style={{
+                backgroundColor: t.elevated,
+                borderColor: t.border,
+              }}
+            >
+              <div
+                className="flex items-center justify-between gap-2 px-3 pt-2 pb-1 text-xs font-medium"
+                style={{ color: t.textMuted }}
+              >
+                <span>Select branch</span>
+
+                <span>
+                  {branches.length}{" "}
+                  {branches.length === 1 ? "branch" : "branches"}
+                </span>
+              </div>
+
+              <div className="px-3 pb-2">
+                <div className="relative">
+                  <Search
+                    className="pointer-events-none absolute left-2 top-1/2 w-3.5 h-3.5 -translate-y-1/2"
+                    style={{ color: t.textMuted }}
+                  />
+
+                  <input
+                    ref={branchSearchRef}
+                    type="text"
+                    value={branchQuery}
+                    onChange={(event) => setBranchQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") setShowBranchMenu(false);
+                    }}
+                    placeholder="Filter branches..."
+                    aria-label="Filter branches"
+                    className="w-full rounded-md border py-1.5 pl-7 pr-2 text-xs outline-none"
+                    style={{
+                      backgroundColor: t.inputBg,
+                      borderColor: t.border,
+                      color: t.text,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto pb-2">
+                {branches.length === 0 ? (
+                  <div
+                    className="px-3 py-2 text-sm"
+                    style={{ color: t.textMuted }}
+                  >
+                    No branches available
+                  </div>
+                ) : filteredBranches.length === 0 ? (
+                  <div
+                    className="px-3 py-2 text-sm"
+                    style={{ color: t.textMuted }}
+                  >
+                    No branches match &ldquo;{branchQuery.trim()}&rdquo;
+                  </div>
+                ) : (
+                  filteredBranches.map((branch) => {
+                    const isSelected = branch.name === selectedBranch;
+                    const isDefault = branch.name === defaultBranch;
+
+                    return (
+                      <button
+                        key={branch.id}
+                        type="button"
+                        onClick={() => handleBranchChange(branch.name)}
+                        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                        style={{ color: t.text }}
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <GitBranch className="w-4 h-4 shrink-0" />
+
+                          <span className="truncate" data-no-translate>{branch.name}</span>
+
+                          {isDefault && (
+                            <span
+                              className="shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none"
+                              style={{
+                                borderColor: t.border,
+                                backgroundColor: t.accentMuted,
+                                color: t.accent,
+                              }}
+                            >
+                              default
+                            </span>
+                          )}
+                        </span>
+
+                        {isSelected && (
+                          <Check
+                            className="w-4 h-4 shrink-0"
+                            style={{ color: t.accent }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Add file */}
+        {canWrite && (
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setShowAddMenu((value) => !value)}
+            className="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors"
+            style={{
+              borderColor: t.border,
+              color: t.text,
+              background: t.inputBg,
+            }}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add file
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+
+          {showAddMenu && (
+            <div
+              className="absolute right-0 top-full z-10 mt-2 min-w-44 rounded-xl border py-2 shadow-lg"
+              style={{
+                backgroundColor: t.elevated,
+                borderColor: t.border,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddMenu(false);
+                  onCreate();
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                style={{ color: t.text }}
+              >
+                <Plus className="w-4 h-4" />
+                New file
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddMenu(false);
+                  onUpload();
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                style={{ color: t.text }}
+              >
+                <Upload className="w-4 h-4" />
+                Upload files
+              </button>
+            </div>
+          )}
+        </div>
+        )}
+      </div>
+    </div>
+  );
+}

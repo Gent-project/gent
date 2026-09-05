@@ -63,6 +63,22 @@ def _read_blob(repository, sha, cache):
     """Return (text, is_binary) for a blob sha. text is None when binary."""
     if sha in cache:
         return cache[sha]
+    if repository.object_format == 'sha256':
+        from api.gitcore.store import read
+        item = read(repository, sha)
+        if item is None:
+            from api.gitcore.objects import GitError
+            raise GitError('missing canonical diff object')
+        if item[0] != 'blob':
+            result = (None, True)  # gitlink or other non-text object
+        else:
+            raw = item[1]
+            try:
+                result = (None, True) if b'\0' in raw else (raw.decode('utf-8'), False)
+            except UnicodeDecodeError:
+                result = (None, True)
+        cache[sha] = result
+        return result
     blob = Blob.objects.filter(repository=repository, sha=sha).first()
     result = ('', False)
     if blob is not None:
@@ -181,7 +197,8 @@ def _line_diff(old_text, new_text):
 def commit_diff(request, owner_ref, repo_name, sha):
     """Compute and return the diff for a single commit."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
-    commit = get_object_or_404(Commit, repository=repository, sha=sha)
+    from api.utils import resolve_migrated_commit
+    commit = get_object_or_404(Commit, repository=repository, sha=resolve_migrated_commit(repository, sha))
 
     parent_sha = commit.parent_shas[0] if commit.parent_shas else None
     old_tree_sha = None

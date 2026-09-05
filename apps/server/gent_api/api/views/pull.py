@@ -30,6 +30,8 @@ PULL_DESCRIPTION = (
 @permission_classes([permissions.AllowAny])
 def pull(request, owner_ref, repo_name):
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
+    if repository.object_format == 'sha256':
+        return Response({'error': 'Use smart HTTP to preserve canonical objects and all parents.'}, status=409)
     branch_name = request.query_params.get('branch')
     if not branch_name:
         return Response(

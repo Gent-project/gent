@@ -18,6 +18,7 @@ from .pull import pull
 from .clone import clone
 from .tag import tag_list, tag_create, tag_delete
 from .members import member_list, member_remove
+from .discover import repository_search, user_search, public_user_detail
 
 __all__ = [
     'api_root',
@@ -53,4 +54,7 @@ __all__ = [
     'tag_delete',
     'member_list',
     'member_remove',
+    'repository_search',
+    'user_search',
+    'public_user_detail',
 ]

@@ -17,11 +17,11 @@ class RepositorySerializer(serializers.ModelSerializer):
         fields = [
             'id', 'owner_id', 'owner_email', 'owner_username', 'owner_name',
             'name', 'description',
-            'is_private', 'default_branch', 'role', 'created_at', 'updated_at'
+            'is_private', 'default_branch', 'object_format', 'role', 'created_at', 'updated_at'
         ]
         read_only_fields = [
             'id', 'owner_id', 'owner_email', 'owner_username', 'owner_name',
-            'role', 'created_at', 'updated_at'
+            'object_format', 'role', 'created_at', 'updated_at'
         ]
 
     def get_role(self, obj):
@@ -35,7 +35,7 @@ class RepositoryCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating a repository."""
     class Meta:
         model = Repository
-        fields = ['name', 'description', 'is_private', 'default_branch']
+        fields = ['name', 'description', 'is_private', 'default_branch', 'object_format']
         extra_kwargs = {
             'description': {'required': False},
             'is_private': {'required': False},
