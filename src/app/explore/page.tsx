@@ -141,7 +141,12 @@ function ExploreContent() {
             )}
           </div>
 
-          {active.isError ? (
+          {active.isLoading ? (
+            /* Must precede the empty states: while react-query retries a failing
+               request there is no data and no error yet, and falling through
+               would claim nothing matched. */
+            <p className="py-12 text-center text-sm text-muted">Searching…</p>
+          ) : active.isError ? (
             <p className="py-12 text-center text-sm text-muted">
               Search is unavailable right now. Try again in a moment.
             </p>
