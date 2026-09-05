@@ -104,6 +104,10 @@ class Repository(models.Model):
         ordering = ['-created_at']
         verbose_name = 'repository'
         verbose_name_plural = 'repositories'
+        indexes = [
+            models.Index(fields=['is_private', '-updated_at']),
+            models.Index(fields=['name']),
+        ]
 
     def __str__(self):
         return f"{self.owner.email}/{self.name}"

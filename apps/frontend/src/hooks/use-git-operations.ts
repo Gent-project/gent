@@ -50,7 +50,7 @@ export const usePushPack = () => {
   return useMutation<
     any,
     Error,
-    { ownerId: number; repoName: string; pack: GitPack }
+    { ownerId: number | string; repoName: string; pack: GitPack }
   >({
     mutationFn: async ({ ownerId, repoName, pack }) => {
       const response = await axios.post(
@@ -80,7 +80,7 @@ export const usePushPack = () => {
 
 // Pull commits and objects from repository
 export const usePullRepository = () => {
-  return useMutation<any, Error, { ownerId: number; repoName: string }>({
+  return useMutation<any, Error, { ownerId: number | string; repoName: string }>({
     mutationFn: async ({ ownerId, repoName }) => {
       const response = await axios.get(`/repos/${ownerId}/${repoName}/pull/`);
       return response.data;

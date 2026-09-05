@@ -9,7 +9,7 @@ import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 interface CreateBranchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   isDark: boolean;
   defaultBranch: string;

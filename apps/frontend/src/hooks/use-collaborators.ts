@@ -9,25 +9,25 @@ export interface Collaborator {
 }
 
 interface AddCollaboratorData {
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   email: string;
   role?: "write";
 }
 
 interface RemoveCollaboratorData {
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   userId: number;
 }
 
 export const collaboratorsKeys = {
   all: ["collaborators"] as const,
-  list: (ownerId: number, repoName: string) =>
+  list: (ownerId: number | string, repoName: string) =>
     [...collaboratorsKeys.all, ownerId, repoName] as const,
 };
 
-export function useCollaborators(ownerId: number, repoName: string) {
+export function useCollaborators(ownerId: number | string, repoName: string) {
   return useQuery<Collaborator[]>({
     queryKey: collaboratorsKeys.list(ownerId, repoName),
     queryFn: async () => {

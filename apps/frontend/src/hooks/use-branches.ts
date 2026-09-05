@@ -3,7 +3,7 @@ import axios from "@/lib/axios";
 import { Branch } from "@/types/repository";
 
 // Get all branches for a repository
-export const useBranches = (ownerId: number, repoName: string) => {
+export const useBranches = (ownerId: number | string, repoName: string) => {
   return useQuery<Branch[]>({
     queryKey: ['branches', ownerId, repoName],
     queryFn: async () => {
@@ -15,7 +15,7 @@ export const useBranches = (ownerId: number, repoName: string) => {
 };
 
 // Get single branch details
-export const useBranch = (ownerId: number, repoName: string, branchName: string) => {
+export const useBranch = (ownerId: number | string, repoName: string, branchName: string) => {
   return useQuery<Branch>({
     queryKey: ['branch', ownerId, repoName, branchName],
     queryFn: async () => {
@@ -30,7 +30,7 @@ export const useBranch = (ownerId: number, repoName: string, branchName: string)
 export const useCreateBranch = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<Branch, Error, { ownerId: number; repoName: string; data: { name: string; commit_sha: string } }>({
+  return useMutation<Branch, Error, { ownerId: number | string; repoName: string; data: { name: string; commit_sha: string } }>({
     mutationFn: async ({ ownerId, repoName, data }) => {
       const response = await axios.post(`/repos/${ownerId}/${repoName}/branches/create/`, data);
       return response.data;
@@ -45,7 +45,7 @@ export const useCreateBranch = () => {
 export const useUpdateBranch = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<Branch, Error, { ownerId: number; repoName: string; branchName: string; data: { commit_sha: string } }>({
+  return useMutation<Branch, Error, { ownerId: number | string; repoName: string; branchName: string; data: { commit_sha: string } }>({
     mutationFn: async ({ ownerId, repoName, branchName, data }) => {
       const response = await axios.patch(`/repos/${ownerId}/${repoName}/branches/${branchName}/`, data);
       return response.data;
@@ -61,7 +61,7 @@ export const useUpdateBranch = () => {
 export const useDeleteBranch = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<void, Error, { ownerId: number; repoName: string; branchName: string }>({
+  return useMutation<void, Error, { ownerId: number | string; repoName: string; branchName: string }>({
     mutationFn: async ({ ownerId, repoName, branchName }) => {
       await axios.delete(`/repos/${ownerId}/${repoName}/branches/${branchName}/`);
     },

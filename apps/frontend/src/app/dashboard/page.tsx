@@ -12,6 +12,7 @@ import { useRepositories } from "@/hooks/use-repositories";
 import { useDashboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { Repository } from "@/types/repository";
 import WorkspacePulse from "./_components/WorkspacePulse";
+import { getRepoOwner } from "@/lib/user-display";
 
 type SortKey = "newest" | "oldest" | "name";
 
@@ -49,7 +50,7 @@ export default function DashboardPage() {
         (r: Repository) =>
           r.name.toLowerCase().includes(q) ||
           r.description.toLowerCase().includes(q) ||
-          r.owner_email.toLowerCase().includes(q),
+          getRepoOwner(r).toLowerCase().includes(q),
       );
     }
 

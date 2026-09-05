@@ -33,7 +33,9 @@ import CreateFileModal from "./CreateFileModal";
 import UploadFileModal from "./UploadFileModal";
 
 interface FileBrowserTabProps {
-  ownerId: number;
+  ownerId: number | string;
+  /** False for anonymous/read-only visitors: hides every write control. */
+  canWrite?: boolean;
   repoName: string;
   isDark: boolean;
   defaultBranch: string;
@@ -57,6 +59,7 @@ export default function FileBrowserTab({
   isDark,
   defaultBranch,
   userEmail,
+  canWrite = false,
 }: FileBrowserTabProps) {
   const [currentPath, setCurrentPath] = useState<string[]>([]);
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
@@ -529,6 +532,7 @@ export default function FileBrowserTab({
             isDark={isDark}
             onCreate={() => setShowCreateModal(true)}
             onUpload={() => setShowUploadModal(true)}
+            canWrite={canWrite}
             branches={branches}
             selectedBranch={selectedBranch}
             defaultBranch={defaultBranch}
@@ -587,6 +591,7 @@ export default function FileBrowserTab({
             isDark={isDark}
             onCreate={() => setShowCreateModal(true)}
             onUpload={() => setShowUploadModal(true)}
+            canWrite={canWrite}
             branches={branches}
             selectedBranch={selectedBranch}
             defaultBranch={defaultBranch}
@@ -651,6 +656,7 @@ export default function FileBrowserTab({
             isDark={isDark}
             onCreate={() => setShowCreateModal(true)}
             onUpload={() => setShowUploadModal(true)}
+            canWrite={canWrite}
             branches={branches}
             selectedBranch={selectedBranch}
             defaultBranch={defaultBranch}
@@ -850,6 +856,7 @@ export default function FileBrowserTab({
           isDark={isDark}
           onCreate={() => setShowCreateModal(true)}
           onUpload={() => setShowUploadModal(true)}
+          canWrite={canWrite}
           branches={branches}
           selectedBranch={selectedBranch}
           defaultBranch={defaultBranch}

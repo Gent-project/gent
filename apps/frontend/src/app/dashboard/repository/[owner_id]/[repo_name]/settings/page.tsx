@@ -32,6 +32,7 @@ import {
   useRemoveCollaborator,
 } from "@/hooks/use-collaborators";
 import { useBranches } from "@/hooks/use-branches";
+import { getRepoOwner } from "@/lib/user-display";
 export default function RepositorySettingsPage() {
   const params = useParams();
   const router = useRouter();
@@ -223,7 +224,7 @@ export default function RepositorySettingsPage() {
             Repository Settings
           </h1>
           <p className="text-sm" style={{ color: t.textMuted }}>
-            {repository.owner_email.split("@")[0]}/{repository.name}
+            {getRepoOwner(repository)}/{repository.name}
           </p>
         </div>
       </div>

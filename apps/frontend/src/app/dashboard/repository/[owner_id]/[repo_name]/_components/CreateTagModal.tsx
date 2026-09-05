@@ -9,7 +9,7 @@ import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 interface CreateTagModalProps {
   isOpen: boolean;
   onClose: () => void;
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   isDark: boolean;
   branches: Array<{ name: string; commit_sha: string }>;

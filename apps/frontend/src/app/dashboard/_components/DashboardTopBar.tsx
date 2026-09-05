@@ -1,7 +1,9 @@
 "use client";
 
-import { Search, Plus, Menu, Moon, Sun } from "lucide-react";
+import { Search, Plus, Menu, Moon, Sun, Globe2 } from "lucide-react";
+import Link from "next/link";
 import { getDashboardTheme } from "./dashboard-theme";
+import { PUBLIC_PATH } from "@/routes/path";
 import { LanguageToggle } from "@/app/language-provider";
 
 interface DashboardTopBarProps {
@@ -60,6 +62,18 @@ export default function DashboardTopBar({
             color: t.text,
           }}
         />
+
+        {/* This box only filters your own repos; send the rest to /explore. */}
+        {searchQuery.trim() && (
+          <Link
+            href={PUBLIC_PATH.SEARCH(searchQuery.trim())}
+            className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-semibold transition-colors"
+            style={{ borderColor: t.border, background: t.sidebarActive, color: t.textMuted }}
+          >
+            <Globe2 className="h-3 w-3" />
+            Search all of Gent
+          </Link>
+        )}
       </div>
 
       <span
