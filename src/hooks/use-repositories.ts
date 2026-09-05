@@ -19,7 +19,7 @@ export const useRepositories = () => {
 };
 
 // Get single repository
-export const useRepository = (ownerId: number, repoName: string) => {
+export const useRepository = (ownerId: number | string, repoName: string) => {
   return useQuery<Repository>({
     queryKey: ['repository', ownerId, repoName],
     queryFn: async () => {
@@ -50,7 +50,7 @@ export const useCreateRepository = () => {
 export const useUpdateRepository = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<Repository, Error, { ownerId: number; repoName: string; data: Partial<Repository> }>({
+  return useMutation<Repository, Error, { ownerId: number | string; repoName: string; data: Partial<Repository> }>({
     mutationFn: async ({ ownerId, repoName, data }) => {
       const response = await axios.patch<RepositoryResponse>(`/repos/${ownerId}/${repoName}/`, data);
       return unwrapRepository(response.data);
@@ -66,7 +66,7 @@ export const useUpdateRepository = () => {
 export const useDeleteRepository = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<void, Error, { ownerId: number; repoName: string }>({
+  return useMutation<void, Error, { ownerId: number | string; repoName: string }>({
     mutationFn: async ({ ownerId, repoName }) => {
       await axios.delete(`/repos/${ownerId}/${repoName}/delete/`);
     },

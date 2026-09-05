@@ -18,7 +18,7 @@ export interface Tree {
 
 // Get tree (directory listing)
 export const useTree = (
-  ownerId: number,
+  ownerId: number | string,
   repoName: string,
   sha: string,
   options?: { enabled?: boolean },
@@ -43,7 +43,7 @@ export const useTree = (
 };
 
 // Get blob (file content)
-export const useBlob = (ownerId: number, repoName: string, sha: string) => {
+export const useBlob = (ownerId: number | string, repoName: string, sha: string) => {
   return useQuery<Blob>({
     queryKey: ["blob", ownerId, repoName, sha],
     queryFn: async () => {
@@ -73,7 +73,7 @@ export const useCreateBlob = () => {
   return useMutation<
     Blob,
     Error,
-    { ownerId: number; repoName: string; data: CreateBlobData }
+    { ownerId: number | string; repoName: string; data: CreateBlobData }
   >({
     mutationFn: async ({ ownerId, repoName, data }) => {
       const response = await axios.post(
@@ -112,7 +112,7 @@ export const useCreateTree = () => {
   return useMutation<
     Tree,
     Error,
-    { ownerId: number; repoName: string; data: CreateTreeData }
+    { ownerId: number | string; repoName: string; data: CreateTreeData }
   >({
     mutationFn: async ({ ownerId, repoName, data }) => {
       const response = await axios.post(

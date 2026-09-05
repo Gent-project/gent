@@ -10,7 +10,7 @@ export interface CloneResponse {
 }
 
 export const useCloneRepository = (
-  ownerId: number,
+  ownerId: number | string,
   repoName: string,
   enabled: boolean = false,
 ) => {
@@ -35,7 +35,7 @@ export interface RepositoryMember {
 }
 
 // Get repository members
-export const useRepositoryMembers = (ownerId: number, repoName: string) => {
+export const useRepositoryMembers = (ownerId: number | string, repoName: string) => {
   return useQuery<RepositoryMember[]>({
     queryKey: ["repository-members", ownerId, repoName],
     queryFn: async () => {
@@ -56,7 +56,7 @@ export const useAddRepositoryMember = () => {
     RepositoryMember,
     Error,
     {
-      ownerId: number;
+      ownerId: number | string;
       repoName: string;
       data: { user_id: number; role?: string };
     }
@@ -83,7 +83,7 @@ export const useRemoveRepositoryMember = () => {
   return useMutation<
     void,
     Error,
-    { ownerId: number; repoName: string; userId: number }
+    { ownerId: number | string; repoName: string; userId: number }
   >({
     mutationFn: async ({ ownerId, repoName, userId }) => {
       await axios.delete(`/repos/${ownerId}/${repoName}/members/${userId}/`);

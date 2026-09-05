@@ -32,8 +32,9 @@ import CreateFileModal from "./CreateFileModal";
 import UploadFileModal from "./UploadFileModal";
 
 interface FileBrowserTabProps {
+  ownerId: number | string;
+  /** False for anonymous/read-only visitors: hides every write control. */
   canWrite?: boolean;
-  ownerId: number;
   repoName: string;
   isDark: boolean;
   defaultBranch: string;
@@ -511,12 +512,13 @@ export default function FileBrowserTab({
     return (
       <>
         <div className="space-y-4">
-          <FileToolbar canWrite={canWrite}
+          <FileToolbar
             currentPath={currentPath}
             repoName={repoName}
             isDark={isDark}
             onCreate={() => setShowCreateModal(true)}
             onUpload={() => setShowUploadModal(true)}
+            canWrite={canWrite}
             branches={branches}
             selectedBranch={selectedBranch}
             onBranchChange={setSelectedBranch}
@@ -568,12 +570,13 @@ export default function FileBrowserTab({
     return (
       <>
         <div className="space-y-4">
-          <FileToolbar canWrite={canWrite}
+          <FileToolbar
             currentPath={currentPath}
             repoName={repoName}
             isDark={isDark}
             onCreate={() => setShowCreateModal(true)}
             onUpload={() => setShowUploadModal(true)}
+            canWrite={canWrite}
             branches={branches}
             selectedBranch={selectedBranch}
             onBranchChange={setSelectedBranch}
@@ -631,12 +634,13 @@ export default function FileBrowserTab({
     return (
       <>
         <div className="space-y-4">
-          <FileToolbar canWrite={canWrite}
+          <FileToolbar
             currentPath={currentPath}
             repoName={repoName}
             isDark={isDark}
             onCreate={() => setShowCreateModal(true)}
             onUpload={() => setShowUploadModal(true)}
+            canWrite={canWrite}
             branches={branches}
             selectedBranch={selectedBranch}
             onBranchChange={setSelectedBranch}
@@ -829,12 +833,13 @@ export default function FileBrowserTab({
   return (
     <>
       <div className="space-y-4">
-        <FileToolbar canWrite={canWrite}
+        <FileToolbar
           currentPath={currentPath}
           repoName={repoName}
           isDark={isDark}
           onCreate={() => setShowCreateModal(true)}
           onUpload={() => setShowUploadModal(true)}
+          canWrite={canWrite}
           branches={branches}
           selectedBranch={selectedBranch}
           onBranchChange={setSelectedBranch}

@@ -5,7 +5,7 @@ import { useCommit, useCommitDiff } from "@/hooks/use-commits";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 
 interface CommitDetailsProps {
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   sha: string;
   isDark: boolean;

@@ -11,6 +11,13 @@ const API_ROUTES = {
     PASSWORD_RESET: "auth/password/reset/",
     PASSWORD_RESET_CONFIRM: "auth/password/reset/confirm/",
   },
+  SEARCH: {
+    REPOS: "search/repos/",
+    USERS: "search/users/",
+  },
+  USERS: {
+    DETAIL: (username: string) => `users/${username}/`,
+  },
   REPOS: {
     LIST: "repos/",
     CREATE: "repos/create/",

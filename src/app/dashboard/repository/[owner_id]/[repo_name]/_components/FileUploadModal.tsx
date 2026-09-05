@@ -19,7 +19,7 @@ import {
 interface FileUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   isDark: boolean;
   defaultBranch: string;
