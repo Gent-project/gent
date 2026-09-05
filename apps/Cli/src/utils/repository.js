@@ -255,6 +255,9 @@ async function findGitdir(startDir = process.cwd()) {
             }
 
             if (stat.isDirectory()) {
+                if (name === GENT_DIR && !(await looksLikeGitdir(candidate)) && !(await looksLikeLegacyGentdir(candidate))) {
+                    continue;
+                }
                 const commondir = await resolveCommonDir(candidate);
                 return { gitdir: candidate, commondir, worktree: current };
             }
@@ -295,6 +298,14 @@ async function looksLikeGitdir(dir) {
     } catch {
         return false;
     }
+}
+
+/**
+ * @param {String} dir
+ * @returns {Promise<Boolean>}
+ */
+async function looksLikeLegacyGentdir(dir) {
+    return fs.access(path.join(dir, 'commits.json')).then(() => true, () => false);
 }
 
 /**

@@ -133,6 +133,21 @@ test('init refuses legacy metadata without changing it', async t => {
     assert.equal(await fs.access(path.join(root, '.git')).then(() => true, () => false), false);
 });
 
+test('init ignores unrelated parent .gent config directories', async t => {
+    const parent = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'gent-parent-config-')));
+    t.after(() => fs.rm(parent, { recursive: true, force: true }));
+    await fs.mkdir(path.join(parent, '.gent'));
+    await fs.writeFile(path.join(parent, '.gent', 'auth.json'), '{}');
+    await fs.writeFile(path.join(parent, '.gent', 'cli-config.json'), '{}');
+
+    const child = path.join(parent, 'project');
+    const result = await repository.init(child);
+
+    assert.equal(result.created, true);
+    assert.equal(result.gitdir, path.join(child, '.gent'));
+    assert.equal(await fs.access(path.join(child, '.git')).then(() => true, () => false), true);
+});
+
 test('stash conflict refuses before mutation and retains the stash', async t => {
     const repo = await fixture(t);
     await fs.writeFile(path.join(repo.worktree, 'a'), 'stashed\n');
