@@ -19,14 +19,22 @@ services:
         fromDatabase:
           name: gent-db
           property: connectionString
+      # Resend (https://resend.com) is the email API - unrelated to Render.
+      # sync: false means this must be set by hand in the Render dashboard
+      # (Environment tab). Password reset emails will not send without it.
       - key: RESEND_API_KEY
         sync: false
+      # Resend's shared sender; only delivers to the address the Resend account
+      # was registered with. Swap for an address on a verified domain to reach
+      # arbitrary recipients.
       - key: DEFAULT_FROM_EMAIL
-        value: noreply@yourdomain.com
+        value: onboarding@resend.dev
       - key: FRONTEND_URL
-        value: https://your-frontend.vercel.app
+        value: https://gent-nu2e.onrender.com
       - key: PASSWORD_RESET_TIMEOUT
         value: "3600"
+      - key: LOG_LEVEL
+        value: INFO
 
 databases:
   - name: gent-db
