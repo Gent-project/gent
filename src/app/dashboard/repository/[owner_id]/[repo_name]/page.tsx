@@ -1,5 +1,6 @@
 "use client";
 
+import { getStoredToken } from "@/lib/auth-session";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -40,6 +41,8 @@ type TabType = "code" | "commits" | "branches" | "tags";
 
 export default function RepositoryPage() {
   const params = useParams();
+  const token = useSelector((state: RootState) => state.auth.token);
+  const canWrite = Boolean(token || getStoredToken());
   const isDark = useSelector((state: RootState) => state.theme.isDark);
   const [activeTab, setActiveTab] = useState<TabType>("code");
   const [showGitOpsModal, setShowGitOpsModal] = useState(false);
@@ -48,9 +51,11 @@ export default function RepositoryPage() {
   const repoName = params.repo_name as string;
 
   const { data: repository, isLoading: repoLoading, error: repoError } = useRepository(ownerId, repoName);
-  const { data: branches = [], isLoading: branchesLoading } = useBranches(ownerId, repoName);
-  const { data: commits = [], isLoading: commitsLoading } = useCommits(ownerId, repoName);
-  const { data: tags = [], isLoading: tagsLoading } = useTags(ownerId, repoName);
+  const canRead = Boolean(repository && (canWrite || repository.is_private === false));
+  const readOwnerId = canRead ? ownerId : 0;
+  const { data: branches = [], isLoading: branchesLoading } = useBranches(readOwnerId, repoName);
+  const { data: commits = [], isLoading: commitsLoading } = useCommits(readOwnerId, repoName);
+  const { data: tags = [], isLoading: tagsLoading } = useTags(readOwnerId, repoName);
   const t = getDashboardTheme(isDark);
 
   if (repoLoading) {
@@ -66,14 +71,14 @@ export default function RepositoryPage() {
     );
   }
 
-  if (repoError || !repository) {
+  if (repoError || !repository || !canRead) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
         <div className="rounded-2xl border p-10 text-center" style={{ background: t.elevated, borderColor: t.border }}>
           <h1 className="text-xl font-semibold" style={{ color: t.text }}>Repository not found</h1>
           <p className="mt-2 text-sm" style={{ color: t.textMuted }}>This repository does not exist or you do not have access to it.</p>
-          <Link href="/dashboard" className="mt-5 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold" style={{ background: t.accent, color: t.successText }}>
-            <ArrowLeft className="h-4 w-4" /> Back to dashboard
+          <Link href={canWrite ? "/dashboard" : `/auth/login?next=${encodeURIComponent(`/dashboard/repository/${ownerId}/${repoName}`)}`} className="mt-5 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold" style={{ background: t.accent, color: t.successText }}>
+            <ArrowLeft className="h-4 w-4" /> {canWrite ? "Back to dashboard" : "Sign in to check access"}
           </Link>
         </div>
       </div>
@@ -100,7 +105,7 @@ export default function RepositoryPage() {
   return (
     <div className="mx-auto max-w-[1380px] px-4 py-5 sm:px-6 sm:py-7">
       <nav className="mb-4 flex min-w-0 items-center gap-1.5 text-xs" style={{ color: t.textMuted }} aria-label="Repository breadcrumb">
-        <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Repositories</Link>
+        <Link href={canWrite ? "/dashboard" : "/"} className="inline-flex items-center gap-1.5 hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Repositories</Link>
         <ChevronRight className="h-3.5 w-3.5" />
         <span data-no-translate>{owner}</span>
         <ChevronRight className="h-3.5 w-3.5" />
@@ -127,9 +132,9 @@ export default function RepositoryPage() {
               {latestCommit && <span className="inline-flex items-center gap-1.5"><GitCommit className="h-3 w-3" />{latestCommit.sha.slice(0, 7)}</span>}
             </div>
           </div>
-          <Link href={`/dashboard/repository/${ownerId}/${repoName}/settings`} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium" style={{ borderColor: t.border, color: t.text, background: t.inputBg }}>
+          {canWrite && <Link href={`/dashboard/repository/${ownerId}/${repoName}/settings`} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium" style={{ borderColor: t.border, color: t.text, background: t.inputBg }}>
             <Settings className="h-4 w-4" /> Settings
-          </Link>
+          </Link>}
         </div>
 
         <nav className="flex overflow-x-auto border-t px-2 sm:px-4" style={{ borderColor: t.borderMuted }} aria-label="Repository sections">
@@ -146,10 +151,10 @@ export default function RepositoryPage() {
       <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
         <section className="min-w-0 overflow-hidden rounded-2xl border" style={{ background: t.elevated, borderColor: t.border }}>
           <div className={activeTab === "code" ? "p-3 sm:p-4" : "p-5 sm:p-6"}>
-            {activeTab === "code" && <FileBrowserTab ownerId={ownerId} repoName={repoName} isDark={isDark} defaultBranch={repository.default_branch} userEmail={repository.owner_email} />}
+            {activeTab === "code" && <FileBrowserTab ownerId={ownerId} repoName={repoName} isDark={isDark} defaultBranch={repository.default_branch} canWrite={canWrite} userEmail={repository.owner_email} />}
             {activeTab === "commits" && <CommitsTab commits={commits} isLoading={commitsLoading} isDark={isDark} ownerName={owner} repoName={repoName} ownerId={repository.owner_id} />}
-            {activeTab === "branches" && <BranchesTab branches={branches} isLoading={branchesLoading} isDark={isDark} defaultBranch={repository.default_branch} ownerId={ownerId} repoName={repoName} userEmail={repository.owner_email} />}
-            {activeTab === "tags" && <TagsTab tags={tags} isLoading={tagsLoading} isDark={isDark} ownerId={ownerId} repoName={repoName} branches={branches} userEmail={repository.owner_email} />}
+            {activeTab === "branches" && <BranchesTab branches={branches} isLoading={branchesLoading} isDark={isDark} defaultBranch={repository.default_branch} ownerId={ownerId} repoName={repoName} canWrite={canWrite} userEmail={repository.owner_email} />}
+            {activeTab === "tags" && <TagsTab tags={tags} isLoading={tagsLoading} isDark={isDark} ownerId={ownerId} repoName={repoName} branches={branches} canWrite={canWrite} userEmail={repository.owner_email} />}
           </div>
         </section>
 
@@ -191,7 +196,7 @@ export default function RepositoryPage() {
         </aside>
       </motion.div>
 
-      <GitOperationsModal isOpen={showGitOpsModal} onClose={() => setShowGitOpsModal(false)} ownerId={ownerId} repoName={repoName} isDark={isDark} repositoryUrl={cloneUrl} defaultBranch={repository.default_branch} />
+      <GitOperationsModal canWrite={canWrite} isOpen={showGitOpsModal} onClose={() => setShowGitOpsModal(false)} ownerId={ownerId} repoName={repoName} isDark={isDark} repositoryUrl={cloneUrl} defaultBranch={repository.default_branch} />
     </div>
   );
 }

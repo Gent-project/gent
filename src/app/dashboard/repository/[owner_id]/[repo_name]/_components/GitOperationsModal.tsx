@@ -16,6 +16,7 @@ import { usePushPack, usePullRepository } from "@/hooks/use-git-operations";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 
 interface GitOperationsModalProps {
+  canWrite?: boolean;
   isOpen: boolean;
   onClose: () => void;
   ownerId: number;
@@ -25,7 +26,8 @@ interface GitOperationsModalProps {
   defaultBranch: string;
 }
 
-export default function GitOperationsModal({ 
+export default function GitOperationsModal({
+  canWrite = false,
   isOpen, 
   onClose, 
   ownerId, 
@@ -99,7 +101,7 @@ export default function GitOperationsModal({
             { id: 'clone', label: 'Clone', icon: Download },
             { id: 'push', label: 'Push', icon: Upload },
             { id: 'pull', label: 'Pull', icon: GitPullRequest },
-          ].map((tab) => (
+          ].filter((tab) => canWrite || tab.id === 'clone').map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}

@@ -32,6 +32,7 @@ import CreateFileModal from "./CreateFileModal";
 import UploadFileModal from "./UploadFileModal";
 
 interface FileBrowserTabProps {
+  canWrite?: boolean;
   ownerId: number;
   repoName: string;
   isDark: boolean;
@@ -51,6 +52,7 @@ const startsWithPath = (path: string[], prefix: string[]) =>
   prefix.every((segment, index) => path[index] === segment);
 
 export default function FileBrowserTab({
+  canWrite = false,
   ownerId,
   repoName,
   isDark,
@@ -509,7 +511,7 @@ export default function FileBrowserTab({
     return (
       <>
         <div className="space-y-4">
-          <FileToolbar
+          <FileToolbar canWrite={canWrite}
             currentPath={currentPath}
             repoName={repoName}
             isDark={isDark}
@@ -532,7 +534,7 @@ export default function FileBrowserTab({
         </div>
 
         <CreateFileModal
-          isOpen={showCreateModal}
+          isOpen={canWrite && showCreateModal}
           onClose={() => setShowCreateModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -543,7 +545,7 @@ export default function FileBrowserTab({
           currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
-          isOpen={showUploadModal}
+          isOpen={canWrite && showUploadModal}
           onClose={() => setShowUploadModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -566,7 +568,7 @@ export default function FileBrowserTab({
     return (
       <>
         <div className="space-y-4">
-          <FileToolbar
+          <FileToolbar canWrite={canWrite}
             currentPath={currentPath}
             repoName={repoName}
             isDark={isDark}
@@ -600,7 +602,7 @@ export default function FileBrowserTab({
         </div>
 
         <CreateFileModal
-          isOpen={showCreateModal}
+          isOpen={canWrite && showCreateModal}
           onClose={() => setShowCreateModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -611,7 +613,7 @@ export default function FileBrowserTab({
           currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
-          isOpen={showUploadModal}
+          isOpen={canWrite && showUploadModal}
           onClose={() => setShowUploadModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -629,7 +631,7 @@ export default function FileBrowserTab({
     return (
       <>
         <div className="space-y-4">
-          <FileToolbar
+          <FileToolbar canWrite={canWrite}
             currentPath={currentPath}
             repoName={repoName}
             isDark={isDark}
@@ -669,6 +671,8 @@ export default function FileBrowserTab({
                 <Copy className="w-4 h-4" />
               </button>
               <button
+                disabled={!canWrite}
+                hidden={!canWrite}
                 onClick={handleEditFile}
                 className="rounded-lg border p-2 transition-colors"
                 style={{ color: t.textMuted, borderColor: t.border }}
@@ -735,7 +739,7 @@ export default function FileBrowserTab({
         </div>
 
         <CreateFileModal
-          isOpen={showCreateModal}
+          isOpen={canWrite && showCreateModal}
           onClose={() => setShowCreateModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -746,7 +750,7 @@ export default function FileBrowserTab({
           currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
-          isOpen={showUploadModal}
+          isOpen={canWrite && showUploadModal}
           onClose={() => setShowUploadModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -825,7 +829,7 @@ export default function FileBrowserTab({
   return (
     <>
       <div className="space-y-4">
-        <FileToolbar
+        <FileToolbar canWrite={canWrite}
           currentPath={currentPath}
           repoName={repoName}
           isDark={isDark}
@@ -888,7 +892,7 @@ export default function FileBrowserTab({
       </div>
 
       <CreateFileModal
-        isOpen={showCreateModal}
+        isOpen={canWrite && showCreateModal}
         onClose={() => setShowCreateModal(false)}
         ownerId={ownerId}
         repoName={repoName}
@@ -899,7 +903,7 @@ export default function FileBrowserTab({
         currentTreeSha={activeTreeSha}
       />
       <UploadFileModal
-        isOpen={showUploadModal}
+        isOpen={canWrite && showUploadModal}
         onClose={() => setShowUploadModal(false)}
         ownerId={ownerId}
         repoName={repoName}
