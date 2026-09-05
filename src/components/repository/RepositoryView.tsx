@@ -67,7 +67,12 @@ export default function RepositoryView({
   const [copied, setCopied] = useState(false);
   const ownerId = ownerParam;
 
-  const { data: repository, isLoading: repoLoading, error: repoError } = useRepository(ownerId, repoName);
+  const {
+    data: repository,
+    isLoading: repoLoading,
+    error: repoError,
+    refetch: refetchRepository,
+  } = useRepository(ownerId, repoName);
   const { data: branches = [], isLoading: branchesLoading } = useBranches(ownerId, repoName);
   const { data: commits = [], isLoading: commitsLoading } = useCommits(ownerId, repoName);
   const { data: tags = [], isLoading: tagsLoading } = useTags(ownerId, repoName);
@@ -86,15 +91,36 @@ export default function RepositoryView({
     );
   }
 
+  const repoStatus = (repoError as { response?: { status?: number } } | null)?.response?.status;
+
   if (repoError || !repository) {
+    const notFound = repoStatus === 404 || repoStatus === 403;
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
         <div className="rounded-2xl border p-10 text-center" style={{ background: t.elevated, borderColor: t.border }}>
-          <h1 className="text-xl font-semibold" style={{ color: t.text }}>Repository not found</h1>
-          <p className="mt-2 text-sm" style={{ color: t.textMuted }}>This repository does not exist or you do not have access to it.</p>
-          <Link href={notFoundHref ?? backHref} className="mt-5 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold" style={{ background: t.accent, color: t.successText }}>
-            <ArrowLeft className="h-4 w-4" /> {notFoundLabel ?? backLabel}
-          </Link>
+          <h1 className="text-xl font-semibold" style={{ color: t.text }}>
+            {notFound ? "Repository not found" : "Repository is unavailable"}
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: t.textMuted }}>
+            {notFound
+              ? "This repository does not exist or you do not have access to it."
+              : "Gent could not load this repository. Please try again in a moment."}
+          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            {!notFound && (
+              <button
+                type="button"
+                onClick={() => void refetchRepository()}
+                className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold"
+                style={{ borderColor: t.border, color: t.text }}
+              >
+                Try again
+              </button>
+            )}
+            <Link href={notFoundHref ?? backHref} className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold" style={{ background: t.accent, color: t.successText }}>
+              <ArrowLeft className="h-4 w-4" /> {notFoundLabel ?? backLabel}
+            </Link>
+          </div>
         </div>
       </div>
     );

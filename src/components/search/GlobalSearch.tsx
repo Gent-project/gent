@@ -23,7 +23,7 @@ export default function GlobalSearch({ className = "" }: { className?: string })
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [cursor, setCursor] = useState(0);
+  const [cursor, setCursor] = useState<number | null>(null);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -68,7 +68,7 @@ export default function GlobalSearch({ className = "" }: { className?: string })
     ];
   }, [trimmed, repos.data, users.data]);
 
-  useEffect(() => setCursor(0), [trimmed]);
+  useEffect(() => setCursor(null), [trimmed]);
 
   // "/" focuses the box, the way it does on GitHub, unless you are typing.
   useEffect(() => {
@@ -107,6 +107,11 @@ export default function GlobalSearch({ className = "" }: { className?: string })
     router.push(href);
   };
 
+  const submitSearch = () => {
+    const value = query.trim();
+    if (value) go(PUBLIC_PATH.SEARCH(value));
+  };
+
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape") {
       setOpen(false);
@@ -115,23 +120,26 @@ export default function GlobalSearch({ className = "" }: { className?: string })
     }
 
     if (!open || suggestions.length === 0) {
-      if (event.key === "Enter" && trimmed) go(PUBLIC_PATH.SEARCH(trimmed));
+      if (event.key === "Enter") submitSearch();
       return;
     }
 
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setCursor((value) => (value + 1) % suggestions.length);
+      setCursor((value) => (value === null ? 0 : (value + 1) % suggestions.length));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setCursor((value) => (value - 1 + suggestions.length) % suggestions.length);
+      setCursor((value) =>
+        value === null ? suggestions.length - 1 : (value - 1 + suggestions.length) % suggestions.length,
+      );
     } else if (event.key === "Enter") {
       event.preventDefault();
-      go(suggestions[cursor].href);
+      if (cursor === null) submitSearch();
+      else go(suggestions[cursor].href);
     }
   };
 
-  const showPanel = open && trimmed.length > 0;
+  const showPanel = open && trimmed.length > 0 && trimmed === query.trim();
   const loading = repos.isLoading || users.isLoading;
 
   return (
