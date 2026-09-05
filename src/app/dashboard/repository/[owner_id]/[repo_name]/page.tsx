@@ -82,7 +82,10 @@ export default function RepositoryPage() {
 
   const owner = repository.owner_email.split("@")[0];
   const cloneUrl = getCloneUrl(repository.owner_id, repository.name);
-  const latestCommit = commits[0];
+  const defaultBranchHead = branches.find((branch) => branch.name === repository.default_branch)?.commit_sha;
+  const latestCommit = defaultBranchHead
+    ? commits.find((commit) => commit.sha === defaultBranchHead)
+    : undefined;
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   const tabs = [
     { id: "code" as TabType, label: "Code", icon: Code2, count: null },

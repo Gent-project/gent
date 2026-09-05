@@ -1,6 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import axios from "@/lib/axios";
-import { toast } from "sonner";
+import axios from "axios";
 
 export interface LoginResponse {
   message: string;
@@ -22,8 +21,10 @@ export const useLogin = () =>
   useMutation<LoginResponse, Error, { email: string; password: string }>({
     mutationFn: async (credentials) => {
       try {
-        // Use the backend API directly with trailing slash to match the API endpoint
-        const response = await axios.post("/auth/login/", credentials);
+        // Use the same-origin Next.js proxy. Calling the backend directly from
+        // the browser makes login depend on cross-origin policy and can surface
+        // only a generic "Network Error" even while the API itself is healthy.
+        const response = await axios.post("/api/auth/login", credentials);
 
         const data = response.data;
 
