@@ -1,22 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useSelector } from "react-redux";
-import { FolderGit2, Search, UserRound, Users } from "lucide-react";
+import { BookMarked, Clock3, GitBranch, LockKeyhole, Search, UserRound } from "lucide-react";
 
 import SiteShell from "@/app/components/site/SiteShell";
-import RepositoryCard from "@/app/dashboard/_components/RepositoryCard";
-import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
-import {
-  RepoSort,
-  useDebouncedValue,
-  useRepositorySearch,
-  useUserSearch,
-} from "@/hooks/use-search";
+import { RepoSort, useDebouncedValue, useRepositorySearch, useUserSearch } from "@/hooks/use-search";
 import { PUBLIC_PATH } from "@/routes/path";
-import { RootState } from "@/store";
 import { getRepoOwner } from "@/lib/user-display";
 
 type SearchType = "repos" | "users";
@@ -28,203 +19,237 @@ const SORTS: Array<{ id: RepoSort; label: string }> = [
   { id: "name", label: "Name" },
 ];
 
+function relativeTime(value: string): string {
+  const elapsed = Math.max(0, Date.now() - new Date(value).getTime());
+  const days = Math.floor(elapsed / 86_400_000);
+  if (days < 1) return "today";
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} month${months === 1 ? "" : "s"} ago`;
+  const years = Math.floor(months / 12);
+  return `${years} year${years === 1 ? "" : "s"} ago`;
+}
+
 function ExploreContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isDark = useSelector((state: RootState) => state.theme.isDark);
-  const t = getDashboardTheme(isDark);
 
-  const initialQuery = searchParams.get("q") ?? "";
-  const initialType = (searchParams.get("type") as SearchType) ?? "repos";
-
-  const [query, setQuery] = useState(initialQuery);
-  const [type, setType] = useState<SearchType>(initialType);
+  const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const [type, setType] = useState<SearchType>(
+    (searchParams.get("type") as SearchType) ?? "repos",
+  );
   const [sort, setSort] = useState<RepoSort>("best");
   const [page, setPage] = useState(1);
 
-  const debouncedQuery = useDebouncedValue(query);
+  const debounced = useDebouncedValue(query, 300);
+  const trimmed = debounced.trim();
 
-  // Keep the URL shareable without pushing a history entry per keystroke.
   useEffect(() => {
     const params = new URLSearchParams();
-    if (debouncedQuery.trim()) params.set("q", debouncedQuery.trim());
+    if (trimmed) params.set("q", trimmed);
     if (type === "users") params.set("type", "users");
     const search = params.toString();
     router.replace(search ? `/explore?${search}` : "/explore", { scroll: false });
-  }, [debouncedQuery, type, router]);
+  }, [trimmed, type, router]);
 
-  useEffect(() => setPage(1), [debouncedQuery, type, sort]);
+  useEffect(() => setPage(1), [trimmed, type, sort]);
 
-  const repoResults = useRepositorySearch(debouncedQuery, { sort, page });
-  const userResults = useUserSearch(debouncedQuery, { page });
+  // Both run so the filter rail can show a count for each tab, like GitHub.
+  const repos = useRepositorySearch(trimmed, { sort, page: type === "repos" ? page : 1 });
+  const users = useUserSearch(trimmed, { page: type === "users" ? page : 1 });
 
-  const active = type === "repos" ? repoResults : userResults;
-  const count = active.data?.count ?? 0;
+  const active = type === "repos" ? repos : users;
+  const total = active.data?.count ?? 0;
   const hasNext = Boolean(active.data?.next);
 
-  return (
-    <div className="mx-auto max-w-5xl px-4 pb-24 pt-28 sm:px-6">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight" style={{ color: t.text }}>
-          Explore Gent
-        </h1>
-        <p className="mt-2 text-sm" style={{ color: t.textMuted }}>
-          Search public repositories and the people who build them. No account needed.
-        </p>
-      </header>
+  const tabs = useMemo(
+    () => [
+      { id: "repos" as SearchType, label: "Repositories", count: repos.data?.count, icon: BookMarked },
+      { id: "users" as SearchType, label: "People", count: users.data?.count, icon: UserRound },
+    ],
+    [repos.data?.count, users.data?.count],
+  );
 
-      <div className="relative mt-6">
-        <Search
-          className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2"
-          style={{ color: t.textMuted }}
-        />
+  return (
+    <div className="mx-auto max-w-6xl px-4 pb-24 pt-28 sm:px-6">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
         <input
           autoFocus
-          type="search"
+          type="text"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={
-            type === "repos"
-              ? "Search repositories, or owner/name…"
-              : "Search people by username or name…"
-          }
-          className="w-full rounded-xl border py-3 pl-11 pr-4 text-sm outline-none transition-all focus:ring-2"
-          style={{ background: t.inputBg, borderColor: t.border, color: t.text }}
+          placeholder="Search repositories, or owner/name…"
           aria-label="Search Gent"
+          className="w-full rounded-lg border border-line bg-surface/60 py-3 pl-11 pr-4 text-sm text-fg outline-none transition-colors placeholder:text-faint focus:border-brand/50 focus:bg-surface"
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {(["repos", "users"] as SearchType[]).map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => setType(option)}
-            className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors"
-            style={{
-              borderColor: t.border,
-              background: type === option ? t.accentMuted : t.inputBg,
-              color: type === option ? t.accent : t.textMuted,
-            }}
-          >
-            {option === "repos" ? (
-              <FolderGit2 className="h-3.5 w-3.5" />
-            ) : (
-              <Users className="h-3.5 w-3.5" />
-            )}
-            {option === "repos" ? "Repositories" : "People"}
-          </button>
-        ))}
-
-        {type === "repos" && (
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value as RepoSort)}
-            className="ml-auto rounded-lg border px-3 py-1.5 text-xs outline-none"
-            style={{ background: t.inputBg, borderColor: t.border, color: t.text }}
-            aria-label="Sort repositories"
-          >
-            {SORTS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
-
-      <p className="mt-5 text-xs" style={{ color: t.textMuted }}>
-        {active.isLoading
-          ? "Searching…"
-          : `${count} ${type === "repos" ? "repository" : "person"}${count === 1 ? "" : type === "repos" ? " results" : "s"}`}
-      </p>
-
-      <div
-        className="mt-3 overflow-hidden rounded-2xl border"
-        style={{ background: t.elevated, borderColor: t.border }}
-      >
-        {active.isError ? (
-          <p className="p-8 text-center text-sm" style={{ color: t.textMuted }}>
-            Search is unavailable right now. Try again in a moment.
-          </p>
-        ) : type === "repos" ? (
-          repoResults.data?.results.length ? (
-            repoResults.data.results.map((repo, index) => (
-              <RepositoryCard
-                key={repo.id}
-                repo={repo}
-                isDark={isDark}
-                index={index}
-                href={PUBLIC_PATH.REPOSITORY(getRepoOwner(repo), repo.name)}
-              />
-            ))
-          ) : (
-            <p className="p-8 text-center text-sm" style={{ color: t.textMuted }}>
-              {debouncedQuery.trim()
-                ? `No public repositories match “${debouncedQuery.trim()}”.`
-                : "No public repositories yet."}
-            </p>
-          )
-        ) : userResults.data?.results.length ? (
-          userResults.data.results.map((user) => (
-            <Link
-              key={user.id}
-              href={PUBLIC_PATH.PROFILE(user.username)}
-              className="flex items-center gap-3 border-b px-5 py-4 transition-colors last:border-b-0"
-              style={{ borderColor: t.borderMuted }}
-            >
-              <span
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border"
-                style={{ borderColor: t.border, background: t.accentMuted, color: t.accent }}
+      <div className="mt-6 grid gap-8 md:grid-cols-[200px_minmax(0,1fr)]">
+        {/* filter rail */}
+        <aside className="md:sticky md:top-24 md:self-start">
+          <h2 className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-faint">
+            Filter by
+          </h2>
+          <nav className="space-y-0.5">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setType(tab.id)}
+                aria-current={type === tab.id}
+                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  type === tab.id
+                    ? "bg-brand/12 font-semibold text-fg"
+                    : "text-muted hover:bg-brand/8 hover:text-fg"
+                }`}
               >
-                <UserRound className="h-4 w-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold" style={{ color: t.text }}>
-                  {user.username}
-                </span>
-                <span className="block text-xs" style={{ color: t.textMuted }}>
-                  {user.display_name !== user.username && `${user.display_name} · `}
-                  {user.public_repo_count} public{" "}
-                  {user.public_repo_count === 1 ? "repository" : "repositories"}
-                </span>
-              </span>
-            </Link>
-          ))
-        ) : (
-          <p className="p-8 text-center text-sm" style={{ color: t.textMuted }}>
-            {debouncedQuery.trim()
-              ? `No people match “${debouncedQuery.trim()}”.`
-              : "Type a name to find people."}
-          </p>
-        )}
-      </div>
+                <tab.icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1 text-left">{tab.label}</span>
+                {tab.count !== undefined && (
+                  <span className="rounded-full bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-      {(page > 1 || hasNext) && (
-        <div className="mt-5 flex items-center justify-center gap-3">
-          <button
-            type="button"
-            disabled={page === 1}
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-40"
-            style={{ borderColor: t.border, color: t.text, background: t.inputBg }}
-          >
-            Previous
-          </button>
-          <span className="text-xs" style={{ color: t.textMuted }}>
-            Page {page}
-          </span>
-          <button
-            type="button"
-            disabled={!hasNext}
-            onClick={() => setPage((value) => value + 1)}
-            className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-40"
-            style={{ borderColor: t.border, color: t.text, background: t.inputBg }}
-          >
-            Next
-          </button>
-        </div>
-      )}
+        {/* results */}
+        <section className="min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+            <p className="text-sm font-semibold text-fg">
+              {active.isLoading
+                ? "Searching…"
+                : `${total} ${type === "repos" ? "repository" : "user"}${total === 1 ? "" : "s"}`}
+            </p>
+
+            {type === "repos" && (
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.target.value as RepoSort)}
+                aria-label="Sort results"
+                className="rounded-lg border border-line bg-surface/60 px-3 py-1.5 text-xs text-fg outline-none"
+              >
+                {SORTS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {active.isError ? (
+            <p className="py-12 text-center text-sm text-muted">
+              Search is unavailable right now. Try again in a moment.
+            </p>
+          ) : type === "repos" ? (
+            repos.data?.results.length ? (
+              <ul className="divide-y divide-line">
+                {repos.data.results.map((repo) => {
+                  const owner = getRepoOwner(repo);
+                  return (
+                    <li key={repo.id} className="py-4">
+                      <div className="flex items-start gap-2">
+                        <Link
+                          href={PUBLIC_PATH.REPOSITORY(owner, repo.name)}
+                          className="text-base font-semibold text-brand hover:underline"
+                          data-no-translate
+                        >
+                          {owner}/{repo.name}
+                        </Link>
+                        {repo.is_private && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-[10px] font-medium text-muted">
+                            <LockKeyhole className="h-2.5 w-2.5" /> Private
+                          </span>
+                        )}
+                      </div>
+
+                      {repo.description && (
+                        <p className="mt-1 line-clamp-2 text-sm text-muted">{repo.description}</p>
+                      )}
+
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-faint">
+                        <span className="inline-flex items-center gap-1.5" data-no-translate>
+                          <GitBranch className="h-3 w-3" />
+                          {repo.default_branch}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock3 className="h-3 w-3" />
+                          Updated {relativeTime(repo.updated_at)}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="py-12 text-center text-sm text-muted">
+                {trimmed
+                  ? `No repositories matched “${trimmed}”.`
+                  : "Search for a repository by name, description, or owner."}
+              </p>
+            )
+          ) : users.data?.results.length ? (
+            <ul className="divide-y divide-line">
+              {users.data.results.map((user) => (
+                <li key={user.id} className="py-4">
+                  <Link href={PUBLIC_PATH.PROFILE(user.username)} className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-muted">
+                      <UserRound className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0">
+                      <span
+                        className="block text-sm font-semibold text-brand hover:underline"
+                        data-no-translate
+                      >
+                        {user.username}
+                      </span>
+                      {user.display_name !== user.username && (
+                        <span className="block truncate text-sm text-muted" data-no-translate>
+                          {user.display_name}
+                        </span>
+                      )}
+                      <span className="block text-xs text-faint">
+                        {user.public_repo_count} public{" "}
+                        {user.public_repo_count === 1 ? "repository" : "repositories"}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="py-12 text-center text-sm text-muted">
+              {trimmed ? `No users matched “${trimmed}”.` : "Search for people by username or name."}
+            </p>
+          )}
+
+          {(page > 1 || hasNext) && (
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                disabled={page === 1}
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+                className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-fg transition-colors disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-muted">Page {page}</span>
+              <button
+                type="button"
+                disabled={!hasNext}
+                onClick={() => setPage((value) => value + 1)}
+                className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-fg transition-colors disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

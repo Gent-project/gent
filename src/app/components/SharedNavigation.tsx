@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GitBranch, Menu, Moon, Search, Sun, Terminal, X } from "lucide-react";
+import { GitBranch, Menu, Moon, Sun, Terminal, X } from "lucide-react";
+import GlobalSearch from "@/components/search/GlobalSearch";
 import { useDispatch, useSelector } from "react-redux";
 
 import { AUTH_PATH, DASHBOARD_PATH } from "@/routes/path";
@@ -63,6 +64,9 @@ export default function SharedNavigation() {
           </span>
         </Link>
 
+        {/* header search — available signed in or out */}
+        <GlobalSearch className="hidden min-w-0 flex-1 max-w-xs lg:block" />
+
         {/* desktop links */}
         <nav className="hidden items-center gap-0.5 md:flex">
           {navLinks.map((link) => {
@@ -90,13 +94,6 @@ export default function SharedNavigation() {
 
         {/* actions */}
         <div className="hidden items-center gap-1.5 md:flex">
-          <Link
-            href="/explore"
-            className="rounded-lg p-2 text-muted transition-colors hover:bg-brand/10 hover:text-fg"
-            aria-label="Search public repositories"
-          >
-            <Search className="h-4 w-4" />
-          </Link>
           <button
             type="button"
             onClick={() => dispatch(toggleTheme())}
@@ -148,6 +145,7 @@ export default function SharedNavigation() {
             className="glass-strong absolute inset-x-3 top-[4.5rem] rounded-2xl p-3 md:hidden"
           >
             <div className="space-y-1">
+              <GlobalSearch className="mb-2" />
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
