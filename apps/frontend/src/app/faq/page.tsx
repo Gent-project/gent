@@ -1,184 +1,257 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
+import {
+  ChevronDown,
+  Code2,
+  GitBranch,
+  Lock,
+  Search,
+  Server,
+  Terminal,
+  Users,
+} from "lucide-react";
 
-import { MarketingNav } from "@/components/layout/marketing-nav";
-import { MarketingFooter } from "@/components/layout/marketing-footer";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { CLI_NPM_PACKAGE, installCommand } from "@/lib/gent-urls";
+import SiteShell from "@/app/components/site/SiteShell";
+import Reveal from "@/app/components/site/Reveal";
 
-/**
- * /faq — common questions with animated accordion answers.
- *
- * Static client component so the open/close animation feels instant. Each
- * answer is a short paragraph + optional inline code snippet.
- */
-const FAQS: { q: string; a: React.ReactNode; tag: string }[] = [
+const faqCategories = [
   {
-    tag: "general",
-    q: "What is Gent?",
-    a: "Gent is a modern, Git-shaped version control platform. There's a fast CLI for everyday work and a beautiful web dashboard that updates the instant you push.",
+    category: "Gent Basics",
+    icon: GitBranch,
+    questions: [
+      {
+        q: "What is Gent?",
+        a: "Gent is this project's lightweight version control system. It has a CLI, a Django API, and a web dashboard for repositories, branches, commits, tags, files, and repository access.",
+      },
+      {
+        q: "Is Gent the same as GitHub?",
+        a: "No. Gent uses its own CLI commands and backend API paths. The website should show Gent workflows, not GitHub instructions.",
+      },
+      {
+        q: "What does the website do?",
+        a: "The website lets authenticated users create repositories, browse repository files, switch branches, inspect commits, manage tags, copy CLI remotes, and open repository settings.",
+      },
+    ],
   },
   {
-    tag: "general",
-    q: "Is Gent free?",
-    a: "Yes. Gent is free for personal use today and doesn't ask for a credit card. If we add paid tiers in the future they will be additive — you'll never be billed retroactively.",
+    category: "CLI",
+    icon: Terminal,
+    questions: [
+      {
+        q: "How do I install the CLI?",
+        a: "Install the package with npm install -g gent-cli, then sign in with gent login.",
+      },
+      {
+        q: "How do I connect a local folder to a repository?",
+        a: "Run gent init, add and commit your files, then set the remote with gent remote add origin using the API repository URL shown in the dashboard.",
+      },
+      {
+        q: "Which remote URL format works with the CLI?",
+        a: "Use https://gent-api.onrender.com/api/repos/<owner_id>/<repo_name>. The dashboard clone section uses this same structure.",
+      },
+      {
+        q: "Where can I read the command list?",
+        a: "Open the CLI Docs page from the top banner. It groups commands for setup, staging, history, branches, remotes, account, safety, and inspection.",
+      },
+    ],
   },
   {
-    tag: "cli",
-    q: "How do I install the CLI?",
-    a: (
-      <>
-        Install it from npm:
-        <pre className="mt-3 rounded-xl bg-inverse-surface text-on-inverse-surface p-3 text-xs overflow-x-auto">
-          {installCommand}
-        </pre>
-        Then run <code>gent setup</code> once and you're done.
-      </>
-    ),
+    category: "Repositories",
+    icon: Code2,
+    questions: [
+      {
+        q: "Can I create an empty repository?",
+        a: "Yes. New repositories start with the default branch. The Code tab can create the first text file and commit it without needing an upload first.",
+      },
+      {
+        q: "What repository names are valid?",
+        a: "Repository names can contain letters, numbers, dashes, and underscores. Dots and spaces are rejected by the backend.",
+      },
+      {
+        q: "Can I delete a repository?",
+        a: "Repository owners can delete a repository from repository settings by typing the repository name to confirm the action.",
+      },
+      {
+        q: "Why does sorting matter?",
+        a: "The dashboard repository list can be sorted by newest, oldest, or name without changing the repositories stored in the backend.",
+      },
+    ],
   },
   {
-    tag: "cli",
-    q: "How do I clone a project?",
-    a: (
-      <>
-        Open the project on the dashboard and copy the URL shown next to the
-        "Clone" button. It looks like{" "}
-        <code>https://gent-api.onrender.com/api/repos/&lt;owner_id&gt;/&lt;repo_name&gt;</code>.
-        Paste it after <code>gent clone</code>:
-        <pre className="mt-3 rounded-xl bg-inverse-surface text-on-inverse-surface p-3 text-xs overflow-x-auto">
-{`gent clone https://gent-api.onrender.com/api/repos/10/first-project`}
-        </pre>
-      </>
-    ),
+    category: "Files and Branches",
+    icon: Server,
+    questions: [
+      {
+        q: "Does the Code tab follow the selected branch?",
+        a: "Yes. File browsing is tied to the selected branch commit and tree, so switching branches should show that branch's files only.",
+      },
+      {
+        q: "Does the code viewer support formatting?",
+        a: "The code viewer renders source in a monospace block with lightweight syntax highlighting for common code tokens.",
+      },
+      {
+        q: "Can I create branches from the website?",
+        a: "Branches can be created after the repository has an initial commit. Empty repositories need a first file or upload first.",
+      },
+    ],
   },
   {
-    tag: "cli",
-    q: "How do I push my first commit?",
-    a: (
-      <>
-        Inside your project folder:
-        <pre className="mt-3 rounded-xl bg-inverse-surface text-on-inverse-surface p-3 text-xs overflow-x-auto">
-{`gent init
-gent add .
-gent commit -m "first commit"
-gent push origin main`}
-        </pre>
-      </>
-    ),
+    category: "Access",
+    icon: Users,
+    questions: [
+      {
+        q: "Who can see a private repository?",
+        a: "Private repositories are available to the owner and users granted access through the backend repository member system.",
+      },
+      {
+        q: "Can repository access be managed in the dashboard?",
+        a: "Yes. The backend exposes repository member endpoints. Repository owners can add registered users by email and remove existing members.",
+      },
+      {
+        q: "Can I remove the owner from a repository?",
+        a: "No. The backend returns the owner as part of the access list, but the owner cannot be removed through the member endpoint.",
+      },
+    ],
   },
   {
-    tag: "web",
-    q: "Why isn't my push showing on the web?",
-    a: "The dashboard polls the server every 12 seconds. If you don't see your push after a refresh, check `gent status` for unpushed commits and confirm with `gent log`.",
-  },
-  {
-    tag: "web",
-    q: "Can I switch between light and dark mode?",
-    a: "Yes. Use the moon/sun button in the top bar, or go to Settings → Appearance. Your choice is remembered on this device.",
-  },
-  {
-    tag: "data",
-    q: "Where is my data stored?",
-    a: "All commits, branches and tags live on Gent's API at gent-api.onrender.com. You can export everything any time with `gent clone`.",
-  },
-  {
-    tag: "data",
-    q: "How do I delete a project?",
-    a: 'Open the project page on the dashboard and click "Delete". This is permanent and cannot be undone.',
-  },
-  {
-    tag: "data",
-    q: "How do I delete my account?",
-    a: (
-      <>
-        Email <a href="mailto:hello@gent.dev">hello@gent.dev</a> from the
-        address on your account and we'll remove everything within 14 days.
-      </>
-    ),
+    category: "Account",
+    icon: Lock,
+    questions: [
+      {
+        q: "How is the signed-in user shown?",
+        a: "The dashboard reads the authenticated profile and displays the real name, username, or email prefix instead of a generic user label.",
+      },
+      {
+        q: "What happens if my session expires?",
+        a: "The frontend tries to refresh the access token. If refresh fails, local auth state is cleared and the app returns to sign in.",
+      },
+      {
+        q: "Can I change my password?",
+        a: "The account settings page calls the backend password-change endpoint and shows validation errors returned by the API.",
+      },
+    ],
   },
 ];
 
-export default function FAQPage() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
+export default function FAQ() {
+  const [expandedIndex, setExpandedIndex] = useState<string | null>("0-0");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredCategories = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return faqCategories;
+    return faqCategories
+      .map((category) => ({
+        ...category,
+        questions: category.questions.filter(
+          (item) =>
+            item.q.toLowerCase().includes(query) ||
+            item.a.toLowerCase().includes(query),
+        ),
+      }))
+      .filter((category) => category.questions.length > 0);
+  }, [searchQuery]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <MarketingNav />
-
-      <section className="relative gradient-mesh border-b border-outline-variant">
-        <div className="mx-auto max-w-3xl px-4 sm:px-8 py-16 text-center">
-          <Badge tone="secondary">FAQ</Badge>
-          <h1 className="mt-4 text-4xl sm:text-5xl font-bold tracking-tight text-balance">
-            Quick answers to common questions.
-          </h1>
-          <p className="mt-3 text-on-surface-variant">
-            Don't see what you need? Email{" "}
-            <a href="mailto:hello@gent.dev" className="text-primary hover:underline">
-              hello@gent.dev
-            </a>
-            .
+    <SiteShell>
+      <section className="mx-auto max-w-4xl px-6 pb-10 pt-36 text-center sm:pt-44">
+        <Reveal>
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-brand">
+            Gent FAQ
           </p>
-        </div>
+          <h1 className="mx-auto mt-4 max-w-3xl font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            Questions,
+            <span className="text-gradient"> answered.</span>
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-muted">
+            Focused on what exists now — the CLI, backend API, dashboard,
+            repositories, files, branches, members, and account flows.
+          </p>
+        </Reveal>
+
+        <Reveal delay={0.1} className="relative mx-auto mt-8 max-w-xl">
+          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-faint" />
+          <input
+            type="search"
+            placeholder="Search Gent questions…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-2xl border border-line bg-surface/50 py-3.5 pl-12 pr-4 text-fg outline-none backdrop-blur transition focus:border-brand/50 focus:ring-2 focus:ring-brand/20"
+          />
+        </Reveal>
       </section>
 
-      <main className="mx-auto w-full max-w-3xl px-4 sm:px-8 py-14 space-y-3">
-        {FAQS.map((item, i) => {
-          const open = openIndex === i;
-          return (
-            <article
-              key={item.q}
-              className={cn(
-                "rounded-2xl border bg-surface-container-lowest transition-all",
-                open ? "border-primary/40 shadow-soft" : "border-outline-variant",
-              )}
-            >
-              <button
-                type="button"
-                onClick={() => setOpenIndex(open ? null : i)}
-                className="w-full text-left px-5 py-4 flex items-center gap-3"
-                aria-expanded={open}
-              >
-                <Badge tone="outline" size="sm">
-                  {item.tag}
-                </Badge>
-                <h3 className="flex-1 font-semibold text-foreground">{item.q}</h3>
-                <ChevronDown
-                  className={cn(
-                    "size-4 text-on-surface-variant transition-transform",
-                    open && "rotate-180",
-                  )}
-                />
-              </button>
-              <AnimatePresence initial={false}>
-                {open && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.22 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-5 pb-5 text-sm text-on-surface-variant leading-relaxed">
-                      {item.a}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </article>
-          );
-        })}
+      <section className="mx-auto max-w-3xl px-6 pb-16">
+        {filteredCategories.length === 0 ? (
+          <div className="rounded-2xl border border-line bg-surface/40 p-8 text-center text-muted backdrop-blur">
+            No FAQ entries match this search.
+          </div>
+        ) : (
+          <div className="space-y-10">
+            {filteredCategories.map((category, categoryIndex) => {
+              const Icon = category.icon;
+              return (
+                <Reveal key={category.category} y={16}>
+                  <div className="mb-4 flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/12 ring-1 ring-brand/25">
+                      <Icon className="h-5 w-5 text-brand" />
+                    </span>
+                    <h2 className="font-display text-2xl font-bold">
+                      {category.category}
+                    </h2>
+                  </div>
 
-        <p className="pt-6 text-center text-sm text-on-surface-variant">
-          The CLI is published as <code>{CLI_NPM_PACKAGE}</code> on npm. Run{" "}
-          <code>{installCommand}</code> to install it.
-        </p>
-      </main>
-
-      <MarketingFooter />
-    </div>
+                  <div className="space-y-3">
+                    {category.questions.map((item, questionIndex) => {
+                      const itemId = `${categoryIndex}-${questionIndex}`;
+                      const isExpanded = expandedIndex === itemId;
+                      return (
+                        <div
+                          key={item.q}
+                          className={`overflow-hidden rounded-2xl border bg-surface/40 backdrop-blur transition-colors ${
+                            isExpanded ? "border-brand/40" : "border-line"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedIndex(isExpanded ? null : itemId)
+                            }
+                            className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                          >
+                            <span className="font-medium">{item.q}</span>
+                            <ChevronDown
+                              className={`h-5 w-5 shrink-0 text-brand transition-transform duration-300 ${
+                                isExpanded ? "rotate-180" : ""
+                              }`}
+                            />
+                          </button>
+                          <AnimatePresence initial={false}>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                              >
+                                <p className="border-t border-line px-5 pb-5 pt-4 leading-7 text-muted">
+                                  {item.a}
+                                </p>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Reveal>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </SiteShell>
   );
 }

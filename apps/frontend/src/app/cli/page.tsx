@@ -1,216 +1,232 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Terminal, X } from "lucide-react";
-
-import { MarketingNav } from "@/components/layout/marketing-nav";
-import { MarketingFooter } from "@/components/layout/marketing-footer";
-import { CommandCard } from "@/components/features/cli/command-card";
-import { AnimatedTerminal } from "@/components/features/cli/animated-terminal";
 import {
-  CLI_CATEGORIES,
-  CLI_COMMANDS,
-  type CliCommandCategory,
-} from "@/lib/cli-commands";
-import { cn } from "@/lib/utils";
+  BookOpen,
+  Check,
+  Code2,
+  Copy,
+  GitBranch,
+  GitCommit,
+  GitPullRequest,
+  KeyRound,
+  RotateCcw,
+  Search,
+  Terminal,
+} from "lucide-react";
 
-/**
- * CLI Explorer — `/cli`
- *
- * Public, animated reference for every Gent CLI command. Users can:
- *   - Filter by category in a sticky sidebar.
- *   - Search command names / summaries with instant fuzzy match.
- *   - Expand any card to see syntax, examples and related commands.
- *
- * The whole list is static (see `src/lib/cli-commands.ts`) so the page works
- * offline and gets fully cached by Next.js.
- */
-export default function CliExplorerPage() {
-  const [activeCategory, setActiveCategory] = useState<CliCommandCategory | "all">("all");
-  const [query, setQuery] = useState("");
-  const [highlighted, setHighlighted] = useState<string | undefined>();
+import SiteShell from "@/app/components/site/SiteShell";
+import Reveal from "@/app/components/site/Reveal";
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return CLI_COMMANDS.filter((c) => {
-      if (activeCategory !== "all" && c.category !== activeCategory) return false;
-      if (!q) return true;
-      return (
-        c.name.toLowerCase().includes(q) ||
-        c.summary.toLowerCase().includes(q) ||
-        c.description.toLowerCase().includes(q) ||
-        c.syntax.toLowerCase().includes(q)
-      );
-    });
-  }, [activeCategory, query]);
+const quickStart = [
+  "npm install -g gent-cli",
+  "gent login",
+  "gent init",
+  "gent add README.md",
+  'gent commit -m "Initial commit"',
+  "gent remote add origin https://gent-api.onrender.com/api/repos/1/my-repo",
+  "gent push origin main",
+];
 
-  const counts = useMemo(() => {
-    const result: Record<string, number> = { all: CLI_COMMANDS.length };
-    for (const cat of CLI_CATEGORIES) {
-      result[cat.id] = CLI_COMMANDS.filter((c) => c.category === cat.id).length;
+const commandGroups = [
+  {
+    title: "Repository Setup",
+    icon: Terminal,
+    commands: [
+      ["gent auto", "Guided interactive flow for auth, init, remote, commit, and push."],
+      ["gent init [-y] [--remote [name]]", "Create a local .gent repository."],
+      ["gent clone [url] [dir]", "Download a full repository from the Gent backend."],
+    ],
+  },
+  {
+    title: "Staging and Working Tree",
+    icon: Code2,
+    commands: [
+      ["gent status [-s]", "Show staged, modified, untracked, and deleted files."],
+      ["gent add <files...> [-A]", "Snapshot files and stage them."],
+      ["gent rm <files...> [--cached]", "Stop tracking files."],
+      ["gent reset [files...]", "Unstage files."],
+      ["gent diff [files...] [--staged] [--stat]", "Show line-level diffs."],
+    ],
+  },
+  {
+    title: "History",
+    icon: GitCommit,
+    commands: [
+      ["gent commit [-m <msg>] [-a] [--ai]", "Record staged changes."],
+      ["gent log [-n <N>] [--oneline] [--graph] [--stat]", "Inspect commit history."],
+      ["gent show [ref] [--no-patch]", "Show commit details and diff."],
+      ["gent tag [name] [-m <msg>] [-d <name>]", "Create, list, or delete tags."],
+      ["gent explain [ref] [--staged]", "Summarize a commit or staged changes."],
+    ],
+  },
+  {
+    title: "Branches and Merges",
+    icon: GitBranch,
+    commands: [
+      ["gent branch [name] [-d <name>] [-a]", "List, create, or delete branches."],
+      ["gent checkout <branch> [-b]", "Switch branches or create a new branch."],
+      ["gent merge <branch> [-m <msg>]", "Merge another branch into the current branch."],
+      ["gent resolve", "Resolve conflicts left by a merge."],
+      ["gent stash [pop|list|drop|apply] [-m <msg>]", "Temporarily store working changes."],
+    ],
+  },
+  {
+    title: "Remote Sync",
+    icon: GitPullRequest,
+    commands: [
+      ["gent remote [add|remove|set-url] [-v]", "Manage repository remotes."],
+      ["gent repos [--create <name>] [--description <text>] [--private]", "List or create backend repositories."],
+      ["gent push [remote] [branch] [-f]", "Upload commits and objects."],
+      ["gent pull [remote] [branch]", "Download and merge remote commits."],
+    ],
+  },
+  {
+    title: "Account",
+    icon: KeyRound,
+    commands: [
+      ["gent register", "Create a Gent account."],
+      ["gent login", "Log in and store local CLI auth."],
+      ["gent logout", "Clear local CLI auth."],
+      ["gent whoami", "Show the current authenticated user."],
+    ],
+  },
+  {
+    title: "Safety",
+    icon: RotateCcw,
+    commands: [
+      ["gent undo", "Reverse the last history-changing operation."],
+      ["gent undo --list", "Show operation history."],
+      ["gent redo", "Re-apply the last undone operation."],
+      ["gent reset --soft <hash>", "Move branch pointer without changing files."],
+      ["gent reset --hard <hash>", "Restore branch pointer and working tree."],
+    ],
+  },
+  {
+    title: "Inspection",
+    icon: Search,
+    commands: [
+      ["gent summary [--ai]", "Show repository health and local stats."],
+      ["gent log --graph", "Draw an ASCII graph with branch and merge labels."],
+      ["gent show", "Inspect the current or selected commit."],
+    ],
+  },
+];
+
+export default function CliDocsPage() {
+  const [copied, setCopied] = useState(false);
+
+  const copyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(quickStart.join("\n"));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard unavailable */
     }
-    return result;
-  }, []);
+  };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <MarketingNav />
-
-      {/* Hero */}
-      <section className="relative gradient-mesh border-b border-outline-variant">
-        <div className="mx-auto max-w-7xl px-4 sm:px-8 py-16 grid lg:grid-cols-2 gap-10 items-center">
-          <div>
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-lowest/80 backdrop-blur px-3 py-1 text-xs font-semibold uppercase tracking-widest text-on-surface-variant"
-            >
-              <Terminal className="size-3" /> CLI reference
-            </motion.div>
-            <motion.h1
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05, duration: 0.4 }}
-              className="mt-4 text-4xl sm:text-5xl font-bold tracking-tight text-balance"
-            >
-              Everything Gent can do from your terminal.
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.4 }}
-              className="mt-4 text-on-surface-variant max-w-xl"
-            >
-              Click a command to expand its docs, examples and friends. Every
-              snippet copies in one tap.
-            </motion.p>
+    <SiteShell>
+      {/* hero */}
+      <section className="mx-auto grid max-w-6xl gap-10 px-6 pb-16 pt-36 sm:pt-44 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+        <Reveal y={16}>
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-brand">
+            CLI documentation
+          </p>
+          <h1 className="mt-4 font-display text-5xl font-bold leading-[1.03] tracking-tight sm:text-6xl">
+            Every Gent command,
+            <span className="text-gradient"> grouped by flow.</span>
+          </h1>
+          <p className="mt-5 max-w-xl text-lg leading-8 text-muted">
+            The checked-in Gent CLI reference, kept in lock-step with the backend
+            API contract.
+          </p>
+          <div className="mt-6 rounded-2xl border border-line bg-surface/40 p-4 backdrop-blur">
+            <p className="text-sm font-semibold">Remote URL format</p>
+            <code className="mt-2 block break-all rounded-lg bg-[#040a08] p-3 font-mono text-sm text-brand-2">
+              https://gent-api.onrender.com/api/repos/&lt;owner_id&gt;/&lt;repo_name&gt;
+            </code>
           </div>
-          <AnimatedTerminal
-            script={[
-              { type: "cmd", text: "gent init" },
-              { type: "out", text: "✓ Initialised empty repository in .gent/" },
-              { type: "cmd", text: "gent add ." },
-              { type: "cmd", text: 'gent commit -m "first commit"' },
-              { type: "out", text: "[main 9c2f1d2] first commit · 14 files changed" },
-              { type: "cmd", text: "gent push origin main" },
-              {
-                type: "out",
-                text: "✓ Pushed 14 objects · branch main updated",
-                className: "text-secondary",
-              },
-            ]}
-          />
-        </div>
-      </section>
+        </Reveal>
 
-      {/* Body */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-8 py-10 w-full">
-        {/* Search bar */}
-        <div className="sticky top-16 z-20 -mx-4 sm:mx-0 mb-8">
-          <div className="glass border border-outline-variant rounded-2xl px-3 py-2 flex items-center gap-2">
-            <Search className="size-4 text-on-surface-variant" />
-            <input
-              type="search"
-              placeholder="Search commands… (e.g. branch, push, --hard)"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="flex-1 bg-transparent outline-none text-sm"
-              aria-label="Search CLI commands"
-            />
-            {query && (
+        <Reveal y={16} delay={0.1}>
+          <div className="border-beam glow-soft overflow-hidden rounded-2xl bg-[#040a08]/95 ring-1 ring-line">
+            <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Terminal className="h-4 w-4 text-brand" />
+                <span className="font-mono text-xs text-white/50">
+                  quick start
+                </span>
+              </div>
               <button
-                onClick={() => setQuery("")}
-                className="rounded-full p-1 hover:bg-surface-container"
-                aria-label="Clear search"
+                onClick={copyAll}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-white/50 transition-colors hover:text-brand"
               >
-                <X className="size-3.5" />
+                {copied ? <Check className="h-3.5 w-3.5 text-brand" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? "Copied" : "Copy"}
               </button>
-            )}
+            </div>
+            <div className="p-5 font-mono text-sm leading-7 text-slate-100">
+              {quickStart.map((command, i) => (
+                <motion.div
+                  key={command}
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 + i * 0.07 }}
+                  className="flex gap-2"
+                >
+                  <span className="select-none text-brand">❯</span>
+                  <span className="break-all">{command}</span>
+                </motion.div>
+              ))}
+            </div>
           </div>
-        </div>
-
-        <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
-          {/* Sidebar: categories */}
-          <aside className="space-y-1 lg:sticky lg:top-36 lg:self-start">
-            <CategoryButton
-              active={activeCategory === "all"}
-              count={counts.all}
-              onClick={() => setActiveCategory("all")}
-            >
-              All commands
-            </CategoryButton>
-            {CLI_CATEGORIES.map((cat) => (
-              <CategoryButton
-                key={cat.id}
-                active={activeCategory === cat.id}
-                count={counts[cat.id]}
-                onClick={() => setActiveCategory(cat.id)}
-              >
-                {cat.label}
-              </CategoryButton>
-            ))}
-          </aside>
-
-          {/* Commands list */}
-          <div className="space-y-3">
-            {filtered.length === 0 ? (
-              <p className="text-sm text-on-surface-variant text-center py-12">
-                No commands match "{query}". Try a different keyword.
-              </p>
-            ) : (
-              filtered.map((c, i) => (
-                <CommandCard
-                  key={c.name}
-                  command={c}
-                  index={i}
-                  initiallyOpen={highlighted === c.name}
-                  onSelectRelated={(name) => {
-                    setHighlighted(name);
-                    setActiveCategory("all");
-                    setQuery("");
-                    // Scroll into view after the next paint
-                    requestAnimationFrame(() => {
-                      const el = document.getElementById(`cmd-${name}`);
-                      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-                    });
-                  }}
-                />
-              ))
-            )}
-          </div>
-        </div>
+        </Reveal>
       </section>
 
-      <MarketingFooter />
-    </div>
-  );
-}
+      {/* reference */}
+      <section className="mx-auto max-w-6xl px-6 pb-24">
+        <Reveal className="mb-10 flex items-center gap-3">
+          <BookOpen className="h-5 w-5 text-brand" />
+          <h2 className="font-display text-3xl font-bold tracking-tight">
+            Command Reference
+          </h2>
+        </Reveal>
 
-function CategoryButton({
-  active,
-  count,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  count: number;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "group flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm transition-all",
-        active
-          ? "bg-primary-container text-on-primary-container font-semibold"
-          : "text-on-surface-variant hover:bg-surface-container-low hover:text-foreground",
-      )}
-    >
-      <span>{children}</span>
-      <span className="text-xs text-on-surface-variant/80 tabular-nums">{count}</span>
-    </button>
+        <div className="grid gap-5 lg:grid-cols-2">
+          {commandGroups.map((group, index) => (
+            <Reveal key={group.title} delay={(index % 2) * 0.08}>
+              <section className="h-full rounded-2xl border border-line bg-surface/40 p-5 backdrop-blur transition-colors hover:border-brand/30">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/12 ring-1 ring-brand/25">
+                    <group.icon className="h-4.5 w-4.5 text-brand" />
+                  </span>
+                  <h3 className="font-display text-lg font-semibold">
+                    {group.title}
+                  </h3>
+                </div>
+                <div className="space-y-2.5">
+                  {group.commands.map(([command, description]) => (
+                    <div
+                      key={command}
+                      className="group rounded-xl border border-line bg-[#040a08]/40 p-3 transition-colors hover:border-brand/30"
+                    >
+                      <code className="font-mono text-sm font-semibold text-brand-2">
+                        {command}
+                      </code>
+                      <p className="mt-1 text-sm leading-6 text-muted">
+                        {description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+    </SiteShell>
   );
 }
