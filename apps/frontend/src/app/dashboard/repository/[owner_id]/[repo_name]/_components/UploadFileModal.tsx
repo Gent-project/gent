@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { X, UploadCloud, FileUp } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCanonicalFiles, bytesToBase64 } from "@/hooks/use-canonical-files";
 import { usePushPack } from "@/hooks/use-git-operations";
+import { useBranches } from "@/hooks/use-branches";
 import { useCommits } from "@/hooks/use-commits";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 import {
@@ -43,8 +45,10 @@ export default function UploadFileModal({
   const [success, setSuccess] = useState(false);
 
   const pushPack = usePushPack();
+  const canonicalFiles = useCanonicalFiles(ownerId, repoName);
   const queryClient = useQueryClient();
   const { data: commits = [] } = useCommits(ownerId, repoName);
+  const { data: branches = [] } = useBranches(ownerId, repoName);
   const latestCommit = commits.length > 0 ? commits[0] : null;
   const t = getDashboardTheme(isDark);
 
@@ -75,6 +79,19 @@ export default function UploadFileModal({
     }
 
     try {
+      if (!canonicalFiles.ready) throw new Error("Repository is still loading");
+      if (canonicalFiles.canonical) {
+        const files = await Promise.all(Array.from(selectedFiles).map(async file => ({
+          path: [...currentPath, file.name].join("/"),
+          data: bytesToBase64(new Uint8Array(await file.arrayBuffer())),
+        })));
+        await canonicalFiles.mutateAsync({ branch: defaultBranch,
+          expected_head: branches.find(branch => branch.name === defaultBranch)?.commit_sha || null,
+          message: commitMessage.trim(), files });
+        setSuccess(true);
+        setTimeout(onClose, 1600);
+        return;
+      }
       const now = new Date();
       const resolvedAuthorName = userEmail
         ? userEmail.split("@")[0].replace(/[._-]+/g, " ")

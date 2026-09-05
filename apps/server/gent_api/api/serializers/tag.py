@@ -14,6 +14,8 @@ class TagSerializer(serializers.ModelSerializer):
             'repository_name',
             'name',
             'commit_sha',
+            'target_oid',
+            'target_type',
             'message',
             'annotated',
             'tagger_name',

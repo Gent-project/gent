@@ -15,6 +15,7 @@ import {
   Hash,
 } from "lucide-react";
 import { useTree, useBlob, type TreeEntry } from "@/hooks/use-files";
+import { useCanonicalFiles, bytesToBase64 } from "@/hooks/use-canonical-files";
 import { usePushPack } from "@/hooks/use-git-operations";
 import { useCommits } from "@/hooks/use-commits";
 import { useBranches } from "@/hooks/use-branches";
@@ -83,6 +84,7 @@ export default function FileBrowserTab({
   const t = getDashboardTheme(isDark);
   const queryClient = useQueryClient();
   const pushPack = usePushPack();
+  const canonicalFiles = useCanonicalFiles(ownerId, repoName);
 
   // Get the latest commit and its tree SHA from the backend.
   const { data: commits = [], isLoading: commitsLoading } = useCommits(
@@ -297,6 +299,7 @@ export default function FileBrowserTab({
   };
 
   const handleEditFile = () => {
+    if (fileBlob?.encoding === "base64") return;
     setEditContent(fileBlob?.content || "");
     setEditError("");
     setIsEditModalOpen(true);
@@ -309,6 +312,17 @@ export default function FileBrowserTab({
     setEditError("");
 
     try {
+      if (!canonicalFiles.ready) throw new Error("Repository is still loading");
+      if (canonicalFiles.canonical) {
+        await canonicalFiles.mutateAsync({ branch: selectedBranch,
+          expected_head: selectedBranchData?.commit_sha || null,
+          message: `Update ${selectedEntry.name}`,
+          files: [{ path: [...currentPath, selectedEntry.name].join("/"),
+            data: bytesToBase64(new TextEncoder().encode(editContent)) }] });
+        setViewMode("tree"); setSelectedFile(null); setTreePath([]); setCurrentPath([]);
+        setIsEditModalOpen(false); setEditContent("");
+        return;
+      }
       const safeUserEmail = userEmail?.trim() || "user@example.com";
       const resolvedAuthorName =
         safeUserEmail
@@ -665,6 +679,7 @@ export default function FileBrowserTab({
               </button>
               <button
                 onClick={handleCopyFile}
+                disabled={fileBlob?.encoding === "base64"}
                 className="rounded-lg border p-2 transition-colors"
                 style={{ color: t.textMuted, borderColor: t.border }}
                 title="Copy content"
@@ -673,6 +688,7 @@ export default function FileBrowserTab({
               </button>
               <button
                 onClick={handleEditFile}
+                disabled={fileBlob?.encoding === "base64"}
                 className="rounded-lg border p-2 transition-colors"
                 style={{ color: t.textMuted, borderColor: t.border }}
                 title="Edit file"
@@ -716,7 +732,7 @@ export default function FileBrowserTab({
               >
                 <pre className="text-sm whitespace-pre-wrap" style={{ color: t.text }}>
                   <code>
-                    {renderHighlightedCode(
+                    {fileBlob.encoding === "base64" ? "Binary file. Download to view." : renderHighlightedCode(
                       fileBlob.content,
                       getFileLanguage(selectedEntry?.name || ""),
                     )}

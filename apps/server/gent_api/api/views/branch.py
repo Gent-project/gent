@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
@@ -8,6 +9,7 @@ from api.models import Branch, Commit
 from api.serializers import BranchSerializer, BranchCreateSerializer, BranchPatchSerializer
 from api.utils import get_repository_or_404, require_repo_write
 from api.permissions import CanWriteRepositoryByParams
+from api.gitcore.rest import ref_response
 
 
 @extend_schema(
@@ -33,11 +35,12 @@ def branch_list(request, owner_ref, repo_name):
 )
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
+@transaction.atomic
 def branch_create(request, owner_ref, repo_name):
     """Create a new branch."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
-    write_denied = require_repo_write(request.user, repository)
+    write_denied = require_repo_write(request.user, repository, canonical_allowed=True)
     if write_denied:
         return write_denied
 
@@ -53,6 +56,15 @@ def branch_create(request, owner_ref, repo_name):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if repository.object_format == 'sha256':
+            values = serializer.validated_data
+            if not values['commit_sha'] or values['commit_sha'] == '0' * 64:
+                return Response({'error': 'A new branch requires an existing commit.'}, status=400)
+            error = ref_response(repository, request.user, None, values['commit_sha'], 'refs/heads/' + values['name'])
+            if error is not None:
+                return error
+            branch = Branch.objects.get(repository=repository, name=values['name'])
+            return Response({'message': 'Branch created successfully', 'branch': BranchSerializer(branch).data}, status=201)
         branch = Branch.objects.create(
             repository=repository,
             **serializer.validated_data
@@ -90,6 +102,7 @@ def branch_create(request, owner_ref, repo_name):
 )
 @api_view(['GET', 'PATCH', 'DELETE'])
 @permission_classes([CanWriteRepositoryByParams])
+@transaction.atomic
 def branch_detail(request, owner_ref, repo_name, branch_name):
     """Get, update, or delete branch details."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
@@ -100,7 +113,7 @@ def branch_detail(request, owner_ref, repo_name, branch_name):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PATCH':
-        write_denied = require_repo_write(request.user, repository)
+        write_denied = require_repo_write(request.user, repository, canonical_allowed=True)
         if write_denied:
             return write_denied
 
@@ -115,12 +128,18 @@ def branch_detail(request, owner_ref, repo_name, branch_name):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if repository.object_format == 'sha256':
+            error = ref_response(repository, request.user, branch.commit_sha, commit_sha, 'refs/heads/' + branch.name)
+            if error is not None:
+                return error
+            branch.refresh_from_db()
+            return Response(BranchSerializer(branch).data)
         branch.commit_sha = commit_sha
         branch.save()
         return Response(BranchSerializer(branch).data, status=status.HTTP_200_OK)
 
     elif request.method == 'DELETE':
-        write_denied = require_repo_write(request.user, repository)
+        write_denied = require_repo_write(request.user, repository, canonical_allowed=True)
         if write_denied:
             return write_denied
 
@@ -130,6 +149,11 @@ def branch_detail(request, owner_ref, repo_name, branch_name):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if repository.object_format == 'sha256':
+            error = ref_response(repository, request.user, branch.commit_sha, None, 'refs/heads/' + branch.name)
+            if error is not None:
+                return error
+            return Response({'message': 'Branch deleted successfully'})
         branch.delete()
         return Response(
             {'message': 'Branch deleted successfully'},

@@ -27,6 +27,10 @@ async function locatedCanonical() {
 function route(name, legacy) {
     const handler = async (...args) => {
         try {
+            for (let dir = process.cwd(); ; dir = path.dirname(dir)) {
+                if (await fs.access(path.join(dir, '.gent-migration.json')).then(() => true, () => false)) throw new Error('interrupted migration; use gent migrate --continue or --abort');
+                if (path.dirname(dir) === dir) break;
+            }
             if (name === 'init') {
                 const options = args[0] || {};
                 if (!options.objectFormat) {
@@ -71,7 +75,36 @@ function route(name, legacy) {
     return handler;
 }
 
+const transport = require('../utils/smart-http');
 const handlers = {
+    async remote(repo, sub, args = []) {
+        const [name = 'origin', url] = args;
+        transport.nameCheck(name);
+        if (sub === 'add' || sub === 'set-url') {
+            if (!url) throw new Error('provide a remote URL');
+            if (sub === 'add' && repo.config.get(`remote.${name}.url`)) throw new Error('remote already exists');
+            repo.localConfig.set(`remote.${name}.url`, transport.remoteUrl(url));
+            repo.localConfig.set(`remote.${name}.fetch`, `+refs/heads/*:refs/remotes/${name}/*`);
+            await repo.localConfig.save();
+        } else if (sub === 'remove') {
+            repo.localConfig.unset(`remote.${name}.url`);
+            repo.localConfig.unset(`remote.${name}.fetch`);
+            await repo.localConfig.save();
+        } else if (!sub) console.log(transport.configured(repo, name));
+        else throw new Error('use remote add|set-url|remove');
+    },
+    async fetch(repo, remote = 'origin') { await transport.fetch(repo, remote); console.log(`Fetched ${remote}`); },
+    async push(repo, remote = 'origin', branch, options = {}) {
+        await transport.push(repo, remote, branch, options); console.log('Push complete');
+    },
+    async pull(repo, remote = 'origin', branch) {
+        branch ||= (await repo.refs.head()).branch;
+        if (!branch) throw new Error('specify a branch from detached HEAD');
+        await transport.fetch(repo, remote);
+        const result = await merge.merge(repo, `refs/remotes/${remote}/${branch}`);
+        console.log(result.status);
+        if (result.status === 'conflicts') process.exitCode = 1;
+    },
     async undo(repo, options = {}) {
         if (options.list) { for (const item of (await journal.read(repo)).undo.slice().reverse()) console.log(item.name); }
         else console.log(`Undid ${await journal.restore(repo)}`);

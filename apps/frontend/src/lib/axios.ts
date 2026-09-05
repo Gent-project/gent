@@ -10,7 +10,7 @@ import {
 } from "./auth-session";
 
 // Base API URL
-export const API_BASE_URL = "https://gent-api.onrender.com/api";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_GENT_API_URL || "https://gent-api.onrender.com/api";
 const FULL_API_URL = `${API_BASE_URL}`;
 
 const getToken = getStoredToken;

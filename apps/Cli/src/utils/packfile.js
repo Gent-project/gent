@@ -706,57 +706,61 @@ async function readPackStream(buffer, options = {}) {
         throw new PackError(`pack checksum mismatch: trailer says ${declared.slice(0, 12)}, contents hash to ${actual.slice(0, 12)}`);
     }
 
-    const byOffset = new Map();
-    const results = [];
-    let offset = 12;
-
+    const maxBytes = options.maxBytes || 128 * 1024 * 1024;
+    if (buffer.length > maxBytes) throw new PackError('pack exceeds transfer limit');
+    const records = [];
+    let offset = 12, total = 0;
     for (let i = 0; i < count; i++) {
         const start = offset;
-        const header = readObjectHeader(buffer, offset);
+        const header = readObjectHeader(body, offset);
         offset = header.offset;
-
-        let baseOffset = null;
-        let baseOid = null;
+        let baseOffset = null, baseOid = null;
         if (header.type === OBJ_OFS_DELTA) {
-            const delta = readOffsetDelta(buffer, offset);
+            const delta = readOffsetDelta(body, offset);
             offset = delta.offset;
             baseOffset = start - delta.distance;
+            if (baseOffset < 12 || baseOffset >= start) throw new PackError('invalid offset delta base');
         } else if (header.type === OBJ_REF_DELTA) {
-            baseOid = buffer.toString('hex', offset, offset + OID_RAW_LENGTH);
+            if (offset + OID_RAW_LENGTH > body.length) throw new PackError('truncated ref delta');
+            baseOid = body.toString('hex', offset, offset + OID_RAW_LENGTH);
             offset += OID_RAW_LENGTH;
         } else if (!TYPE_BY_CODE[header.type]) {
-            throw new PackError(`unknown pack object type ${header.type} at offset ${start}`);
+            throw new PackError(`unknown pack object type ${header.type}`);
         }
-
-        const { data, consumed } = await inflateAt(buffer, offset, header.size);
+        const { data, consumed } = await inflateAt(body, offset, header.size);
         offset += consumed;
-
-        let resolved;
-        if (baseOffset !== null) {
-            const base = byOffset.get(baseOffset);
-            if (!base) throw new PackError(`OFS_DELTA at ${start} references offset ${baseOffset}, which is not an object in this pack`);
-            resolved = { type: base.type, payload: applyDelta(base.payload, data) };
-        } else if (baseOid !== null) {
-            let base = results.find(o => o.oid === baseOid);
-            if (!base && options.resolveBase) base = await options.resolveBase(baseOid);
-            if (!base) throw new PackError(`REF_DELTA base ${baseOid} is missing`, { oid: baseOid, thin: true });
-            resolved = { type: base.type, payload: applyDelta(base.payload, data) };
-        } else {
-            resolved = { type: TYPE_BY_CODE[header.type], payload: data };
-        }
-
-        if (!OBJECT_TYPES.includes(resolved.type)) {
-            throw new PackError(`object at ${start} resolved to an invalid type '${resolved.type}'`);
-        }
-        resolved.oid = hashObject(resolved.type, resolved.payload);
-        byOffset.set(start, resolved);
-        results.push(resolved);
+        total += data.length;
+        if (total > maxBytes) throw new PackError('inflated pack exceeds transfer limit');
+        records.push({ start, header, baseOffset, baseOid, data });
     }
-
-    if (offset !== body.length) {
-        throw new PackError(`pack has ${body.length - offset} trailing bytes after ${count} objects`);
+    if (offset !== body.length) throw new PackError('pack contains trailing data');
+    const byOffset = new Map(), byOid = new Map(), results = [];
+    let pending = records;
+    for (let pass = 0; pass <= MAX_DELTA_DEPTH; pass++) {
+        const remaining = [];
+        for (const record of pending) {
+            const { start, header, baseOffset, baseOid, data } = record;
+            let resolved, depth = 0;
+            if (baseOffset !== null || baseOid !== null) {
+                let base = baseOffset !== null ? byOffset.get(baseOffset) : byOid.get(baseOid);
+                if (!base && baseOid && options.resolveBase) base = await options.resolveBase(baseOid);
+                if (!base) { remaining.push(record); continue; }
+                depth = (base.depth || 0) + 1;
+                if (depth > MAX_DELTA_DEPTH) throw new PackError('delta chain exceeds depth limit');
+                resolved = { type: base.type, payload: applyDelta(base.payload, data) };
+                total += resolved.payload.length;
+                if (total > maxBytes) throw new PackError('resolved pack exceeds transfer limit');
+            } else resolved = { type: TYPE_BY_CODE[header.type], payload: data };
+            if (!OBJECT_TYPES.includes(resolved.type)) throw new PackError('invalid resolved type');
+            resolved.oid = hashObject(resolved.type, resolved.payload);
+            resolved.depth = depth;
+            byOffset.set(start, resolved); byOid.set(resolved.oid, resolved); results.push(resolved);
+        }
+        if (!remaining.length) return results.map(({ depth, ...item }) => item);
+        if (remaining.length === pending.length) throw new PackError('missing or cyclic delta base');
+        pending = remaining;
     }
-    return results;
+    throw new PackError('delta chain exceeds resolution limit');
 }
 
 /**

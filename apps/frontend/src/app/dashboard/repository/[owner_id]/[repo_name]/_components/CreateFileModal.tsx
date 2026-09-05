@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { X, FileText, Plus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import axios from "@/lib/axios";
+import { useCanonicalFiles, bytesToBase64 } from "@/hooks/use-canonical-files";
 import { usePushPack } from "@/hooks/use-git-operations";
 import { useCommits } from "@/hooks/use-commits";
 import { useBranches } from "@/hooks/use-branches";
@@ -53,6 +54,7 @@ export default function CreateFileModal({
   const [success, setSuccess] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
   const pushPack = usePushPack();
+  const canonicalFiles = useCanonicalFiles(ownerId, repoName);
   const queryClient = useQueryClient();
   const { data: commits = [] } = useCommits(ownerId, repoName);
   const { data: branches = [], isLoading: branchesLoading } = useBranches(
@@ -108,6 +110,17 @@ export default function CreateFileModal({
     }
 
     try {
+      if (!canonicalFiles.ready) throw new Error("Repository is still loading");
+      if (canonicalFiles.canonical) {
+        await canonicalFiles.mutateAsync({ branch: selectedBranch,
+          expected_head: selectedBranchData?.commit_sha || null,
+          message: commitMessage.trim(),
+          files: [{ path: [...currentPath, fileName.trim()].join("/"),
+            data: bytesToBase64(new TextEncoder().encode(fileContent)) }] });
+        setSuccess(true);
+        setTimeout(onClose, 1600);
+        return;
+      }
       const now = new Date();
       const safeUserEmail = userEmail?.trim() || "user@example.com";
       const resolvedAuthorName =

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "@/lib/axios";
+import axios, { API_BASE_URL } from "@/lib/axios";
 
 // Git pack structure for push operations
 export interface GitPack {
@@ -93,10 +93,12 @@ export const getCloneUrl = (
   ownerId: number | string,
   repoName: string,
   protocol: "https" | "ssh" = "https",
+  objectFormat: "legacy" | "sha256" = "legacy",
 ) => {
-  if (protocol === "ssh") {
-    return `/api/repos/${ownerId}/${repoName}`;
+  const owner = encodeURIComponent(String(ownerId));
+  const name = encodeURIComponent(repoName);
+  if (objectFormat === "sha256") {
+    return `${API_BASE_URL.replace(/\/api\/?$/, "")}/${owner}/${name}.git`;
   }
-
-  return `https://gent-api.onrender.com/api/repos/${ownerId}/${repoName}`;
+  return `${API_BASE_URL}/repos/${owner}/${name}`;
 };

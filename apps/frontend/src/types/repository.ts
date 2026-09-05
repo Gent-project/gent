@@ -6,6 +6,7 @@ export interface Repository {
   description: string;
   is_private: boolean;
   default_branch: string;
+  object_format?: "legacy" | "sha256";
   created_at: string;
   updated_at: string;
 }
@@ -15,6 +16,7 @@ export interface CreateRepositoryRequest {
   description: string;
   is_private: boolean;
   default_branch: string;
+  object_format?: "legacy" | "sha256";
 }
 
 export interface Branch {
@@ -35,7 +37,13 @@ export interface Commit {
   author_email: string;
   message: string;
   tree_sha: string;
-  parent_shas: string;
+  parent_shas: string[];
+  author_timestamp?: number;
+  author_timezone?: string;
+  committer_name?: string;
+  committer_email?: string;
+  committer_timestamp?: number;
+  committer_timezone?: string;
   committed_at: string;
   created_at: string;
 }
@@ -48,6 +56,8 @@ export interface Tag {
   commit_sha: string;
   message: string;
   annotated: boolean;
+  target_oid?: string;
+  target_type?: "commit" | "tree" | "blob" | "tag";
   tagger_name: string;
   tagger_email: string;
   created_at: string;

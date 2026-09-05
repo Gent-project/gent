@@ -30,4 +30,6 @@ CLONE_DESCRIPTION = (
 def clone(request, owner_ref, repo_name):
     """Export full repository data for clone."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
+    if repository.object_format == 'sha256':
+        return Response({'error': 'Use smart HTTP to preserve canonical objects and all parents.'}, status=409)
     return Response(build_clone_payload(repository), status=status.HTTP_200_OK)

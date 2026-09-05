@@ -103,6 +103,17 @@ program
     .action(initCommand);
 
 program
+    .command('migrate')
+    .description('Migrate an offline legacy repository with a verified backup')
+    .option('--dry-run', 'Inspect and validate without changing repository state')
+    .option('--continue', 'Complete an interrupted migration')
+    .option('--abort', 'Roll back an interrupted migration if no newer state exists')
+    .action(async options => {
+        try { console.log(JSON.stringify(await require('./utils/migrate').migrate(process.cwd(), options), null, 2)); }
+        catch (error) { console.error(`Error: ${error.message}`); process.exitCode = 1; }
+    });
+
+program
     .command('clone [url] [directory]')
     .description('Clone a remote repository')
     .action(async (url, directory, options) => {
@@ -112,6 +123,11 @@ program
         if (!url) {
             console.error(chalk.red('error: missing url — usage: gent clone <url> [directory]'));
             process.exit(1);
+        }
+        if (/^https?:/.test(url) && /\.git\/?$/.test(url)) {
+            try { console.log(`Cloned to ${await require('./utils/smart-http').clone(url, directory)}`); }
+            catch (error) { console.error(`Error: ${error.message}`); process.exitCode = 1; }
+            return;
         }
         return cloneCommand(url, directory, options);
     });
@@ -319,6 +335,11 @@ program
     .description('Push local commits to remote')
     .option('-f, --force', 'Force push (overwrite remote)')
     .action(pushCommand);
+
+program
+    .command('fetch [remote]')
+    .description('Fetch canonical remote branches and tags')
+    .action(route('fetch', async () => { throw new Error('fetch requires a canonical repository'); }));
 
 program
     .command('pull [remote] [branch]')

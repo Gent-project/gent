@@ -31,6 +31,7 @@ from api.permissions import CanWriteRepositoryByParams
 )
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
+@transaction.atomic
 def push(request, owner_ref, repo_name):
     """Push a pack of objects and update branches."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
@@ -93,7 +94,7 @@ def push(request, owner_ref, repo_name):
         Tree.objects.filter(repository=repository).values_list('sha', flat=True)
     )
     existing_commit_shas = set(
-        Commit.objects.filter(sha__in=pack_commit_shas).values_list('sha', flat=True)
+        Commit.objects.filter(repository=repository, sha__in=pack_commit_shas).values_list('sha', flat=True)
     )
 
     for tree in trees:
@@ -122,7 +123,7 @@ def push(request, owner_ref, repo_name):
             )
 
         for parent_sha in commit.get('parent_shas', []):
-            if parent_sha not in pack_commit_shas and not Commit.objects.filter(sha=parent_sha).exists():
+            if parent_sha not in pack_commit_shas and not Commit.objects.filter(repository=repository, sha=parent_sha).exists():
                 return Response(
                     {'error': f"Commit {commit['sha']} references missing parent {parent_sha}"},
                     status=status.HTTP_400_BAD_REQUEST

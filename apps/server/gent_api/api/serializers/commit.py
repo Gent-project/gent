@@ -12,7 +12,8 @@ class CommitSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'repository_name', 'sha', 'author_email_user',
             'author_name', 'author_email', 'message', 'tree_sha',
-            'parent_shas', 'committed_at', 'created_at'
+            'parent_shas', 'committed_at', 'created_at', 'author_timestamp', 'author_timezone',
+            'committer_name', 'committer_email', 'committer_timestamp', 'committer_timezone'
         ]
         read_only_fields = ['id', 'sha', 'created_at']
 

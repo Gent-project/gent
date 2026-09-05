@@ -1,0 +1,77 @@
+{
+  "history": {
+    "commits": [
+      {
+        "hash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "message": "Legacy exact\n",
+        "author": {
+          "name": "Author",
+          "email": "a@example.com"
+        },
+        "timestamp": "2020-01-02T03:04:05.678Z",
+        "parent": null,
+        "tree": [
+          {
+            "name": "nested/file",
+            "hash": "da5037dff780990f9ffa96375f068689f64ceb75999d99f63b016baf091e2731",
+            "mode": "100644",
+            "type": "blob"
+          }
+        ]
+      }
+    ],
+    "branches": {
+      "main": "1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    "currentBranch": "main",
+    "tags": {
+      "v1": {
+        "hash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "annotated": true,
+        "tagger": {
+          "name": "Author",
+          "email": "a@example.com"
+        },
+        "timestamp": "2020-01-02T03:05:05.123Z",
+        "message": "Tag exact\n"
+      }
+    }
+  },
+  "blobs": {
+    "da5037dff780990f9ffa96375f068689f64ceb75999d99f63b016baf091e2731": "bGVnYWN5IGJpbmFyeQD/Cg=="
+  },
+  "mapping": {
+    "1111111111111111111111111111111111111111111111111111111111111111": "e74f16ad4e40223aef454e9aa6a41f93f0395ecf46b76d3d4f7682c3c9c9b439"
+  },
+  "refs": {
+    "refs/heads/main": "e74f16ad4e40223aef454e9aa6a41f93f0395ecf46b76d3d4f7682c3c9c9b439",
+    "refs/tags/v1": "9faf0f02cbc87e62ffed7088942615a1a94e5d7638b7c5dbf57c1f8a37427ad1"
+  },
+  "objects": [
+    {
+      "oid": "da5037dff780990f9ffa96375f068689f64ceb75999d99f63b016baf091e2731",
+      "type": "blob",
+      "payload": "bGVnYWN5IGJpbmFyeQD/Cg=="
+    },
+    {
+      "oid": "0422753f9e3d786023c06dd482e05e05beda3085cd59ceca66c78a24e68f45b6",
+      "type": "tree",
+      "payload": "MTAwNjQ0IGZpbGUA2lA33/eAmQ+f+pY3XwaGifZM63WZnZn2OwFrrwkeJzE="
+    },
+    {
+      "oid": "879a0a17f11d40f95d81358b9680af5c8d68a7f961083800ab90d59a6c739f82",
+      "type": "tree",
+      "payload": "NDAwMDAgbmVzdGVkAAQidT+ePXhgI8Bt1ILgXgW+2jCFzVnOymbHiiTmj0W2"
+    },
+    {
+      "oid": "e74f16ad4e40223aef454e9aa6a41f93f0395ecf46b76d3d4f7682c3c9c9b439",
+      "type": "commit",
+      "payload": "dHJlZSA4NzlhMGExN2YxMWQ0MGY5NWQ4MTM1OGI5NjgwYWY1YzhkNjhhN2Y5NjEwODM4MDBhYjkwZDU5YTZjNzM5ZjgyCmF1dGhvciBBdXRob3IgPGFAZXhhbXBsZS5jb20+IDE1Nzc5MzQyNDUgKzAwMDAKY29tbWl0dGVyIEF1dGhvciA8YUBleGFtcGxlLmNvbT4gMTU3NzkzNDI0NSArMDAwMAoKTGVnYWN5IGV4YWN0Cg=="
+    },
+    {
+      "oid": "9faf0f02cbc87e62ffed7088942615a1a94e5d7638b7c5dbf57c1f8a37427ad1",
+      "type": "tag",
+      "payload": "b2JqZWN0IGU3NGYxNmFkNGU0MDIyM2FlZjQ1NGU5YWE2YTQxZjkzZjAzOTVlY2Y0NmI3NmQzZDRmNzY4MmMzYzljOWI0MzkKdHlwZSBjb21taXQKdGFnIHYxCnRhZ2dlciBBdXRob3IgPGFAZXhhbXBsZS5jb20+IDE1Nzc5MzQzMDUgKzAwMDAKClRhZyBleGFjdAo="
+    }
+  ]
+}

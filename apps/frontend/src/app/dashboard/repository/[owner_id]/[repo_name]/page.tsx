@@ -81,7 +81,7 @@ export default function RepositoryPage() {
   }
 
   const owner = repository.owner_email.split("@")[0];
-  const cloneUrl = getCloneUrl(repository.owner_id, repository.name);
+  const cloneUrl = getCloneUrl(repository.owner_id, repository.name, "https", repository.object_format);
   const latestCommit = commits[0];
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   const tabs = [

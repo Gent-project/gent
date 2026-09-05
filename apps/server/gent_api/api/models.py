@@ -246,6 +246,8 @@ class Tag(models.Model):
     commit_sha = models.CharField(max_length=64)
     message = models.TextField(blank=True)
     annotated = models.BooleanField(default=False)
+    target_oid = models.CharField(max_length=64, blank=True)
+    target_type = models.CharField(max_length=6, blank=True)
     tagger_name = models.CharField(max_length=255, blank=True)
     tagger_email = models.EmailField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

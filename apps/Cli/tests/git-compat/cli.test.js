@@ -6,7 +6,7 @@ const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const cli = path.resolve(__dirname, '../../src/index.js');
 
-test('canonical CLI initializes, commits, checks out, stashes and rejects remote writes', async t => {
+test('canonical CLI initializes, commits, checks out, stashes and rejects unconfigured remote writes', async t => {
     const cwd = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'gent-cli-canonical-')));
     t.after(() => fs.rm(cwd, { recursive: true, force: true }));
     const env = { ...process.env, GIT_AUTHOR_NAME: 'Test', GIT_AUTHOR_EMAIL: 'test@example.com', GIT_COMMITTER_NAME: 'Test', GIT_COMMITTER_EMAIL: 'test@example.com' };
@@ -41,5 +41,5 @@ test('canonical CLI initializes, commits, checks out, stashes and rejects remote
     assert.match(gent('status'), /clean/);
     const push = spawnSync(process.execPath, [cli, 'push'], { cwd, env, encoding: 'utf8' });
     assert.equal(push.status, 1);
-    assert.match(push.stderr, /not implemented for canonical/);
+    assert.match(push.stderr, /not configured/);
 });

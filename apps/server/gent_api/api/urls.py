@@ -1,8 +1,10 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
+from .gitcore.rest import file_commit
 
 urlpatterns = [
+    path('repos/<str:owner_ref>/<str:repo_name>/files/commit/', file_commit, name='canonical-file-commit'),
     path('', views.api_root, name='api-root'),
 
     # Authentication endpoints
@@ -34,7 +36,7 @@ urlpatterns = [
     # Branch endpoints
     path('repos/<str:owner_ref>/<str:repo_name>/branches/', views.branch_list, name='branch-list'),
     path('repos/<str:owner_ref>/<str:repo_name>/branches/create/', views.branch_create, name='branch-create'),
-    path('repos/<str:owner_ref>/<str:repo_name>/branches/<str:branch_name>/', views.branch_detail, name='branch-detail'),
+    path('repos/<str:owner_ref>/<str:repo_name>/branches/<path:branch_name>/', views.branch_detail, name='branch-detail'),
 
     # Push endpoint
     path('repos/<str:owner_ref>/<str:repo_name>/push/', views.push, name='push'),
@@ -48,7 +50,7 @@ urlpatterns = [
     # Tag endpoints
     path('repos/<str:owner_ref>/<str:repo_name>/tags/', views.tag_list, name='tag-list'),
     path('repos/<str:owner_ref>/<str:repo_name>/tags/create/', views.tag_create, name='tag-create'),
-    path('repos/<str:owner_ref>/<str:repo_name>/tags/<str:tag_name>/', views.tag_delete, name='tag-delete'),
+    path('repos/<str:owner_ref>/<str:repo_name>/tags/<path:tag_name>/', views.tag_delete, name='tag-delete'),
 
     # Commit endpoints
     path('repos/<str:owner_ref>/<str:repo_name>/commits/', views.commit_list, name='commit-list'),

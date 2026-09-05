@@ -1,3 +1,4 @@
+from django.db import transaction
 import re
 
 from django.shortcuts import get_object_or_404
@@ -36,6 +37,7 @@ def commit_list(request, owner_ref, repo_name):
 )
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, CanWriteRepositoryByParams])
+@transaction.atomic
 def commit_create(request, owner_ref, repo_name):
     """Create a new commit."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
@@ -54,7 +56,7 @@ def commit_create(request, owner_ref, repo_name):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if Commit.objects.filter(sha=sha).exists():
+        if Commit.objects.filter(repository=repository, sha=sha).exists():
             return Response(
                 {'error': 'Commit with this SHA already exists.'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -107,6 +109,7 @@ def commit_create(request, owner_ref, repo_name):
 def commit_detail(request, owner_ref, repo_name, sha):
     """Get commit details."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
-    commit = get_object_or_404(Commit, repository=repository, sha=sha)
+    from api.utils import resolve_migrated_commit
+    commit = get_object_or_404(Commit, repository=repository, sha=resolve_migrated_commit(repository, sha))
     serializer = CommitSerializer(commit)
     return Response(serializer.data, status=status.HTTP_200_OK)
