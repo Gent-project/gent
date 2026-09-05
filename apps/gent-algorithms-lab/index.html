@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="شرح تفاعلي لخوارزميات Gent: LCS وFNV-1a وDAG وBFS/LCA وSHA-256" />
+  <title>مختبر خوارزميات Gent</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="العودة إلى البداية">
+      <span class="brand-mark" aria-hidden="true">G</span>
+      <span><b>Gent</b><small>Algorithm Lab</small></span>
+    </a>
+    <div class="top-progress" aria-hidden="true"><span id="readingProgress"></span></div>
+    <a class="source-link" href="#map">ابدأ من الخريطة <span>←</span></a>
+  </header>
+
+  <div class="page-shell" id="top">
+    <aside class="sidebar" aria-label="فهرس الخوارزميات">
+      <p class="side-kicker">مسار التعلّم</p>
+      <nav>
+        <a class="side-link active" href="#lcs"><span>01</span><b>LCS</b><small>اكتشاف التغيير</small></a>
+        <a class="side-link" href="#fnv"><span>02</span><b>FNV-1a</b><small>بصمة سريعة</small></a>
+        <a class="side-link" href="#dag"><span>03</span><b>DAG</b><small>شكل التاريخ</small></a>
+        <a class="side-link" href="#bfs"><span>04</span><b>BFS &amp; LCA</b><small>العثور على الأصل</small></a>
+        <a class="side-link" href="#sha"><span>05</span><b>SHA-256</b><small>هوية المحتوى</small></a>
+      </nav>
+      <div class="side-note">
+        <span class="pulse"></span>
+        <p>كل تجربة تعمل داخل المتصفح، ولا ترسل أي بيانات.</p>
+      </div>
+    </aside>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">من السطر إلى الـ commit</p>
+          <h1 id="page-title">افهم خوارزميات <em>Gent</em><br />وكأنك تراها تعمل.</h1>
+          <p class="hero-lead">خمس أفكار تبني معاً نظام تحكم بالإصدارات: نقارن النص، نلتقط بصمته، نمثّل تاريخه، نجد نقطة التقاء الفروع، ثم نحفظ المحتوى بهوية آمنة.</p>
+          <div class="hero-actions">
+            <a class="primary-button" href="#lcs">ابدأ بأول خوارزمية</a>
+            <span>≈ 12 دقيقة قراءة وتجربة</span>
+          </div>
+        </div>
+        <div class="hero-visual" aria-label="رحلة البيانات داخل Gent">
+          <div class="orbit orbit-a"></div><div class="orbit orbit-b"></div>
+          <div class="core"><span>GENT</span><small>commit</small></div>
+          <div class="satellite sat-a"><b>LCS</b><small>diff</small></div>
+          <div class="satellite sat-b"><b>FNV</b><small>fast</small></div>
+          <div class="satellite sat-c"><b>DAG</b><small>history</small></div>
+          <div class="satellite sat-d"><b>SHA</b><small>identity</small></div>
+        </div>
+      </section>
+
+      <section class="map-section" id="map">
+        <div class="section-intro compact">
+          <p class="eyebrow">الصورة الكبيرة</p>
+          <h2>كل خوارزمية تجيب عن سؤال مختلف</h2>
+        </div>
+        <div class="pipeline" role="list">
+          <a href="#lcs" class="pipe-card" role="listitem"><span>ملفان</span><b>ما الذي تغيّر؟</b><code>LCS</code></a>
+          <i>←</i>
+          <a href="#fnv" class="pipe-card" role="listitem"><span>سطر نصي</span><b>كيف أقارنه بسرعة؟</b><code>FNV-1a</code></a>
+          <i>←</i>
+          <a href="#dag" class="pipe-card" role="listitem"><span>عدة commits</span><b>كيف يرتبط التاريخ؟</b><code>DAG</code></a>
+          <i>←</i>
+          <a href="#bfs" class="pipe-card" role="listitem"><span>فرعان</span><b>أين افترقا؟</b><code>BFS + LCA</code></a>
+          <i>←</i>
+          <a href="#sha" class="pipe-card" role="listitem"><span>محتوى</span><b>ما هويته الآمنة؟</b><code>SHA-256</code></a>
+        </div>
+      </section>
+
+      <section class="chapter" id="lcs" data-chapter="01">
+        <div class="chapter-head">
+          <div class="chapter-number">01</div>
+          <div><p class="eyebrow">Longest Common Subsequence</p><h2>أطول تسلسل مشترك — LCS</h2></div>
+        </div>
+        <div class="explain-grid">
+          <article class="plain-card"><span class="card-label">الفكرة ببساطة</span><h3>ثبّت المشترك، وما بقي هو التغيير.</h3><p>تبحث LCS عن أطول مجموعة أسطر تظهر بالترتيب نفسه في النسختين، حتى لو وُجدت أسطر أخرى بينها. هذه الأسطر هي العمود الفقري للملف؛ وما لا ينتمي إليها يصبح إضافة أو حذفاً.</p></article>
+          <div class="fact-stack">
+            <div><span>تدخل</span><b>نسختان من الملف</b></div><div><span>تخرج</span><b>equal / insert / delete</b></div><div><span>الكلفة</span><b dir="ltr">O(m × n)</b></div>
+          </div>
+        </div>
+        <div class="steps-row">
+          <div><span>1</span><b>قسّم</b><p>حوّل النص إلى أسطر.</p></div><div><span>2</span><b>ابنِ المصفوفة</b><p>سجّل طول أفضل تسلسل لكل زوج.</p></div><div><span>3</span><b>ارجع للخلف</b><p>استخرج المشترك والإضافات والحذف.</p></div>
+        </div>
+        <div class="gent-note"><span>داخل Gent</span><p>يُستخدم LCS في <code>diff-engine.js</code> لبناء فرق سطري. قبل المصفوفة، يقص Gent البداية والنهاية المتطابقتين كي يعمل على الجزء المتغيّر فقط.</p></div>
+
+        <div class="lab">
+          <div class="lab-head"><div><span>مختبر 01</span><h3>غيّر سطراً وشاهد مسار المقارنة</h3></div><button class="reset-button" id="lcsExample">استعادة المثال</button></div>
+          <div class="input-grid">
+            <label>النسخة القديمة<textarea id="lcsOld" spellcheck="false">const user = "Lina";
+const role = "editor";
+save(user);</textarea></label>
+            <label>النسخة الجديدة<textarea id="lcsNew" spellcheck="false">const user = "Lina";
+const role = "admin";
+audit(user);
+save(user);</textarea></label>
+          </div>
+          <div class="lab-toolbar"><button class="primary-button" id="runLcs">احسب الفرق</button><label class="toggle"><input type="checkbox" id="showMatrix" checked /><span></span>عرض مصفوفة القرار</label></div>
+          <div class="metric-row" id="lcsMetrics"></div>
+          <div class="lcs-output"><div><p class="output-title">النتيجة</p><div class="diff-output" id="diffOutput"></div></div><div id="matrixPanel"><p class="output-title">مصفوفة DP <small>الخانة الأخيرة = طول LCS</small></p><div class="matrix-wrap" id="matrixOutput"></div></div></div>
+        </div>
+      </section>
+
+      <section class="chapter" id="fnv" data-chapter="02">
+        <div class="chapter-head"><div class="chapter-number">02</div><div><p class="eyebrow">Fast fingerprint</p><h2>التجزئة السريعة — FNV-1a 32-bit</h2></div></div>
+        <div class="explain-grid">
+          <article class="plain-card"><span class="card-label">الفكرة ببساطة</span><h3>بصمة صغيرة للمقارنة، لا قفل للحماية.</h3><p>تبدأ الخوارزمية برقم ثابت. لكل محرف تنفذ XOR ثم تضرب في عدد أولي ثابت، وتُبقي آخر 32 بت. النتيجة ثمانية محارف سداسية عشرية، سريعة لكنها قابلة للتصادم.</p></article>
+          <div class="formula-card" dir="ltr"><small>FOR EACH BYTE</small><b>hash = hash XOR byte</b><b>hash = hash × 0x01000193</b><span>keep 32 bits</span></div>
+        </div>
+        <div class="warning"><b>ليست خوارزمية أمان</b><p>قد تعطي مدخلات مختلفة البصمة نفسها. استخدمها كاختصار للمقارنة السريعة، ولا تستخدمها للتحقق الأمني أو كلمات المرور أو هوية الملفات.</p></div>
+        <div class="gent-note"><span>داخل Gent</span><p>يوفّر <code>hash-engine.js</code> بصمة FNV-1a لكل سطر كي تساعد في المقارنات والتشخيصات السريعة.</p></div>
+        <div class="lab">
+          <div class="lab-head"><div><span>مختبر 02</span><h3>راقب البصمة تتغير مع كل محرف</h3></div></div>
+          <label class="wide-input">النص<input id="fnvInput" value="gent commit" autocomplete="off" /></label>
+          <div class="hash-display"><span>FNV-1a / 32-bit</span><strong id="fnvHash" dir="ltr"></strong></div>
+          <div class="step-table-wrap"><table class="step-table"><thead><tr><th>#</th><th>المحرف</th><th>القيمة</th><th>قبل XOR</th><th>بعد الضرب</th></tr></thead><tbody id="fnvSteps"></tbody></table></div>
+          <p class="lab-footnote">نعرض أول 10 وحدات فقط. الحساب يستخدم ضرب 32-bit صريحاً للحفاظ على النتيجة الصحيحة.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="dag" data-chapter="03">
+        <div class="chapter-head"><div class="chapter-number">03</div><div><p class="eyebrow">Directed Acyclic Graph</p><h2>الرسم البياني الموجّه غير الدوري — DAG</h2></div></div>
+        <div class="explain-grid">
+          <article class="plain-card"><span class="card-label">أولاً: DAG ليس hash</span><h3>إنه شكل لتنظيم التاريخ.</h3><p>كل commit هو عقدة، وكل سهم يشير إلى الأب أو الآباء. الأسهم لها اتجاه، ولا تستطيع العودة عبرها إلى النقطة نفسها؛ لذلك هو رسم موجّه وغير دوري.</p></article>
+          <div class="term-grid"><div><b>Directed</b><p>لكل رابط اتجاه: الابن يعرف أباه.</p></div><div><b>Acyclic</b><p>لا توجد حلقة تعيد commit إلى نفسه.</p></div><div><b>Graph</b><p>قد تتفرع العقد ثم تندمج من جديد.</p></div></div>
+        </div>
+        <div class="lab graph-lab">
+          <div class="lab-head"><div><span>مختبر 03</span><h3>مرّر على أي commit لتقرأ علاقاته</h3></div></div>
+          <div class="graph-stage" id="dagGraph" role="img" aria-label="رسم تفاعلي لتاريخ commits"><svg id="dagSvg" viewBox="0 0 820 300" aria-hidden="true"></svg></div>
+          <div class="graph-inspector" id="dagInspector"><span>commit</span><b>C5 — merge</b><p>له أبوان: C4 من المسار الرئيسي وF2 من الفرع.</p></div>
+          <div class="legend"><span><i class="main-dot"></i>المسار الرئيسي</span><span><i class="branch-dot"></i>فرع feature</span><span><i class="merge-line"></i>أب ثانٍ للدمج</span></div>
+        </div>
+      </section>
+
+      <section class="chapter" id="bfs" data-chapter="04">
+        <div class="chapter-head"><div class="chapter-number">04</div><div><p class="eyebrow">Breadth-First Search & Lowest Common Ancestor</p><h2>البحث بالعرض والسلف المشترك الأحدث</h2></div></div>
+        <div class="explain-grid">
+          <article class="plain-card"><span class="card-label">السؤال</span><h3>من أي commit بدأ اختلاف الفرعين؟</h3><p>نجمع أسلاف الفرع A، ثم ننطلق من B بالبحث بالعرض: نزور الأقرب أولاً. أول عقدة نجدها ضمن أسلاف A هي نقطة الالتقاء التي يستخدمها الدمج كنسخة أساس.</p></article>
+          <div class="queue-card"><small>QUEUE</small><div><span>B</span><span>parent</span><span>grandparent</span><i>← الأقرب أولاً</i></div><p>كل عقدة تدخل الطابور مرة واحدة.</p></div>
+        </div>
+        <div class="fact-line"><span><b>BFS</b> طريقة الزيارة</span><span><b>LCA / merge base</b> النتيجة المطلوبة</span><span><b dir="ltr">O(V + E)</b> الزمن</span></div>
+        <div class="gent-note"><span>داخل Gent</span><p>يتتبع <code>merge-engine.js</code> كلاً من <code>parent</code> و<code>mergeParent</code>؛ وهذا ضروري كي لا يضيع تاريخ الدمجات السابقة.</p></div>
+        <div class="lab graph-lab">
+          <div class="lab-head"><div><span>مختبر 04</span><h3>شغّل البحث خطوة بخطوة</h3></div></div>
+          <div class="control-row"><label>الفرع A<select id="nodeA"></select></label><label>الفرع B<select id="nodeB"></select></label><button class="primary-button" id="bfsNext">الخطوة التالية</button><button class="reset-button" id="bfsAuto">تشغيل تلقائي</button><button class="reset-button" id="bfsReset">تصفير</button></div>
+          <div class="graph-stage bfs-stage"><svg id="bfsSvg" viewBox="0 0 820 300" aria-hidden="true"></svg></div>
+          <div class="search-log" id="bfsLog"><span>جاهز</span><p>اختر عقدتين ثم ابدأ البحث.</p></div>
+        </div>
+      </section>
+
+      <section class="chapter" id="sha" data-chapter="05">
+        <div class="chapter-head"><div class="chapter-number">05</div><div><p class="eyebrow">Secure content identity</p><h2>التجزئة الآمنة — SHA-256</h2></div></div>
+        <div class="explain-grid">
+          <article class="plain-card"><span class="card-label">الفكرة ببساطة</span><h3>المحتوى نفسه يعني الهوية نفسها.</h3><p>تحوّل SHA-256 أي حجم من البيانات إلى 256 بت. لا يمكن استرجاع الملف من بصمته، ويصعب جداً صنع محتويين مختلفين لهما البصمة نفسها.</p></article>
+          <div class="sha-flow" dir="ltr"><span>type + size + \0 + content</span><i>→</i><b>SHA-256</b><i>→</i><code>64 hex chars</code></div>
+        </div>
+        <div class="sha-benefits"><div><span>01</span><b>سلامة البيانات</b><p>أعد الحساب واكتشف أي تلف.</p></div><div><span>02</span><b>إزالة التكرار</b><p>المحتوى المتطابق يُخزّن مرة واحدة.</p></div><div><span>03</span><b>عنونة بالمحتوى</b><p>البصمة نفسها تصبح اسم الكائن.</p></div></div>
+        <div class="gent-note"><span>داخل Gent</span><p>يبني Gent الجسم بالشكل <code dir="ltr">&lt;type&gt; &lt;byte-length&gt;\0&lt;content&gt;</code>، يحسب SHA-256، ثم يخزّن الكائن مضغوطاً داخل <code>.gent/objects/ab/cdef…</code>.</p></div>
+        <div class="lab">
+          <div class="lab-head"><div><span>مختبر 05</span><h3>غيّر حرفاً واحداً وشاهد تأثير الانهيار</h3></div></div>
+          <div class="input-grid sha-inputs"><label>المدخل A<input id="shaInputA" value="Gent" /></label><label>المدخل B<input id="shaInputB" value="gent" /></label></div>
+          <div class="sha-results"><div><span>A</span><code id="shaHashA"></code></div><div><span>B</span><code id="shaHashB"></code></div></div>
+          <div class="avalanche"><div><span id="bitDifference">—</span><small>بت مختلف من أصل 256</small></div><div class="avalanche-bar"><i id="avalancheFill"></i></div><p id="avalancheText">جارٍ الحساب…</p></div>
+        </div>
+      </section>
+
+      <section class="comparison">
+        <p class="eyebrow">لا تخلط بينهما</p><h2>FNV للسرعة، SHA-256 للثقة.</h2>
+        <div class="compare-table" role="table">
+          <div class="compare-row compare-head" role="row"><span></span><b>FNV-1a</b><b>SHA-256</b></div>
+          <div class="compare-row" role="row"><span>الاستخدام</span><p>بصمة سريعة ومؤقتة</p><p>هوية وسلامة المحتوى</p></div>
+          <div class="compare-row" role="row"><span>الحجم</span><p>32 بت</p><p>256 بت</p></div>
+          <div class="compare-row" role="row"><span>مقاومة التصادم</span><p class="no">ضعيفة</p><p class="yes">قوية جداً</p></div>
+          <div class="compare-row" role="row"><span>أمني؟</span><p class="no">لا</p><p class="yes">نعم، كتجزئة تشفيرية</p></div>
+        </div>
+        <div class="final-rule"><span>قاعدة الحفظ</span><b>إذا كان الخطأ يبطّئك استخدم FNV، وإذا كان الخطأ قد يغيّر الحقيقة استخدم SHA-256.</b></div>
+      </section>
+
+      <footer><div class="brand"><span class="brand-mark">G</span><span><b>Gent</b><small>Algorithm Lab</small></span></div><p>شرح تفاعلي مبني على الخوارزميات المستخدمة في Gent CLI.</p><a href="#top">العودة للأعلى ↑</a></footer>
+    </main>
+  </div>
+  <script src="./script.js"></script>
+</body>
+</html>
