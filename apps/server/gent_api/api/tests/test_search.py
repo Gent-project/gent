@@ -241,3 +241,21 @@ class PublicProfileTests(SearchTestMixin, TestCase):
         response = self.client.get(reverse('public-user-detail', args=['alice']))
 
         self.assertEqual(response.data['user']['public_repo_count'], 1)
+
+
+class RepositoryDetailPrivacyTests(SearchTestMixin, TestCase):
+    """The detail endpoint is anonymous for public repos, so it must not leak."""
+
+    def test_anonymous_detail_hides_owner_email(self):
+        response = self.client.get(reverse('repository-detail', args=['alice', 'gent']))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('owner_email', response.data)
+        self.assertNotIn('alice@example.com', json.dumps(response.data, default=str))
+
+    def test_owner_still_sees_owner_email(self):
+        self.authenticate(self.alice_token)
+
+        response = self.client.get(reverse('repository-detail', args=['alice', 'gent']))
+
+        self.assertEqual(response.data['owner_email'], 'alice@example.com')

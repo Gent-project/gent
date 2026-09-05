@@ -6,9 +6,13 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
 from api.models import Repository, Branch, RepositoryMember
-from api.serializers import RepositorySerializer, RepositoryCreateSerializer
+from api.serializers import (
+    RepositorySerializer,
+    RepositoryCreateSerializer,
+    PublicRepositorySerializer,
+)
 from api.utils import get_repository_or_404
-from api.services.repository_access import user_can_manage_repo
+from api.services.repository_access import user_can_manage_repo, get_user_repo_role
 from api.permissions import CanWriteRepositoryByParams
 
 
@@ -97,7 +101,14 @@ def repository_detail(request, owner_ref, repo_name):
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
 
     if request.method == 'GET':
-        serializer = RepositorySerializer(repository, context={'request': request})
+        # This endpoint serves anonymous visitors for public repositories, so
+        # only owners and collaborators may see the owner's email address.
+        serializer_class = (
+            RepositorySerializer
+            if get_user_repo_role(request.user, repository)
+            else PublicRepositorySerializer
+        )
+        serializer = serializer_class(repository, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PATCH':
