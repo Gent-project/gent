@@ -1,18 +1,24 @@
 import logging
 
-import resend
 from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
 
 logger = logging.getLogger(__name__)
 
 
 def send_password_reset_email(user, reset_url):
-    """Send a password reset email via Resend.
+    """Send a password reset email over SMTP.
 
     Raises on failure so the caller can log it. The caller must still return a
     generic success response to avoid leaking which emails have accounts.
     """
     subject = 'Reset your Gent password'
+    text_body = (
+        'Hi,\n\n'
+        f'You requested a password reset for your Gent account ({user.email}).\n\n'
+        f'Open this link to choose a new password:\n{reset_url}\n\n'
+        'If you did not request this, you can ignore this email.\n'
+    )
     html_body = (
         f'<p>Hi,</p>'
         f'<p>You requested a password reset for your Gent account '
@@ -21,38 +27,42 @@ def send_password_reset_email(user, reset_url):
         f'<p>If you did not request this, you can ignore this email.</p>'
     )
 
-    if not settings.RESEND_API_KEY:
+    if not settings.EMAIL_HOST:
         if settings.DEBUG:
             logger.warning(
-                'RESEND_API_KEY not set; password reset URL for %s: %s',
+                'EMAIL_HOST not set; password reset URL for %s: %s',
                 user.email,
                 reset_url,
             )
             return
         logger.error(
-            'RESEND_API_KEY is not set; cannot send password reset email to %s',
+            'EMAIL_HOST is not set; cannot send password reset email to %s',
             user.email,
         )
-        raise RuntimeError('RESEND_API_KEY is not configured')
+        raise RuntimeError('EMAIL_HOST is not configured')
 
-    resend.api_key = settings.RESEND_API_KEY
+    message = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+    )
+    message.attach_alternative(html_body, 'text/html')
+
     try:
-        result = resend.Emails.send({
-            'from': settings.DEFAULT_FROM_EMAIL,
-            'to': [user.email],
-            'subject': subject,
-            'html': html_body,
-        })
+        message.send(fail_silently=False)
     except Exception:
         logger.exception(
-            'Failed to send password reset email from %s to %s',
+            'Failed to send password reset email from %s to %s via %s',
             settings.DEFAULT_FROM_EMAIL,
             user.email,
+            settings.EMAIL_HOST,
         )
         raise
 
     logger.info(
-        'Password reset email sent to %s (resend id=%s)',
+        'Password reset email sent to %s from %s via %s',
         user.email,
-        (result or {}).get('id'),
+        settings.DEFAULT_FROM_EMAIL,
+        settings.EMAIL_HOST,
     )

@@ -153,16 +153,26 @@ REPO_SMALL_FILE_THRESHOLD = 1024 * 1024  # 1MB (store in DB)
 REPO_MAX_REPO_SIZE = 1024 * 1024 * 1024  # 1GB
 
 # Email / password reset
-# onboarding@resend.dev is Resend's shared sender: it needs no verified domain,
-# but only delivers to the address the Resend account was registered with.
-RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
+# Provider-agnostic SMTP. Any provider works by changing env vars only -
+# Brevo, Mailjet, Gmail, or Resend (smtp.resend.com, user 'resend').
+# DEFAULT_FROM_EMAIL must be an identity the provider has verified, otherwise
+# it will reject the send.
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', '')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+# Sending happens inside the request; cap it so a stalled SMTP server cannot
+# hold a worker open indefinitely.
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@example.com')
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', '3600'))
 
 # Logging
 # Without this, records from `api.*` never reach stderr in production and
-# failures such as a missing RESEND_API_KEY disappear silently.
+# failures such as an unconfigured EMAIL_HOST disappear silently.
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG' if DEBUG else 'INFO')
 LOGGING = {
     'version': 1,

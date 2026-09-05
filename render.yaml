@@ -19,16 +19,24 @@ services:
         fromDatabase:
           name: gent-db
           property: connectionString
-      # Resend (https://resend.com) is the email API - unrelated to Render.
-      # sync: false means this must be set by hand in the Render dashboard
-      # (Environment tab). Password reset emails will not send without it.
-      - key: RESEND_API_KEY
+      # SMTP. sync: false means the value must be set by hand in the Render
+      # dashboard (Environment tab); password reset emails will not send
+      # without EMAIL_HOST_USER / EMAIL_HOST_PASSWORD.
+      - key: EMAIL_HOST
+        value: smtp-relay.brevo.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
         sync: false
-      # Resend's shared sender; only delivers to the address the Resend account
-      # was registered with. Swap for an address on a verified domain to reach
-      # arbitrary recipients.
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: True
+      - key: EMAIL_TIMEOUT
+        value: "10"
+      # Must be an address the provider has verified as a sender.
       - key: DEFAULT_FROM_EMAIL
-        value: onboarding@resend.dev
+        sync: false
       - key: FRONTEND_URL
         value: https://gent-nu2e.onrender.com
       - key: PASSWORD_RESET_TIMEOUT
