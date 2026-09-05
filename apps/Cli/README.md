@@ -25,6 +25,7 @@ Beyond a faithful git-like workflow, Gent adds:
 - **`gent resolve`** — an interactive conflict resolver (ours / theirs / both / edit / AI).
 - **`gent summary`** — a repository health dashboard, plus **`gent log --graph`**.
 - **Optional AI** (`gent commit --ai`, `gent explain`, `gent summary --ai`, AI option in `gent resolve`) — off by default, enabled with `ANTHROPIC_API_KEY`.
+- **Genti, your terminal mascot** — a mint one-eyed sky-jelly that *acts out* your workflow: it floats a file crate to the cloud on `gent push`, carries one home on `gent pull`, and reconciles two branches on `gent merge`. It plays once (in place, no scrollback spam) after a successful command. Meet it directly with `gent pet` (add `--loop` to keep it running; try `gent pet push|pull|merge|auth`). Set `GENT_NO_PET=1` (or run in CI / a non-interactive shell) to turn the celebrations off.
 
 See [docs/COMMANDS.md](docs/COMMANDS.md) for the full reference and
 [docs/ALGORITHMS.md](docs/ALGORITHMS.md) for how the engines work.

@@ -78,6 +78,7 @@ const webCommand = require('./commands/web');
 const shareCommand = require('./commands/share');
 const searchCommand = require('./commands/search');
 const templateCommand = require('./commands/template');
+const petCommand = require('./commands/pet');
 
 // Configure CLI
 program
@@ -432,6 +433,13 @@ program
     .option('-e, --email <email>', 'Account email (for reset)')
     .action(passwordCommand);
 
+// ─── Fun ────────────────────────────────────────────────
+program
+    .command('pet [scene]')
+    .description('Meet Genti — an animated pixel mascot that acts out gent (push|pull|merge|auth)')
+    .option('--loop', 'Keep looping until Ctrl+C (default: play once)')
+    .action(petCommand);
+
 // Help command
 program
     .command('help [command]')
@@ -456,6 +464,7 @@ const HELP_GROUPS = [
     ['Account', ['register', 'login', 'logout', 'whoami', 'password']],
     ['AI', ['ask', 'review', 'docs', 'changelog', 'ai']],
     ['Config & tools', ['config', 'doctor', 'template', 'help']],
+    ['Fun', ['pet']],
 ];
 
 function configureGroupedHelp(program) {
@@ -526,6 +535,7 @@ function showQuickstart() {
     console.log(`  ${chalk.cyan('gent changelog')}          ${chalk.gray('grouped release notes')}`);
     console.log();
     console.log(chalk.gray('Full command list: ') + chalk.cyan('gent --help'));
+    console.log(chalk.gray('Say hi to your mascot: ') + chalk.cyan('gent pet'));
     console.log();
 }
 

@@ -13,6 +13,7 @@ const { generateCommitHash } = require('../utils/helpers');
 const authStorage = require('../utils/auth-storage');
 const { findMergeBase, mergeTreeEntries, autoMerge } = require('../utils/merge-engine');
 const { storeTree, readBlobAsString, storeBlob } = require('../utils/hash-engine');
+const pet = require('./pet');
 const journal = require('../utils/journal');
 
 /**
@@ -78,6 +79,7 @@ async function merge(sourceBranch, options) {
             }
 
             spinner.succeed(chalk.green(`Fast-forward merge: ${currentBranch} → ${theirsHash.substring(0, 7)}`));
+            await pet.celebrate('merge');
             return;
         }
 
@@ -185,6 +187,7 @@ async function merge(sourceBranch, options) {
             console.log(chalk.gray(`\n  Base: ${baseHash ? baseHash.substring(0, 7) : 'none'}`));
             console.log(chalk.gray(`  Ours: ${oursHash.substring(0, 7)}  Theirs: ${theirsHash.substring(0, 7)}`));
             console.log(chalk.green(`  ${autoResolved} file(s) merged automatically`));
+            await pet.celebrate('merge');
         } else {
             // Stage the merge state for manual resolution
             const staging = await readJSON(path.join(gentPath, STAGING_FILE));

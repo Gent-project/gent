@@ -42,6 +42,7 @@ const { COMMITS_FILE, CONFIG_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl }
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
 const { readBlob, readTree, objectExists, readBlobAsString } = require('../utils/hash-engine');
+const pet = require('./pet');
 
 /**
  * Push commits to remote
@@ -231,15 +232,16 @@ async function push(remoteName, branchName, options) {
             tags: tagsToPush
         };
 
-        // Send to backend
+        // Send to backend — Genti carries the crate to the cloud while we wait.
         const pushUrl = buildRepoUrl(API_ENDPOINTS.REPO_PUSH, repoInfo);
-        const response = await apiClient.post(pushUrl, payload, { timeout: 120000 });
+        spinner.stop();
+        const response = await pet.during('push', () => apiClient.post(pushUrl, payload, { timeout: 120000 }));
 
         // Update remote ref
         config.remoteRefs[`${remote}/${branch}`] = localHead;
         await writeJSON(configPath, config);
 
-        spinner.succeed(chalk.green(`Pushed ${commitsToPush.length} commit(s) to ${remote}/${branch}`));
+        console.log(chalk.green(`✔ Pushed ${commitsToPush.length} commit(s) to ${remote}/${branch}`));
         console.log(chalk.gray(`  ${localHead.substring(0, 7)} → ${remote}/${branch}`));
         console.log(chalk.gray(`  ${packBlobs.length} blob(s), ${packTrees.length} tree(s) transferred`));
 
