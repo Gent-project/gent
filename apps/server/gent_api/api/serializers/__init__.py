@@ -7,6 +7,7 @@ from .auth import (
     PasswordResetConfirmSerializer,
 )
 from .repository import RepositorySerializer, RepositoryCreateSerializer
+from .discover import PublicRepositorySerializer, PublicUserSerializer
 from .branch import (
     BranchSerializer,
     BranchCreateSerializer,
@@ -35,6 +36,8 @@ __all__ = [
     'PasswordResetConfirmSerializer',
     'RepositorySerializer',
     'RepositoryCreateSerializer',
+    'PublicRepositorySerializer',
+    'PublicUserSerializer',
     'BranchSerializer',
     'BranchCreateSerializer',
     'BranchPatchSerializer',
