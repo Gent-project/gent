@@ -4,7 +4,7 @@ import { Commit } from "@/types/repository";
 import { RepositoryService } from "@/services/repository.service";
 // Get all commits for a repository
 export const useCommits = (
-  ownerId: number,
+  ownerId: number | string,
   repoName: string,
   branch?: string,
 ) => {
@@ -22,7 +22,7 @@ export const useCommits = (
 };
 
 // Get single commit details
-export const useCommit = (ownerId: number, repoName: string, sha: string) => {
+export const useCommit = (ownerId: number | string, repoName: string, sha: string) => {
   return useQuery<Commit>({
     queryKey: ["commit", ownerId, repoName, sha],
     queryFn: async () => {
@@ -37,7 +37,7 @@ export const useCommit = (ownerId: number, repoName: string, sha: string) => {
 
 // Get commit diff
 export const useCommitDiff = (
-  ownerId: number,
+  ownerId: number | string,
   repoName: string,
   sha: string,
 ) => {
@@ -64,7 +64,7 @@ export const useCreateCommit = () => {
   return useMutation<
     Commit,
     Error,
-    { ownerId: number; repoName: string; data: CreateCommitData }
+    { ownerId: number | string; repoName: string; data: CreateCommitData }
   >({
     mutationFn: async ({ ownerId, repoName, data }) => {
       const response = await axios.post(

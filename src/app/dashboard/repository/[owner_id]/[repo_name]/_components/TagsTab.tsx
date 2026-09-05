@@ -12,7 +12,8 @@ interface TagsTabProps {
   tags: TagType[];
   isLoading: boolean;
   isDark: boolean;
-  ownerId: number;
+  ownerId: number | string;
+  /** False for anonymous/read-only visitors: hides every write control. */
   repoName: string;
   branches: Array<{ name: string; commit_sha: string }>;
   userEmail: string;
@@ -26,7 +27,7 @@ export default function TagsTab({
   ownerId,
   repoName,
   branches,
-  userEmail 
+  userEmail,
 }: TagsTabProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
@@ -71,19 +72,19 @@ export default function TagsTab({
           <h3 className="font-semibold" style={{ color: t.text }}>
             {tags.length} {tags.length === 1 ? 'tag' : 'tags'}
           </h3>
-          <button
-            hidden={!canWrite}
-              disabled={!canWrite}
+          {canWrite && (
+            <button
               onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors"
-            style={{
-              backgroundColor: t.accent,
-              color: t.successText,
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            Create tag
-          </button>
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors"
+              style={{
+                backgroundColor: t.accent,
+                color: t.successText,
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              Create tag
+            </button>
+          )}
         </div>
 
         {isLoading ? (
@@ -138,6 +139,7 @@ export default function TagsTab({
                   </p>
                 </div>
                 
+                {canWrite && (
                 <div className="relative">
                   <button
                     hidden={!canWrite}
@@ -168,6 +170,7 @@ export default function TagsTab({
                     </div>
                   )}
                 </div>
+                )}
               </div>
             ))}
           </div>
@@ -180,6 +183,7 @@ export default function TagsTab({
             <p className="text-sm mb-4" style={{ color: t.textMuted }}>
               Tags help you mark important milestones in your repository.
             </p>
+            {canWrite && (
             <button
               hidden={!canWrite}
               disabled={!canWrite}
@@ -193,6 +197,7 @@ export default function TagsTab({
               <Plus className="w-4 h-4 inline mr-2" />
               Create your first tag
             </button>
+            )}
           </div>
         )}
       </div>

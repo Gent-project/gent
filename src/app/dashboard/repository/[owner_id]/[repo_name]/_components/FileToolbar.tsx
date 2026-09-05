@@ -23,6 +23,7 @@ interface FileToolbarProps {
   isDark: boolean;
   onCreate: () => void;
   onUpload: () => void;
+  /** False for anonymous/read-only visitors: hides the "Add file" menu. */
 
   branches: Branch[];
   selectedBranch: string;
@@ -183,7 +184,8 @@ export default function FileToolbar({
         </div>
 
         {/* Add file */}
-        <div className="relative" ref={menuRef} hidden={!canWrite}>
+        {canWrite && (
+        <div className="relative" ref={menuRef}>
           <button
             type="button"
             onClick={() => setShowAddMenu((value) => !value)}
@@ -235,6 +237,7 @@ export default function FileToolbar({
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

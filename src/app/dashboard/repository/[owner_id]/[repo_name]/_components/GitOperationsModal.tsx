@@ -19,7 +19,7 @@ interface GitOperationsModalProps {
   canWrite?: boolean;
   isOpen: boolean;
   onClose: () => void;
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   isDark: boolean;
   repositoryUrl: string;
