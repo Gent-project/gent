@@ -28,7 +28,6 @@ const ora = require('ora');
 const { ensureDir, writeJSON, pathExists } = require('../utils/fileSystem');
 const { GENT_DIR, CONFIG_FILE, STAGING_FILE, COMMITS_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
-const authStorage = require('../utils/auth-storage');
 const { storeBlob, readBlob } = require('../utils/hash-engine');
 
 /**
@@ -46,14 +45,6 @@ async function clone(url, directory, options) {
     const spinner = ora(`Cloning from ${url}...`).start();
 
     try {
-        // Check auth
-        const isAuth = await authStorage.isAuthenticated();
-        if (!isAuth) {
-            spinner.fail(chalk.red('Not authenticated'));
-            console.log(chalk.yellow('Run "gent login" first'));
-            return;
-        }
-
         // Parse URL
         const repoInfo = parseRemoteUrl(url);
         if (!repoInfo) {
@@ -183,10 +174,8 @@ async function clone(url, directory, options) {
         spinner.fail(chalk.red('Clone failed'));
         if (error.response?.status === 404) {
             console.error(chalk.red('Repository not found'));
-        } else if (error.response?.status === 401) {
-            console.error(chalk.red('Authentication failed — run "gent login"'));
-        } else if (error.response?.status === 403) {
-            console.error(chalk.red('Access denied — you do not have permission to clone this repository'));
+        } else if (error.response?.status === 401 || error.response?.status === 403) {
+            console.error(chalk.red('This repository is private or you do not have access to it. Run "gent login" to clone private repositories you can access.'));
         } else if (error.response?.data) {
             console.error(chalk.red(JSON.stringify(error.response.data)));
         } else {
