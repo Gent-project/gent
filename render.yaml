@@ -19,14 +19,30 @@ services:
         fromDatabase:
           name: gent-db
           property: connectionString
-      - key: RESEND_API_KEY
+      # SMTP. sync: false means the value must be set by hand in the Render
+      # dashboard (Environment tab); password reset emails will not send
+      # without EMAIL_HOST_USER / EMAIL_HOST_PASSWORD.
+      - key: EMAIL_HOST
+        value: smtp-relay.brevo.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
         sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: True
+      - key: EMAIL_TIMEOUT
+        value: "10"
+      # Must be an address the provider has verified as a sender.
       - key: DEFAULT_FROM_EMAIL
-        value: noreply@yourdomain.com
+        sync: false
       - key: FRONTEND_URL
-        value: https://your-frontend.vercel.app
+        value: https://gent-nu2e.onrender.com
       - key: PASSWORD_RESET_TIMEOUT
         value: "3600"
+      - key: LOG_LEVEL
+        value: INFO
 
 databases:
   - name: gent-db
