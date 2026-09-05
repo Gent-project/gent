@@ -1,1 +1,72 @@
 apps/Cli/node_modules/
+# Root .gitignore for Gent monorepo
+# Applies to all subdirectories
+
+# === OS files ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === Node.js (root-level tooling only) ===
+/node_modules/
+/package.json
+/package-lock.json
+
+# === Python (global fallback) ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+venv/
+env/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === Workspace / temporary ===
+/scripts/
+/prompts/
+*.tmp
+*.bak
+*.backup
+
+# Monorepo root ignore rules.
+# App-specific rules live in each app's own .gitignore (e.g. apps/frontend/.gitignore).
+
+# macOS / editor cruft
+.DS_Store
+*.swp
+
+# Dependencies (any workspace)
+node_modules/
+
+# Python (apps/server)
+.venv/
+__pycache__/
+*.py[cod]
+
+# Build output / caches (any workspace)
+.next/
+out/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

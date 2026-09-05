@@ -1,0 +1,287 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Gent design tokens
+ * ------------------
+ * The palette is the project's "Flutter" scheme reproduced verbatim, then surfaced
+ * to Tailwind via @theme inline variables. Names mirror the Flutter ColorScheme
+ * exactly (primary, primaryContainer, onPrimaryContainer, etc.) so they read the
+ * same in code reviews on either side of the stack.
+ */
+@theme inline {
+  --font-sans: var(--font-cairo);
+  --font-mono: var(--font-cairo);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-primary-fixed: var(--primary-fixed);
+  --color-primary-fixed-dim: var(--primary-fixed-dim);
+  --color-on-primary-fixed: var(--on-primary-fixed);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary: var(--on-secondary);
+
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-fixed: var(--tertiary-fixed);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+
+  --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
+
+  --color-surface: var(--surface);
+  --color-on-surface: var(--on-surface);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-dim: var(--surface-dim);
+  --color-on-surface-variant: var(--on-surface-variant);
+
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-inverse-surface: var(--inverse-surface);
+  --color-on-inverse-surface: var(--on-inverse-surface);
+  --color-scrim: var(--scrim);
+  --color-shadow: var(--shadow);
+
+  /* Extra/extension colors from the Flutter file */
+  --color-warning-container: var(--warning-container);
+  --color-light-green: var(--light-green);
+  --color-light-blue: var(--light-blue);
+  --color-gray: var(--gray);
+  --color-icon-gray: var(--icon-gray);
+
+  /* shadcn aliases — keep so existing primitives keep working */
+  --color-card: var(--surface-container-lowest);
+  --color-card-foreground: var(--on-surface);
+  --color-popover: var(--surface-container-lowest);
+  --color-popover-foreground: var(--on-surface);
+  --color-muted: var(--surface-container);
+  --color-muted-foreground: var(--on-surface-variant);
+  --color-accent: var(--primary-container);
+  --color-accent-foreground: var(--on-primary-container);
+  --color-destructive: var(--error);
+  --color-border: var(--outline-variant);
+  --color-input: var(--outline-variant);
+  --color-ring: var(--primary);
+  --color-primary-foreground: var(--on-primary);
+  --color-secondary-foreground: var(--on-secondary);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+}
+
+:root {
+  --radius: 14px;
+
+  /* Light theme — mirrors AppColorScheme.light */
+  --background: #FAFAFA;
+  --foreground: #050505;
+
+  --primary: #A09590;
+  --on-primary: #FCFBFA;
+  --primary-container: #F6F1EF;
+  --on-primary-container: #7C7470;
+  --primary-fixed: #F6F1EF;
+  --primary-fixed-dim: #F1EAE7;
+  --on-primary-fixed: #5F5855;
+
+  --secondary: #ABE1D0;
+  --secondary-container: #DEF3ED;
+  --on-secondary: #3F5B52;
+
+  --tertiary: #C7C176;
+  --tertiary-fixed: #EEEBC6;
+  --on-tertiary: #FBFBF3;
+  --on-tertiary-container: #787548;
+
+  --error: #E83849;
+  --on-error: #FFF8F9;
+  --error-container: #FFECEE;
+  --on-error-container: #B52B39;
+
+  --surface: #FFFFFF;
+  --on-surface: #050505;
+  --surface-container-highest: #E4E4E5;
+  --surface-container-high: #333333;
+  --surface-container: #EFEFF0;
+  --surface-container-low: #F5F5F5;
+  --surface-container-lowest: #FFFFFF;
+  --surface-bright: #EBEBEB;
+  --surface-dim: #CCCCCC;
+  --on-surface-variant: #333333;
+
+  --outline: #808080;
+  --outline-variant: #E5E5E5;
+  --inverse-surface: #0A0A0A;
+  --on-inverse-surface: #F2F2F2;
+  --scrim: #DDDDDB;
+  --shadow: rgba(15, 15, 15, 0.06);
+
+  --warning-container: #FFF5E7;
+  --light-green: #E3F8CC;
+  --light-blue: #CAFAF4;
+  --gray: #F1F1F1;
+  --icon-gray: #6C6E7B;
+}
+
+.dark {
+  /* Dark theme — derived from AppColorScheme.dark plus sensible surfaces.
+   * The Flutter scheme used a white surface in dark too; for the web we use
+   * true dark surfaces so the UI is actually usable at night. */
+  --background: #0E0F12;
+  --foreground: #EFF1F1;
+
+  --primary: #77AF23;
+  --on-primary: #0E0F12;
+  --primary-container: #1A2410;
+  --on-primary-container: #C9E59A;
+  --primary-fixed: #243115;
+  --primary-fixed-dim: #2F4019;
+  --on-primary-fixed: #E3F8CC;
+
+  --secondary: #277CAD;
+  --secondary-container: #1A2D3A;
+  --on-secondary: #DCF2FF;
+
+  --tertiary: #C7C176;
+  --tertiary-fixed: #2A2A1A;
+  --on-tertiary: #FBFBF3;
+  --on-tertiary-container: #EEEBC6;
+
+  --error: #F7744C;
+  --on-error: #FFFAF9;
+  --error-container: #3A1F18;
+  --on-error-container: #FFD5C7;
+
+  --surface: #14161A;
+  --on-surface: #EFF1F1;
+  --surface-container-highest: #2D3036;
+  --surface-container-high: #23262B;
+  --surface-container: #1B1D22;
+  --surface-container-low: #17191D;
+  --surface-container-lowest: #101216;
+  --surface-bright: #2A2D33;
+  --surface-dim: #0C0D10;
+  --on-surface-variant: #B6B8BD;
+
+  --outline: #716E79;
+  --outline-variant: #2E3036;
+  --inverse-surface: #EFF1F1;
+  --on-inverse-surface: #2D3132;
+  --scrim: #000000;
+  --shadow: rgba(0, 0, 0, 0.6);
+
+  --warning-container: #2E2417;
+  --light-green: #1F3416;
+  --light-blue: #163132;
+  --gray: #1F2127;
+  --icon-gray: #B6B8BD;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/40;
+  }
+
+  html, body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  /* Smooth animated theme switching */
+  html.theme-transition,
+  html.theme-transition * {
+    transition:
+      background-color 0.35s ease,
+      border-color 0.35s ease,
+      color 0.25s ease,
+      fill 0.25s ease,
+      stroke 0.25s ease !important;
+  }
+
+  ::selection {
+    background: var(--primary);
+    color: var(--on-primary);
+  }
+}
+
+@layer utilities {
+  /* Soft frosted glass that adapts to light/dark */
+  .glass {
+    background: color-mix(in oklab, var(--surface) 70%, transparent);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  .gradient-mesh {
+    background:
+      radial-gradient(at 20% 10%, color-mix(in oklab, var(--primary) 18%, transparent) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, color-mix(in oklab, var(--secondary) 25%, transparent) 0px, transparent 55%),
+      radial-gradient(at 0% 100%, color-mix(in oklab, var(--tertiary) 18%, transparent) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, color-mix(in oklab, var(--primary) 12%, transparent) 0px, transparent 50%);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--outline) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--outline-variant);
+    border-radius: 999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--outline);
+  }
+
+  /* Subtle ambient pulse for "live" status dots */
+  @keyframes gent-pulse {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 50%, transparent); }
+    70%  { box-shadow: 0 0 0 8px color-mix(in oklab, var(--primary) 0%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 0%, transparent); }
+  }
+  .pulse-dot { animation: gent-pulse 1.8s infinite; }
+
+  /* Marching ants for "syncing" indicators */
+  @keyframes gent-marching {
+    to { background-position: 200% 0; }
+  }
+  .marching-ants {
+    background-image: linear-gradient(
+      90deg,
+      var(--primary) 0%, var(--primary) 50%,
+      transparent 50%, transparent 100%
+    );
+    background-size: 16px 100%;
+    animation: gent-marching 1.2s linear infinite;
+  }
+
+  /* Soft floating shadow used on raised cards */
+  .shadow-soft {
+    box-shadow:
+      0 1px 2px var(--shadow),
+      0 8px 24px -12px var(--shadow);
+  }
+}

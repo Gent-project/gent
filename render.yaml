@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: gent-api
+    branch: development/server
+    env: docker
+    region: oregon
+    plan: free
+    dockerContext: apps/server/gent_api
+    dockerfilePath: apps/server/gent_api/Dockerfile
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: CORS_ALLOW_ALL_ORIGINS
+        value: True
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gent-db
+          property: connectionString
+      # SMTP. sync: false means the value must be set by hand in the Render
+      # dashboard (Environment tab); password reset emails will not send
+      # without EMAIL_HOST_USER / EMAIL_HOST_PASSWORD.
+      - key: EMAIL_HOST
+        value: smtp-relay.brevo.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: True
+      - key: EMAIL_TIMEOUT
+        value: "10"
+      # Must be an address the provider has verified as a sender.
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: FRONTEND_URL
+        value: https://gent-nu2e.onrender.com
+      - key: PASSWORD_RESET_TIMEOUT
+        value: "3600"
+      - key: LOG_LEVEL
+        value: INFO
+
+databases:
+  - name: gent-db
+    databaseName: gent_api
+    user: gent_user
+    plan: free
+    ipAllowList: []

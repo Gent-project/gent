@@ -235,7 +235,7 @@ async function push(remoteName, branchName, options) {
         // Send to backend — Genti carries the crate to the cloud while we wait.
         const pushUrl = buildRepoUrl(API_ENDPOINTS.REPO_PUSH, repoInfo);
         spinner.stop();
-        const response = await pet.during('push', () => apiClient.post(pushUrl, payload));
+        const response = await pet.during('push', () => apiClient.post(pushUrl, payload, { timeout: 120000 }));
 
         // Update remote ref
         config.remoteRefs[`${remote}/${branch}`] = localHead;
