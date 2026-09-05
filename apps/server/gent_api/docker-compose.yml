@@ -5,7 +5,7 @@ services:
     build: .
     ports:
       - "8000:8000"
-    volumes:
-      - ./.env:/app/.env
+    env_file:
+      - .env
     environment:
       - DJANGO_SETTINGS_MODULE=gent_api.settings

@@ -14,9 +14,14 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import dj_database_url
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env for local development. Real environment variables always win, so
+# this is a no-op on Render where every setting is injected by the platform.
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -148,10 +153,38 @@ REPO_SMALL_FILE_THRESHOLD = 1024 * 1024  # 1MB (store in DB)
 REPO_MAX_REPO_SIZE = 1024 * 1024 * 1024  # 1GB
 
 # Email / password reset
+# onboarding@resend.dev is Resend's shared sender: it needs no verified domain,
+# but only delivers to the address the Resend account was registered with.
 RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@yourdomain.com')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', '3600'))
+
+# Logging
+# Without this, records from `api.*` never reach stderr in production and
+# failures such as a missing RESEND_API_KEY disappear silently.
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG' if DEBUG else 'INFO')
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+    'loggers': {
+        'api': {'handlers': ['console'], 'level': LOG_LEVEL, 'propagate': False},
+        'django': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
