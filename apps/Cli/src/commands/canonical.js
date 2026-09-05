@@ -155,11 +155,15 @@ const handlers = {
         if (options.abort) return merge.abortMerge(repo);
         if (options.continue) return merge.concludeMerge(repo, options.message);
         const result = await merge.merge(repo, branch, options);
-        console.log(result.status);
         if (result.status === 'conflicts') {
+            for (const conflict of result.conflicts) {
+                if (conflict.kind === 'content') console.log(`Auto-merging ${conflict.path}`);
+                console.log(`CONFLICT (${conflict.kind}): Merge conflict in ${conflict.path}`);
+            }
+            console.log('Automatic merge failed; fix conflicts and then commit the result.');
             console.log('Resolve files, stage with gent add, then gent merge --continue or gent commit -m <message>.');
             process.exitCode = 1;
-        }
+        } else console.log(result.status);
     },
     async resolve(repo) {
         const index = await GitIndex.read(repo.indexPath);

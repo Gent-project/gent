@@ -245,6 +245,7 @@ async function finalizeMerge(gentPath, staging, mergeState, entriesByName) {
             if (!authorEmail) authorEmail = globalUser.email;
         }
     }
+    if (!authorName && authorEmail) authorName = authorEmail;
 
     const mergedEntries = [...entriesByName.values()];
     const treeHash = await storeTree(gentPath, mergedEntries);

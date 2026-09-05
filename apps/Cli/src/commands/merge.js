@@ -12,7 +12,7 @@ const { COMMITS_FILE, STAGING_FILE, CONFIG_FILE } = require('../utils/constants'
 const { generateCommitHash } = require('../utils/helpers');
 const authStorage = require('../utils/auth-storage');
 const { findMergeBase, mergeTreeEntries, autoMerge } = require('../utils/merge-engine');
-const { storeTree, readBlobAsString, storeBlob } = require('../utils/hash-engine');
+const { storeTree, readBlob, hashBlob } = require('../utils/hash-engine');
 const pet = require('./pet');
 const journal = require('../utils/journal');
 
@@ -26,7 +26,7 @@ async function merge(sourceBranch, options) {
 
     try {
         const gentPath = await getGentPath();
-        const cwd = process.cwd();
+        const cwd = path.dirname(gentPath);
         const repository = await readJSON(path.join(gentPath, COMMITS_FILE));
         const commits = repository.commits || [];
         const branches = repository.branches || {};
@@ -35,11 +35,12 @@ async function merge(sourceBranch, options) {
         // Validate branches
         if (!branches.hasOwnProperty(sourceBranch)) {
             spinner.fail(chalk.red(`Branch '${sourceBranch}' not found`));
+            process.exitCode = 1;
             return;
         }
 
         if (sourceBranch === currentBranch) {
-            spinner.fail(chalk.red('Cannot merge a branch into itself'));
+            spinner.succeed(chalk.green('Already up to date'));
             return;
         }
 
@@ -48,13 +49,18 @@ async function merge(sourceBranch, options) {
 
         if (!oursHash) {
             spinner.fail(chalk.red(`Current branch '${currentBranch}' has no commits`));
+            process.exitCode = 1;
             return;
         }
 
         if (!theirsHash) {
             spinner.fail(chalk.red(`Branch '${sourceBranch}' has no commits`));
+            process.exitCode = 1;
             return;
         }
+
+        const oursCommit = commits.find(c => c.hash === oursHash);
+        const theirsCommit = commits.find(c => c.hash === theirsHash);
 
         // Fast-forward check: if ours is ancestor of theirs
         if (oursHash === theirsHash) {
@@ -65,18 +71,27 @@ async function merge(sourceBranch, options) {
         // Find merge base (common ancestor)
         const baseHash = findMergeBase(commits, oursHash, theirsHash);
 
+        // The incoming branch is already contained in the current branch.
+        if (baseHash === theirsHash) {
+            spinner.succeed(chalk.green('Already up to date'));
+            return;
+        }
+
+        if (!baseHash) {
+            spinner.fail(chalk.red('Refusing to merge unrelated histories'));
+            process.exitCode = 1;
+            return;
+        }
+
+        await assertCleanWorkingTree(gentPath, cwd, oursCommit);
+
         // Fast-forward: current branch is merge base → just move pointer
         if (baseHash === oursHash) {
             spinner.text = 'Fast-forward merge...';
             await journal.recordOp(gentPath, 'merge', `fast-forward '${sourceBranch}' into ${currentBranch}`, { restoreTree: true });
+            await checkoutTree(gentPath, cwd, treeOf(oursCommit), treeOf(theirsCommit));
             repository.branches[currentBranch] = theirsHash;
             await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
-
-            // Restore working tree from theirs commit
-            const theirsCommit = commits.find(c => c.hash === theirsHash);
-            if (theirsCommit) {
-                await restoreWorkingTree(gentPath, cwd, theirsCommit);
-            }
 
             spinner.succeed(chalk.green(`Fast-forward merge: ${currentBranch} → ${theirsHash.substring(0, 7)}`));
             await pet.celebrate('merge');
@@ -86,26 +101,21 @@ async function merge(sourceBranch, options) {
         // 3-way merge
         spinner.text = 'Computing 3-way merge...';
 
-        const oursCommit = commits.find(c => c.hash === oursHash);
-        const theirsCommit = commits.find(c => c.hash === theirsHash);
         const baseCommit = baseHash ? commits.find(c => c.hash === baseHash) : null;
 
         // Extract tree entries from commits
-        const getTree = (commit) => {
-            if (!commit) return [];
-            if (commit.tree && Array.isArray(commit.tree)) return commit.tree;
-            if (commit.files) return commit.files.map(f => ({
-                mode: '100644', name: f.path || f.name, hash: f.hash, type: 'blob'
-            }));
-            return [];
-        };
-
-        const baseTree = getTree(baseCommit);
-        const oursTree = getTree(oursCommit);
-        const theirsTree = getTree(theirsCommit);
+        const baseTree = treeOf(baseCommit);
+        const oursTree = treeOf(oursCommit);
+        const theirsTree = treeOf(theirsCommit);
 
         // Perform tree-level merge
-        const mergeResult = await mergeTreeEntries(gentPath, baseTree, oursTree, theirsTree);
+        const mergeResult = await mergeTreeEntries(
+            gentPath,
+            baseTree,
+            oursTree,
+            theirsTree,
+            { ours: 'HEAD', theirs: sourceBranch }
+        );
 
         if (mergeResult.hasConflicts) {
             spinner.warn(chalk.yellow(`Merged with ${mergeResult.conflicts.length} conflict(s)`));
@@ -124,7 +134,7 @@ async function merge(sourceBranch, options) {
                 }
             }
 
-            console.log(chalk.yellow('\nConflict markers: <<<<<<< ours / ======= / >>>>>>> theirs'));
+            console.log(chalk.yellow(`\nConflict markers: <<<<<<< HEAD / ======= / >>>>>>> ${sourceBranch}`));
             console.log(chalk.cyan('Resolve conflicts, then run "gent add" and "gent commit"'));
         }
 
@@ -132,7 +142,7 @@ async function merge(sourceBranch, options) {
         const mergedTreeHash = await storeTree(gentPath, mergeResult.mergedEntries);
 
         // Write merged files to working directory
-        await writeTreeToWorkDir(gentPath, cwd, mergeResult.mergedEntries);
+        await checkoutTree(gentPath, cwd, oursTree, mergeResult.mergedEntries);
 
         // If no conflicts, create merge commit automatically
         if (!mergeResult.hasConflicts) {
@@ -148,6 +158,7 @@ async function merge(sourceBranch, options) {
                     if (!authorEmail) authorEmail = globalUser.email;
                 }
             }
+            if (!authorName && authorEmail) authorName = authorEmail;
 
             const mergeCommit = {
                 hash: generateCommitHash(),
@@ -201,6 +212,7 @@ async function merge(sourceBranch, options) {
                 conflicts: mergeResult.conflicts
             };
             await writeJSON(path.join(gentPath, STAGING_FILE), staging);
+            process.exitCode = 1;
         }
 
     } catch (error) {
@@ -221,31 +233,58 @@ async function merge(sourceBranch, options) {
  * @param {String} cwd
  * @param {Array} entries
  */
-async function writeTreeToWorkDir(gentPath, cwd, entries) {
-    for (const entry of entries) {
-        const fullPath = path.join(cwd, entry.name);
-        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+function treeOf(commit) {
+    if (!commit) return [];
+    if (Array.isArray(commit.tree)) return commit.tree;
+    return (commit.files || []).map(file => ({
+        mode: '100644', name: file.path || file.name, hash: file.hash, type: 'blob'
+    }));
+}
 
-        const content = await readBlobAsString(gentPath, entry.hash);
-        await fs.writeFile(fullPath, content, 'utf-8');
+function safePath(cwd, relativePath) {
+    if (!relativePath || path.isAbsolute(relativePath) || relativePath.split(/[\\/]/).includes('..')) {
+        throw new Error(`Unsafe repository path '${relativePath}'`);
+    }
+    const fullPath = path.resolve(cwd, relativePath);
+    if (fullPath !== cwd && !fullPath.startsWith(cwd + path.sep)) {
+        throw new Error(`Unsafe repository path '${relativePath}'`);
+    }
+    return fullPath;
+}
+
+async function assertCleanWorkingTree(gentPath, cwd, commit) {
+    const staging = await readJSON(path.join(gentPath, STAGING_FILE));
+    if ((staging.entries || []).length || (staging.files || []).length || staging.mergeState) {
+        throw new Error('Commit or stash staged changes before merging');
+    }
+    for (const entry of treeOf(commit)) {
+        const fullPath = safePath(cwd, entry.name || entry.path);
+        const stat = await fs.lstat(fullPath).catch(() => null);
+        if (!stat || !stat.isFile() || hashBlob(await fs.readFile(fullPath)) !== entry.hash) {
+            throw new Error(`Local changes would be overwritten by merge: ${entry.name || entry.path}`);
+        }
     }
 }
 
-/**
- * Restore working tree from a commit's tree entries.
- * @param {String} gentPath
- * @param {String} cwd
- * @param {Object} commit
- */
-async function restoreWorkingTree(gentPath, cwd, commit) {
-    const tree = commit.tree || (commit.files || []).map(f => ({
-        mode: '100644', name: f.path || f.name, hash: f.hash, type: 'blob'
-    }));
+async function checkoutTree(gentPath, cwd, previousEntries, nextEntries) {
+    const previous = new Map(previousEntries.map(entry => [entry.name || entry.path, entry]));
+    const next = new Map(nextEntries.map(entry => [entry.name || entry.path, entry]));
+    const writes = new Map();
 
-    try {
-        await writeTreeToWorkDir(gentPath, cwd, tree);
-    } catch {
-        // Best-effort restore — blobs may not exist for legacy commits
+    for (const [name, entry] of next) {
+        const fullPath = safePath(cwd, name);
+        if (!previous.has(name) && await fs.lstat(fullPath).catch(() => null)) {
+            throw new Error(`Untracked file would be overwritten by merge: ${name}`);
+        }
+        writes.set(name, await readBlob(gentPath, entry.hash));
+    }
+    for (const name of previous.keys()) {
+        if (!next.has(name)) await fs.unlink(safePath(cwd, name));
+    }
+    for (const [name, bytes] of writes) {
+        const fullPath = safePath(cwd, name);
+        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+        await fs.writeFile(fullPath, bytes);
     }
 }
 
