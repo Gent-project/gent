@@ -24,7 +24,7 @@ Beyond a faithful git-like workflow, Gent adds:
 - **`gent undo` / `gent redo`** — a one-command safety net over an operation journal (friendlier than `git reflog`).
 - **`gent resolve`** — an interactive conflict resolver (ours / theirs / both / edit / AI).
 - **`gent summary`** — a repository health dashboard, plus **`gent log --graph`**.
-- **Optional AI** (`gent commit --ai`, `gent explain`, `gent summary --ai`, AI option in `gent resolve`) — off by default, enabled with `ANTHROPIC_API_KEY`.
+- **Direct local AI** (`gent chat`, `gent review`, `gent merge --ai`, `gent resolve --ai`) — low-latency OpenRouter calls from the CLI with task-specific prompts. Configure once with `gent ai configure`.
 - **Genti, your terminal mascot** — a mint one-eyed sky-jelly that *acts out* your workflow: it floats a file crate to the cloud on `gent push`, carries one home on `gent pull`, and reconciles two branches on `gent merge`. It plays once (in place, no scrollback spam) after a successful command. Meet it directly with `gent pet` (add `--loop` to keep it running; try `gent pet push|pull|merge|auth`). Set `GENT_NO_PET=1` (or run in CI / a non-interactive shell) to turn the celebrations off.
 
 See [docs/COMMANDS.md](docs/COMMANDS.md) for the full reference and
@@ -489,7 +489,9 @@ Undo never deletes your working files; for content-discarding operations
 
 ```bash
 gent summary                      # repository health & statistics dashboard
-gent summary --ai                 # + a short AI-written assessment (needs a key)
+gent summary --ai                 # + a short AI-written assessment
+gent chat                         # interactive repository chat
+gent merge feature --ai           # merge, AI-resolve conflicts, commit, then review
 gent log --graph                  # ASCII commit graph with branches and merges
 gent explain                      # explain the latest commit in plain language
 gent explain <commit>             # explain a specific commit
@@ -498,15 +500,18 @@ gent explain --staged             # explain currently staged changes
 
 ### Optional AI features
 
-AI is off by default and every feature has a non-AI fallback. Enable it with:
+AI calls run directly from the CLI. Run `gent ai configure` once to enter the
+OpenRouter key through a masked prompt; Gent stores it locally with owner-only
+permissions. Fast task-specific prompts keep review, merge resolution, chat,
+and summaries concise.
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-export GENT_AI_MODEL=claude-haiku-4-5   # optional; default is claude-opus-4-8
-
+gent ai configure                 # configure OpenRouter once on this computer
+gent ai configure <your-key>      # same, non-interactive (scripts, SSH)
+gent ai configure <your-key> --model vendor/model   # pin a different model
 gent commit --ai                  # suggest a commit message from the staged diff
 gent explain                      # narrate a diff instead of just printing it
-gent resolve                      # adds an "Ask AI" choice per conflict hunk
+gent resolve                      # ours/theirs/both/AI/edit/skip per conflict hunk
 ```
 
 ### Tags

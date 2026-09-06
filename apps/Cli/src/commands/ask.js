@@ -6,7 +6,7 @@
  *   gent ask "what's pending on the current branch?"
  *
  * Builds a compact repo summary (README + last N commits + tree listing) and
- * sends it as context. Falls back to a useful text dump if no AI key is set.
+ * sends it as context. Falls back to a useful text dump when signed out.
  */
 
 const path = require('path');
@@ -30,6 +30,7 @@ async function ask(question, options = {}) {
         const gentPath = await getGentPath();
         const context = await buildRepoContext(gentPath);
 
+        await ai.prime();
         if (!ai.isEnabled()) {
             console.log(chalk.yellow(ai.disabledHint()));
             console.log(chalk.gray('\nHere is the raw repo context you can pipe into another tool:\n'));
@@ -40,6 +41,7 @@ async function ask(question, options = {}) {
         const spinner = ora(`Asking ${ai.getModel()}...`).start();
         try {
             const answer = await ai.complete({
+                profile: 'chat',
                 system:
                     'You are a senior engineer answering questions about a software repository. ' +
                     'Be concrete and concise. If the answer is not in the context, say so. ' +
@@ -119,3 +121,4 @@ async function findReadme(cwd) {
 }
 
 module.exports = ask;
+module.exports.buildRepoContext = buildRepoContext;

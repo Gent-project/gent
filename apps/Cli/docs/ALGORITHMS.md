@@ -181,12 +181,12 @@ history-changing command, instead of bespoke inverse logic per command.
 
 **Location:** [`src/utils/ai-service.js`](../src/utils/ai-service.js)
 
-A thin, key-gated client over the Anthropic Messages API (called via the
-existing `axios` dependency). It powers optional enhancements only — commit
-message suggestions, diff explanations, and conflict-resolution suggestions —
-and degrades gracefully to the algorithmic path when `ANTHROPIC_API_KEY` is
-unset or a request fails. Model defaults to `claude-opus-4-8`, overridable with
-`GENT_AI_MODEL`. See [COMMANDS.md](COMMANDS.md#optional-ai-features).
+A direct OpenRouter chat-completions client for fast local CLI enhancements: repository
+chat, commit-message suggestions, diff reviews, and conflict resolution. Each
+task has a short specialized pre-prompt and bounded output. The AI merge path
+resolves text conflicts, creates the real two-parent merge commit, then reviews
+the completed merge. Failed requests degrade gracefully where an algorithmic
+path exists. See [COMMANDS.md](COMMANDS.md#optional-ai-features).
 
 ---
 

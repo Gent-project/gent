@@ -841,8 +841,8 @@ AI is optional. It never replaces core algorithms such as hashing, diffing, comm
 
 | Situation | Result |
 |---|---|
-| AI key exists and request succeeds | Print AI result. |
-| AI key missing | Print helpful setup message or use non-AI behavior. |
+| Local AI is available and request succeeds | Print AI result. |
+| Local AI is unavailable | Print an availability hint or use non-AI behavior. |
 | AI request fails | Fall back to algorithmic output where possible. |
 
 ### Examples
@@ -863,4 +863,3 @@ AI is optional. It never replaces core algorithms such as hashing, diffing, comm
 | JSON merge | Safely merges disjoint object key changes. | Falls back for arrays or conflicting same-key changes. |
 | Undo/redo | Simple and effective for branch pointer changes. | It is not a full filesystem snapshot system. |
 | Remote sync | Sends compact object pack and tracks remote refs. | Depends on backend API compatibility and authentication. |
-

@@ -7,7 +7,7 @@
  *   gent review <ref>          → review diff for that commit
  *
  * Output: prioritized bug/risk list followed by smaller polish suggestions.
- * Without an AI key, prints the raw diff so the command still has value.
+ * Without local AI, prints the raw diff so the command still has value.
  */
 
 const path = require('path');
@@ -73,6 +73,7 @@ async function review(refArg, options = {}) {
 
         console.log(chalk.bold.cyan(`\n${title}\n`));
 
+        await ai.prime();
         if (!ai.isEnabled()) {
             console.log(trimmed);
             console.log(chalk.gray(`\n${ai.disabledHint()}`));
@@ -82,6 +83,7 @@ async function review(refArg, options = {}) {
         const spinner = ora(`Reviewing with ${ai.getModel()}...`).start();
         try {
             const out = await ai.complete({
+                profile: 'review',
                 system:
                     'You are a senior code reviewer. Given a unified diff, list concrete ' +
                     'issues you would block on, then smaller suggestions. Format:\n' +
@@ -90,8 +92,7 @@ async function review(refArg, options = {}) {
                     '🟢 Looks good\n  - one-line positive note\n' +
                     'Be specific. If nothing is wrong, say so plainly.',
                 prompt: `Review this diff:\n\n${trimmed}`,
-                maxTokens: 1500,
-                thinking: true,
+                maxTokens: 800,
             });
             spinner.stop();
             console.log(out + '\n');

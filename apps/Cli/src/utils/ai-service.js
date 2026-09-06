@@ -1,209 +1,207 @@
-/**
- * ============================================================================
- * AI Service - Optional, key-gated Claude integration (hybrid layer)
- * ============================================================================
- *
- * PURPOSE:
- *   Power Gent's *optional* "smart" features (commit-message suggestions, diff
- *   explanations, AI-assisted conflict resolution). Every feature has a
- *   reliable algorithmic path; this layer only activates when the user has set
- *   an API key, and degrades gracefully (never throws into a command) when it
- *   is absent or the request fails.
- *
- * ENABLEMENT:
- *   Either set ANTHROPIC_API_KEY in the environment, OR save it once with
- *   `gent config set ai.api_key <key>` (stored in ~/.gent/cli-config.json).
- *   Optionally pick a model with GENT_AI_MODEL or `gent config set ai.model`.
- *   Default model: claude-opus-4-7. For a cheaper / faster option try
- *   claude-haiku-4-5 or claude-sonnet-4-6.
- *
- * IMPLEMENTATION NOTE:
- *   Calls the Anthropic Messages API (POST /v1/messages) directly over the
- *   project's existing `axios` dependency, to honour Gent's "no new runtime
- *   dependencies" constraint. A production app would normally use the official
- *   `@anthropic-ai/sdk`; raw HTTP is a deliberate trade-off here because the AI
- *   layer is optional and self-contained.
- *
- * ============================================================================
- */
+/** Direct, low-latency OpenRouter client for Gent's local AI commands. */
 
 const axios = require('axios');
-const userConfig = require('./user-config');
 
-const API_URL = 'https://api.anthropic.com/v1/messages';
-const API_VERSION = '2023-06-01';
-const DEFAULT_MODEL = 'claude-opus-4-7';
+const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const DEFAULT_MODEL = 'xiaomi/mimo-v2.5:nitro';
+// The default model reasons before answering, and those tokens come out of the
+// same budget as the reply. Too small a budget returns content: null with
+// finish_reason "length", so keep a floor and add headroom on every request.
+const MIN_OUTPUT_TOKENS = 256;
+const REASONING_HEADROOM = 512;
 
-// Per-process cache so repeated AI calls don't keep hitting disk.
-let _resolvedKey;
-let _resolvedKeySource;
-let _resolvedModel;
+const PROMPTS = Object.freeze({
+    chat: 'Answer as a concise senior engineer. Use the repository context. Give the direct answer first.',
+    review: 'Review fast. Return only concrete correctness, security, or regression risks, then brief fixes. If none, say "No blocking issues."',
+    merge: 'Resolve this merge conflict fast. Preserve both intended behaviors. Return only valid JSON with this shape: {"merged":"final merged text","summary":"one sentence, at most 18 words, saying what was kept or combined"}. Do not use markdown fences.',
+    commit: 'Write one concise conventional commit message. Return only the message.',
+    explain: 'Explain this change briefly and concretely. Return short bullets only.',
+    docs: 'Write concise, accurate repository documentation from only the supplied context.',
+    changelog: 'Create a concise user-facing changelog. Group related changes and omit filler.',
+    summary: 'Give a concise repository health assessment with the most important risk first.',
+});
 
-async function resolveKey() {
-    if (_resolvedKey !== undefined) {
-        return { value: _resolvedKey, source: _resolvedKeySource };
-    }
-    const r = await userConfig.getResolved('ai.api_key');
-    _resolvedKey = r.value || null;
-    _resolvedKeySource = r.source;
-    return { value: _resolvedKey, source: _resolvedKeySource };
-}
-
-async function resolveModel() {
-    if (_resolvedModel) return _resolvedModel;
-    const r = await userConfig.getResolved('ai.model');
-    _resolvedModel = r.value || DEFAULT_MODEL;
-    return _resolvedModel;
-}
-
-/**
- * Synchronous getter used in hot paths. Returns whatever was last resolved,
- * or falls back to env-only (the original behavior) on cold start.
- */
 function getApiKey() {
-    if (_resolvedKey !== undefined) return _resolvedKey;
-    return process.env.ANTHROPIC_API_KEY || null;
+    // OPENAI_API_KEY stays readable so installs configured before the
+    // OpenRouter switch keep working until they reconfigure.
+    return process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || null;
 }
 
 function getModel() {
-    if (_resolvedModel) return _resolvedModel;
     return process.env.GENT_AI_MODEL || DEFAULT_MODEL;
 }
 
-/**
- * Async pre-flight resolver — call once from a command before doing AI work
- * so isEnabled()/getModel() see the user-config values even if env is empty.
- */
+function getApiUrl() {
+    return process.env.GENT_AI_API_URL || API_URL;
+}
+
+async function resolveKey() {
+    const value = getApiKey();
+    return { value, source: value ? 'local CLI configuration (OpenRouter)' : 'unset' };
+}
+
+async function resolveModel() {
+    return getModel();
+}
+
 async function prime() {
-    await resolveKey();
-    await resolveModel();
+    return resolveKey();
 }
 
 function isEnabled() {
-    return !!getApiKey();
+    return Boolean(getApiKey());
 }
 
 function disabledHint() {
-    return 'AI features are off — save a key with `gent config set ai.api_key <key>` or set ANTHROPIC_API_KEY in your env.';
+    return 'Gent AI is unavailable. Run `gent ai configure` once on this computer.';
 }
 
-/**
- * Low-level single-shot completion. Returns the assistant's text.
- * @param {Object} opts
- * @param {String} opts.prompt - user content
- * @param {String} [opts.system] - system prompt
- * @param {Number} [opts.maxTokens]
- * @returns {Promise<String>}
- */
-async function complete({ prompt, system, maxTokens = 1024, thinking = false }) {
-    // Make sure env/config-stored values are resolved even if the caller
-    // didn't prime() first.
-    await prime();
+function extractText(payload) {
+    const chunks = [];
+    // OpenRouter / chat-completions shape.
+    for (const choice of payload?.choices || []) {
+        const content = choice?.message?.content;
+        if (typeof content === 'string') {
+            chunks.push(content);
+        } else if (Array.isArray(content)) {
+            for (const part of content) {
+                if (typeof part?.text === 'string') chunks.push(part.text);
+            }
+        }
+    }
+    // Responses-API shape, still accepted so a custom GENT_AI_API_URL works.
+    for (const item of payload?.output || []) {
+        if (item.type !== 'message') continue;
+        for (const content of item.content || []) {
+            if (content.type === 'output_text' && content.text) chunks.push(content.text);
+        }
+    }
+    return chunks.join('').trim();
+}
 
+function truncatedByBudget(payload) {
+    return (payload?.choices || []).some(choice => choice?.finish_reason === 'length');
+}
+
+async function complete({ prompt, system, profile = 'chat', maxTokens = 1024 }) {
     const apiKey = getApiKey();
-    if (!apiKey) throw new Error('AI not enabled');
-
-    const body = {
-        model: getModel(),
-        max_tokens: maxTokens,
-        messages: [{ role: 'user', content: prompt }]
-    };
-    if (system) body.system = system;
-    // Adaptive thinking — opt-in per caller. We leave display at the API
-    // default ("omitted") so reasoning never leaks into CLI output; this just
-    // lets the model think harder on complex tasks (review, conflict resolve)
-    // without changing what the user sees.
-    if (thinking) body.thinking = { type: 'adaptive' };
-
+    if (!apiKey) throw new Error(disabledHint());
+    const instructions = [PROMPTS[profile], system].filter(Boolean).join('\n\n');
+    const budget = Math.max(MIN_OUTPUT_TOKENS, maxTokens) + REASONING_HEADROOM;
     try {
-        const res = await axios.post(API_URL, body, {
+        const response = await axios.post(getApiUrl(), {
+            model: getModel(),
+            messages: [
+                ...(instructions ? [{ role: 'system', content: instructions }] : []),
+                { role: 'user', content: prompt },
+            ],
+            max_tokens: budget,
+            // Keep reasoning models brief; ignored by models without reasoning.
+            reasoning: { effort: 'low' },
+        }, {
             headers: {
-                'x-api-key': apiKey,
-                'anthropic-version': API_VERSION,
-                'content-type': 'application/json'
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://github.com/gent-cli',
+                'X-Title': 'Gent CLI',
             },
-            timeout: 60000
+            timeout: 60000,
         });
-
-        const blocks = (res.data && res.data.content) || [];
-        return blocks
-            .filter(b => b.type === 'text')
-            .map(b => b.text)
-            .join('')
-            .trim();
-    } catch (err) {
-        throw enrichAiError(err);
+        const text = extractText(response.data);
+        if (!text) {
+            throw new Error(truncatedByBudget(response.data)
+                ? `Model "${getModel()}" used the whole ${budget}-token budget before replying. Raise it or set GENT_AI_MODEL to a lighter model.`
+                : `Model "${getModel()}" returned an empty response.`);
+        }
+        return text;
+    } catch (error) {
+        throw enrichAiError(error);
     }
 }
 
-/**
- * Wrap raw Anthropic errors with hints that actually help the user.
- */
-function enrichAiError(err) {
-    const status = err?.response?.status;
-    const apiMsg = err?.response?.data?.error?.message || err?.response?.data?.message;
-    if (status === 401) {
-        return new Error('Anthropic rejected the API key (401). Check `gent config get ai.api_key` and try `gent ai test`.');
+function enrichAiError(error) {
+    const status = error?.response?.status;
+    const apiError = error?.response?.data?.error;
+    const apiCode = typeof apiError === 'object' ? apiError?.code : null;
+    const apiType = typeof apiError === 'object' ? apiError?.type : null;
+    const quotaCodes = ['insufficient_quota', 'credit_balance_exhausted', 'billing_hard_limit_reached'];
+    if (status === 401 || status === 403) return new Error('OpenRouter rejected the configured CLI credential. Run `gent ai configure` with a valid key.');
+    if (status === 404) return new Error(`OpenRouter has no model "${getModel()}". Set GENT_AI_MODEL to a model id from https://openrouter.ai/models.`);
+    if (status === 402 || quotaCodes.includes(apiCode) || quotaCodes.includes(apiType)) {
+        return new Error('OpenRouter billing: this key has no credits left. Add credits at https://openrouter.ai/credits — the key itself is valid.');
     }
-    if (status === 404 || (apiMsg && /model/i.test(apiMsg))) {
-        return new Error(`Anthropic rejected the model "${getModel()}" — set a valid one with \`gent config set ai.model claude-opus-4-7\`.`);
-    }
-    if (status === 429) {
-        return new Error('Anthropic rate-limited the request (429). Retry in a moment or switch to a lighter model.');
-    }
-    if (apiMsg) return new Error(`AI request failed: ${apiMsg}`);
-    return err;
+    if (status === 429) return new Error('Gent AI is rate limited. Retry in a moment.');
+    if (apiError?.message) return new Error(`Gent AI failed: ${apiError.message}`);
+    if (typeof apiError === 'string') return new Error(apiError);
+    return error;
 }
 
-// ─── High-level helpers ─────────────────────────────────
-
-/**
- * Suggest a concise commit message from a staged diff / summary.
- * @param {String} diffSummary
- * @returns {Promise<String>}
- */
 async function suggestCommitMessage(diffSummary) {
-    const system =
-        'You write clear, conventional git commit messages. Reply with ONLY the commit ' +
-        'message: a concise imperative subject line (<=72 chars), optionally followed by ' +
-        'a blank line and short body. No quotes, no preamble, no markdown fences.';
-    const prompt = `Write a commit message for these staged changes:\n\n${diffSummary}`;
-    return complete({ system, prompt, maxTokens: 512 });
+    return complete({ profile: 'commit', prompt: diffSummary, maxTokens: 160 });
 }
 
-/**
- * Explain a commit or diff in plain language.
- * @param {String} content - diff or commit details
- * @returns {Promise<String>}
- */
-async function explainChanges(content) {
-    const system =
-        'You are a senior engineer explaining a code change to a teammate. Summarize what ' +
-        'changed and why it matters in a few short bullet points. Be specific and concise.';
-    const prompt = `Explain these changes:\n\n${content}`;
-    return complete({ system, prompt, maxTokens: 1024 });
+async function explainChanges(content, profile = 'explain') {
+    return complete({ profile, prompt: content, maxTokens: 500 });
 }
 
-/**
- * Propose a resolution for a single merge-conflict hunk.
- * @param {Object} hunk - { base?, ours, theirs, fileName? }
- * @returns {Promise<String>} the suggested merged text (no conflict markers)
- */
+async function reviewChanges(content, context = '') {
+    return complete({
+        profile: 'review',
+        system: context,
+        prompt: content,
+        maxTokens: 800,
+    });
+}
+
 async function resolveConflictHunk({ base, ours, theirs, fileName }) {
-    const system =
-        'You resolve git merge conflicts. Combine the intent of BOTH sides into a single ' +
-        'correct version. Reply with ONLY the resolved file section — no conflict markers, ' +
-        'no explanation, no markdown fences.';
     const prompt =
-        `File: ${fileName || 'unknown'}\n\n` +
-        `<<<<<<< BASE (common ancestor)\n${base || '(none)'}\n` +
-        `======= OURS\n${ours}\n` +
-        `======= THEIRS\n${theirs}\n>>>>>>>\n\n` +
-        'Return the merged result for this section.';
-    return complete({ system, prompt, maxTokens: 2048, thinking: true });
+        `File: ${fileName || 'unknown'}\n` +
+        `BASE:\n${base || '(none)'}\n\n` +
+        `OURS:\n${ours}\n\n` +
+        `THEIRS:\n${theirs}`;
+    const response = await complete({ profile: 'merge', prompt, maxTokens: 1400 });
+    return parseMergeResolution(response);
+}
+
+function parseMergeResolution(response) {
+    const cleaned = response
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/, '')
+        .trim();
+    try {
+        const parsed = JSON.parse(cleaned);
+        if (typeof parsed.merged !== 'string') throw new Error('missing merged text');
+        return {
+            merged: parsed.merged,
+            summary: briefSummary(parsed.summary),
+        };
+    } catch {
+        return {
+            merged: response,
+            summary: 'Combined the conflicting changes.',
+        };
+    }
+}
+
+function briefSummary(value) {
+    const summary = typeof value === 'string'
+        ? value.replace(/\s+/g, ' ').trim()
+        : '';
+    if (!summary) return 'Combined the conflicting changes.';
+    const words = summary.split(' ');
+    const wordLimited = words.length <= 18
+        ? summary
+        : `${words.slice(0, 18).join(' ')}...`;
+    return wordLimited.length <= 160
+        ? wordLimited
+        : `${wordLimited.slice(0, 157).trimEnd()}...`;
 }
 
 module.exports = {
+    PROMPTS,
+    DEFAULT_MODEL,
+    MIN_OUTPUT_TOKENS,
+    REASONING_HEADROOM,
     isEnabled,
     getModel,
     getApiKey,
@@ -214,6 +212,8 @@ module.exports = {
     complete,
     suggestCommitMessage,
     explainChanges,
+    reviewChanges,
     resolveConflictHunk,
-    DEFAULT_MODEL,
+    parseMergeResolution,
+    extractText,
 };

@@ -150,12 +150,16 @@ async function summary(options = {}) {
         }));
 
         if (options.ai) {
+            await ai.prime();
             if (!ai.isEnabled()) {
                 console.log(chalk.gray(ai.disabledHint()));
             } else {
                 try {
                     const facts = lines.join('\n').replace(/\[[0-9;]*m/g, ''); // strip colors
-                    const narrative = await ai.explainChanges(`Repository stats:\n${facts}\n\nGive a 2-3 sentence health assessment.`);
+                    const narrative = await ai.explainChanges(
+                        `Repository stats:\n${facts}\n\nGive a 2-3 sentence health assessment.`,
+                        'summary',
+                    );
                     console.log(chalk.cyan(narrative));
                 } catch (err) {
                     console.log(chalk.yellow(`AI summary failed: ${err.message}`));

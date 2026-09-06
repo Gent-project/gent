@@ -86,6 +86,14 @@ test('mergeFileContent joins lines and reports conflicts', () => {
     assert.equal(conflicted.hasConflicts, true);
 });
 
+test('mergeFileContent accepts Git-compatible conflict labels', () => {
+    const result = mergeFileContent('base\n', 'main\n', 'feature\n', 'shared.txt', {
+        ours: 'HEAD',
+        theirs: 'feature'
+    });
+    assert.equal(result.content, '<<<<<<< HEAD\nmain\n=======\nfeature\n>>>>>>> feature\n');
+});
+
 test('autoMerge fast paths and confidence', () => {
     assert.equal(autoMerge('x', 'x', 'x').confidence, 1);          // nothing changed
     assert.equal(autoMerge('x', 'y', 'x').mergedText, 'y');        // only ours

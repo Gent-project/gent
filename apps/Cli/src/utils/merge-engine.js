@@ -130,9 +130,10 @@ function matchBaseToOther(baseLines, otherLines) {
  * @param {String[]} baseLines
  * @param {String[]} oursLines
  * @param {String[]} theirsLines
+ * @param {{ours?: String, theirs?: String}} [labels]
  * @returns {{merged: String[], conflicts: Array, hasConflicts: Boolean}}
  */
-function threeWayMerge(baseLines, oursLines, theirsLines) {
+function threeWayMerge(baseLines, oursLines, theirsLines, labels = {}) {
     const oMatch = matchBaseToOther(baseLines, oursLines);
     const tMatch = matchBaseToOther(baseLines, theirsLines);
 
@@ -157,7 +158,7 @@ function threeWayMerge(baseLines, oursLines, theirsLines) {
         const oursSeg = oursLines.slice(prevO, a.o);
         const theirsSeg = theirsLines.slice(prevT, a.t);
 
-        resolveRegion(baseSeg, oursSeg, theirsSeg, merged, conflicts);
+        resolveRegion(baseSeg, oursSeg, theirsSeg, merged, conflicts, labels);
 
         // Emit the synchronized anchor line (skip the end sentinel).
         if (a.b < baseLines.length) {
@@ -180,8 +181,9 @@ function threeWayMerge(baseLines, oursLines, theirsLines) {
  * @param {String[]} theirsSeg
  * @param {String[]} merged - output accumulator (mutated)
  * @param {Array} conflicts - output accumulator (mutated)
+ * @param {{ours?: String, theirs?: String}} [labels]
  */
-function resolveRegion(baseSeg, oursSeg, theirsSeg, merged, conflicts) {
+function resolveRegion(baseSeg, oursSeg, theirsSeg, merged, conflicts, labels = {}) {
     if (baseSeg.length === 0 && oursSeg.length === 0 && theirsSeg.length === 0) {
         return;
     }
@@ -213,11 +215,11 @@ function resolveRegion(baseSeg, oursSeg, theirsSeg, merged, conflicts) {
         oursContent: oursSeg,
         theirsContent: theirsSeg
     });
-    merged.push('<<<<<<< ours');
+    merged.push(`<<<<<<< ${labels.ours || 'ours'}`);
     merged.push(...oursSeg);
     merged.push('=======');
     merged.push(...theirsSeg);
-    merged.push('>>>>>>> theirs');
+    merged.push(`>>>>>>> ${labels.theirs || 'theirs'}`);
 }
 
 // ─── Sub-Merge (fine-grained) ───────────────────────────
@@ -390,9 +392,10 @@ function parseConflictMarkers(content) {
  * @param {String} oursContent
  * @param {String} theirsContent
  * @param {String} [fileName] - used to pick a language-aware strategy
+ * @param {{ours?: String, theirs?: String}} [labels] - conflict marker labels
  * @returns {{content: String, hasConflicts: Boolean, conflicts: Array}}
  */
-function mergeFileContent(baseContent, oursContent, theirsContent, fileName) {
+function mergeFileContent(baseContent, oursContent, theirsContent, fileName, labels) {
     if (fileName && /\.json$/i.test(fileName)) {
         const jsonResult = mergeJsonContent(baseContent || '', oursContent || '', theirsContent || '');
         if (jsonResult) return jsonResult;
@@ -401,7 +404,7 @@ function mergeFileContent(baseContent, oursContent, theirsContent, fileName) {
     const base = splitLines(baseContent || '');
     const ours = splitLines(oursContent || '');
     const theirs = splitLines(theirsContent || '');
-    const result = threeWayMerge(base, ours, theirs);
+    const result = threeWayMerge(base, ours, theirs, labels);
     return { content: result.merged.join('\n'), hasConflicts: result.hasConflicts, conflicts: result.conflicts };
 }
 
@@ -442,7 +445,7 @@ function autoMerge(baseText, oursText, theirsText) {
  * @param {Array} theirsEntries
  * @returns {Promise<{mergedEntries: Array, conflicts: Array, hasConflicts: Boolean}>}
  */
-async function mergeTreeEntries(gentPath, baseEntries, oursEntries, theirsEntries) {
+async function mergeTreeEntries(gentPath, baseEntries, oursEntries, theirsEntries, labels) {
     const baseMap = treeToMap(baseEntries);
     const oursMap = treeToMap(oursEntries);
     const theirsMap = treeToMap(theirsEntries);
@@ -479,7 +482,7 @@ async function mergeTreeEntries(gentPath, baseEntries, oursEntries, theirsEntrie
                 readBlobAsString(gentPath, oH),
                 readBlobAsString(gentPath, tH)
             ]);
-            const result = mergeFileContent(baseC, oursC, theirsC, filePath);
+            const result = mergeFileContent(baseC, oursC, theirsC, filePath, labels);
             const mergedHash = await storeBlob(gentPath, result.content);
             mergedEntries.push({ mode: '100644', name: filePath, hash: mergedHash, type: 'blob' });
             if (result.hasConflicts) conflicts.push({ file: filePath, type: 'content', details: result.conflicts });
@@ -504,7 +507,7 @@ async function mergeTreeEntries(gentPath, baseEntries, oursEntries, theirsEntrie
                 readBlobAsString(gentPath, oH),
                 readBlobAsString(gentPath, tH)
             ]);
-            const result = mergeFileContent('', oursC, theirsC, filePath);
+            const result = mergeFileContent('', oursC, theirsC, filePath, labels);
             const mergedHash = await storeBlob(gentPath, result.content);
             mergedEntries.push({ mode: '100644', name: filePath, hash: mergedHash, type: 'blob' });
             if (result.hasConflicts) conflicts.push({ file: filePath, type: 'add-add', details: result.conflicts });

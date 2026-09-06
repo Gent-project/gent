@@ -52,7 +52,7 @@ Git solves these problems, but its internals are complex. This project implement
 | Compression | Node.js `zlib` |
 | Token/config obfuscation | CryptoJS AES |
 | Testing | Node.js built-in test runner |
-| Optional AI | Anthropic Messages API via Axios |
+| Optional AI | Direct low-latency OpenAI Responses API integration |
 | Remote backend | REST API at `https://gent-api.onrender.com` by default |
 
 ## Main Features
@@ -112,7 +112,7 @@ Users can register, log in, refresh tokens automatically, and inspect the curren
 
 ### 8. Optional AI Features
 
-AI features are optional and do not replace the core algorithms. If no AI key is configured, Gent continues to work normally.
+AI features are optional and do not replace the core algorithms. The CLI uses short task-specific prompts, and installations without local AI can continue to use Gent normally.
 
 Examples:
 
@@ -169,4 +169,3 @@ This project demonstrates several important software engineering topics:
 - Security concepts: token storage, access token refresh, authenticated requests.
 - User experience: interactive prompts, grouped help, diagnostics, templates.
 - Testing: unit tests for hashing, diffing, merging, and merge-base logic.
-

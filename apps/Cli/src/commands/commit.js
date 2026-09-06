@@ -41,6 +41,7 @@ async function commit(options) {
 
         // Optional: AI-suggested commit message (`gent commit --ai`)
         if (!message && options.ai) {
+            await ai.prime();
             if (!ai.isEnabled()) {
                 console.log(chalk.yellow(ai.disabledHint()));
             } else {
@@ -76,6 +77,10 @@ async function commit(options) {
 
         const config = await readJSON(path.join(gentPath, CONFIG_FILE));
         const repository = await readJSON(path.join(gentPath, COMMITS_FILE));
+        const mergeState = staging.mergeState || null;
+        if (mergeState && repository.branches[repository.currentBranch] !== mergeState.oursHash) {
+            throw new Error('Current branch changed after the merge started; abort and retry the merge');
+        }
 
         // Resolve author identity
         let authorName = config.user.name;
@@ -105,13 +110,17 @@ async function commit(options) {
         if (stagedEntries.length > 0) {
             // New format: entries already have blob hashes from gent add
             // Carry forward unchanged files from parent commit
-            const parentHash = repository.branches[repository.currentBranch] || null;
+            const parentHash = mergeState
+                ? mergeState.oursHash
+                : repository.branches[repository.currentBranch] || null;
             const parentCommit = parentHash
                 ? (repository.commits || []).find(c => c.hash === parentHash)
                 : null;
-            const parentTree = parentCommit && parentCommit.tree
-                ? parentCommit.tree
-                : (parentCommit ? parentCommit.files.map(f => ({ mode: '100644', name: f.path, hash: f.hash, type: 'blob' })) : []);
+            const parentTree = mergeState
+                ? (mergeState.mergedEntries || [])
+                : parentCommit && parentCommit.tree
+                    ? parentCommit.tree
+                    : (parentCommit ? parentCommit.files.map(f => ({ mode: '100644', name: f.path, hash: f.hash, type: 'blob' })) : []);
 
             // Start from parent tree, overlay staged changes
             const treeMap = new Map(parentTree.map(e => [e.name, e]));
@@ -162,7 +171,8 @@ async function commit(options) {
                 email: authorEmail
             },
             timestamp: new Date().toISOString(),
-            parent: repository.branches[repository.currentBranch] || null,
+            parent: mergeState ? mergeState.oursHash : repository.branches[repository.currentBranch] || null,
+            ...(mergeState ? { mergeParent: mergeState.theirsHash } : {}),
             treeHash,
             tree: treeEntries,
             files: treeEntries.map(e => ({ path: e.name, hash: e.hash })), // backward compat
@@ -185,6 +195,7 @@ async function commit(options) {
         // Clear staging
         staging.entries = [];
         staging.files = [];
+        staging.mergeState = null;
         await writeJSON(path.join(gentPath, STAGING_FILE), staging);
 
         spinner.succeed(chalk.green('Changes committed successfully!'));

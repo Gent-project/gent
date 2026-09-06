@@ -31,9 +31,17 @@ const { generateCommitHash } = require('../utils/helpers');
 const authStorage = require('../utils/auth-storage');
 const journal = require('../utils/journal');
 const ai = require('../utils/ai-service');
+const reviewCommand = require('./review');
 
-async function resolve() {
+async function resolve(options = {}) {
     try {
+        await ai.prime();
+        if (options.ai && !ai.isEnabled()) {
+            console.error(chalk.red(ai.disabledHint()));
+            process.exitCode = 1;
+            return;
+        }
+
         const gentPath = await getGentPath();
         const cwd = process.cwd();
 
@@ -85,6 +93,7 @@ async function resolve() {
             let idx = 0;
             let aborted = false;
             const out = [];
+            const aiSummaries = [];
 
             for (const seg of segments) {
                 if (seg.type === 'text') {
@@ -92,7 +101,7 @@ async function resolve() {
                     continue;
                 }
                 idx++;
-                const resolvedLines = await resolveHunk(seg, file, idx, conflictCount);
+                const resolvedLines = await resolveHunk(seg, file, idx, conflictCount, options, aiSummaries);
                 if (resolvedLines === null) { aborted = true; break; }
                 out.push(...resolvedLines);
             }
@@ -112,6 +121,9 @@ async function resolve() {
             } else {
                 await stageResolved(gentPath, staging, entriesByName, file, resolvedContent);
                 console.log(chalk.green(`  ✓ resolved ${file}`));
+                if (aiSummaries.length) {
+                    console.log(chalk.gray(`    AI: ${summarizeFileChanges(aiSummaries)}`));
+                }
             }
         }
 
@@ -119,23 +131,28 @@ async function resolve() {
 
         if (unresolvedFiles > 0) {
             console.log(chalk.yellow(`\n${unresolvedFiles} file(s) still have conflicts. Re-run "gent resolve" when ready.`));
+            process.exitCode = 1;
             return;
         }
 
         // All conflicts resolved — offer to finalize the merge commit.
-        const { finalize } = await inquirer.prompt([{
+        const finalize = options.ai || (await inquirer.prompt([{
             type: 'confirm',
             name: 'finalize',
             message: 'All conflicts resolved. Create the merge commit now?',
             default: true
-        }]);
+        }])).finalize;
 
         if (!finalize) {
             console.log(chalk.cyan('Resolved files staged. Run "gent commit" when ready.'));
             return;
         }
 
-        await finalizeMerge(gentPath, staging, mergeState, entriesByName);
+        const mergeCommit = await finalizeMerge(gentPath, staging, mergeState, entriesByName);
+        if (options.ai) {
+            console.log(chalk.bold.cyan('\nAI review of the completed merge'));
+            await reviewCommand(mergeCommit.hash, { head: true });
+        }
     } catch (error) {
         if (error.code === 'ENOENT' && error.message.includes('.gent')) {
             console.error(chalk.red('Error: Not a gent repository'));
@@ -151,23 +168,20 @@ async function resolve() {
  * Prompt for one conflict hunk. Returns the chosen lines, or null to abort
  * (leave the rest of the file as-is with markers).
  */
-async function resolveHunk(seg, file, idx, total) {
+async function resolveHunk(seg, file, idx, total, options = {}, aiSummaries = []) {
     console.log(chalk.gray(`  Conflict ${idx}/${total}:`));
     console.log(chalk.green('    <<< ours'));
     seg.ours.forEach(l => console.log(chalk.green(`      ${l}`)));
     console.log(chalk.red('    >>> theirs'));
     seg.theirs.forEach(l => console.log(chalk.red(`      ${l}`)));
 
-    const choices = [
-        { name: 'Keep ours', value: 'ours' },
-        { name: 'Keep theirs', value: 'theirs' },
-        { name: 'Keep both (ours then theirs)', value: 'both' },
-        { name: 'Edit manually', value: 'edit' }
-    ];
-    if (ai.isEnabled()) {
-        choices.splice(3, 0, { name: `Ask AI (${ai.getModel()})`, value: 'ai' });
+    const choices = resolutionChoices();
+
+    if (options.ai) {
+        const suggestion = await askAiForHunk(seg, file, true, aiSummaries);
+        if (suggestion !== null) return suggestion;
+        return null;
     }
-    choices.push({ name: 'Skip the rest of this file', value: 'skip' });
 
     const { choice } = await inquirer.prompt([{
         type: 'list',
@@ -191,26 +205,62 @@ async function resolveHunk(seg, file, idx, total) {
             return text.replace(/\n$/, '').split('\n');
         }
         case 'ai': {
-            try {
-                const suggestion = await ai.resolveConflictHunk({
-                    ours: seg.ours.join('\n'),
-                    theirs: seg.theirs.join('\n'),
-                    fileName: file
-                });
-                console.log(chalk.cyan('    AI suggestion:'));
-                suggestion.split('\n').forEach(l => console.log(chalk.cyan(`      ${l}`)));
-                const { accept } = await inquirer.prompt([{
-                    type: 'confirm', name: 'accept', message: 'Use this suggestion?', default: true
-                }]);
-                if (accept) return suggestion.split('\n');
-                return resolveHunk(seg, file, idx, total); // re-ask
-            } catch (err) {
-                console.log(chalk.yellow(`    AI failed (${err.message}); choose another option.`));
-                return resolveHunk(seg, file, idx, total);
-            }
+            const suggestion = await askAiForHunk(seg, file, false, aiSummaries);
+            if (suggestion !== null) return suggestion;
+            return resolveHunk(seg, file, idx, total, { ai: false }, aiSummaries);
         }
         default: return seg.ours;
     }
+}
+
+function resolutionChoices() {
+    return [
+        { name: 'Keep ours', value: 'ours' },
+        { name: 'Keep theirs', value: 'theirs' },
+        { name: 'Keep both (ours then theirs)', value: 'both' },
+        { name: `Resolve with AI (${ai.getModel()})`, value: 'ai' },
+        { name: 'Edit manually', value: 'edit' },
+        { name: 'Skip the rest of this file', value: 'skip' },
+    ];
+}
+
+async function askAiForHunk(seg, file, autoAccept = false, aiSummaries = []) {
+    try {
+        const resolution = await ai.resolveConflictHunk({
+            ours: seg.ours.join('\n'),
+            theirs: seg.theirs.join('\n'),
+            fileName: file
+        });
+        if (autoAccept) {
+            aiSummaries.push(resolution.summary);
+            return resolution.merged.split('\n');
+        }
+        console.log(chalk.cyan('    AI suggestion (review before accepting):'));
+        resolution.merged.split('\n').forEach(line => console.log(chalk.cyan(`      ${line}`)));
+        const { accept } = await inquirer.prompt([{
+            type: 'confirm',
+            name: 'accept',
+            message: 'Use this AI suggestion?',
+            default: false,
+        }]);
+        if (!accept) return null;
+        aiSummaries.push(resolution.summary);
+        return resolution.merged.split('\n');
+    } catch (error) {
+        console.log(chalk.yellow(`    AI failed (${error.message}); no file was changed.`));
+        return null;
+    }
+}
+
+function summarizeFileChanges(summaries) {
+    const summary = [...new Set(summaries)].join('; ');
+    const words = summary.split(/\s+/);
+    const wordLimited = words.length <= 32
+        ? summary
+        : `${words.slice(0, 32).join(' ')}...`;
+    return wordLimited.length <= 220
+        ? wordLimited
+        : `${wordLimited.slice(0, 217).trimEnd()}...`;
 }
 
 /** Store the resolved file as a blob, patch the tree entry, and stage it. */
@@ -245,6 +295,7 @@ async function finalizeMerge(gentPath, staging, mergeState, entriesByName) {
             if (!authorEmail) authorEmail = globalUser.email;
         }
     }
+    if (!authorName && authorEmail) authorName = authorEmail;
 
     const mergedEntries = [...entriesByName.values()];
     const treeHash = await storeTree(gentPath, mergedEntries);
@@ -275,6 +326,8 @@ async function finalizeMerge(gentPath, staging, mergeState, entriesByName) {
     await writeJSON(path.join(gentPath, STAGING_FILE), staging);
 
     console.log(chalk.green(`\n✓ Merge committed — ${mergeCommit.hash.substring(0, 7)}`));
+    return mergeCommit;
 }
 
 module.exports = resolve;
+module.exports.resolutionChoices = resolutionChoices;

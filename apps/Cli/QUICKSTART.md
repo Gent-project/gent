@@ -60,7 +60,7 @@ gent status -s   # short format
 gent commit -m "Initial commit"
 ```
 
-Let AI suggest a message from your staged diff (requires `ANTHROPIC_API_KEY`):
+Let local Gent AI suggest a message from your staged diff:
 
 ```bash
 gent commit --ai
@@ -158,16 +158,17 @@ gent summary --ai             # + a short AI-written health narrative
 
 ## Optional AI Features
 
-All AI features are off by default and have a non-AI fallback.
+AI calls run directly from the CLI using the installation-provisioned credential.
+Users are never prompted for a provider key. Commands with a non-AI path
+continue to work offline.
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-export GENT_AI_MODEL=claude-haiku-4-5   # optional; default is claude-opus-4-8
-
 gent commit --ai       # AI-suggested commit message
 gent explain           # plain-language diff summary
 gent resolve           # adds "Ask AI" option per conflict hunk
 gent summary --ai      # health narrative
+gent chat              # interactive repository chat
+gent merge dev --ai    # merge, AI-resolve conflicts, commit, then review
 ```
 
 ---

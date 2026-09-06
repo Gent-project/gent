@@ -6,11 +6,13 @@
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const CryptoJS = require('crypto-js');
+const crypto = require('crypto');
 const { GENT_DIR, AUTH_FILE } = require('./constants');
 
 // Simple encryption key (in production, use environment variable or OS keychain)
 const ENCRYPTION_KEY = 'gent-cli-secret-key-v1';
+const FORMAT_PREFIX = 'v2';
+const KEY = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
 
 /**
  * Get the auth file path
@@ -27,7 +29,11 @@ function getAuthFilePath() {
  */
 function encrypt(data) {
     const jsonString = JSON.stringify(data);
-    return CryptoJS.AES.encrypt(jsonString, ENCRYPTION_KEY).toString();
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', KEY, iv);
+    const encrypted = Buffer.concat([cipher.update(jsonString, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return [FORMAT_PREFIX, iv.toString('base64'), tag.toString('base64'), encrypted.toString('base64')].join(':');
 }
 
 /**
@@ -36,9 +42,36 @@ function encrypt(data) {
  * @returns {Object} Decrypted data
  */
 function decrypt(encryptedData) {
-    const bytes = CryptoJS.AES.decrypt(encryptedData, ENCRYPTION_KEY);
-    const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
-    return JSON.parse(decryptedString);
+    if (!encryptedData.startsWith(`${FORMAT_PREFIX}:`)) return decryptLegacy(encryptedData);
+    const [, ivText, tagText, encryptedText] = encryptedData.split(':');
+    if (!ivText || !tagText || !encryptedText) throw new Error('Invalid auth data');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', KEY, Buffer.from(ivText, 'base64'));
+    decipher.setAuthTag(Buffer.from(tagText, 'base64'));
+    const decrypted = Buffer.concat([
+        decipher.update(Buffer.from(encryptedText, 'base64')),
+        decipher.final()
+    ]);
+    return JSON.parse(decrypted.toString('utf8'));
+}
+
+// CryptoJS passphrase encryption used the OpenSSL "Salted__" AES-256-CBC
+// format. Keep read compatibility so upgrading does not sign users out.
+function decryptLegacy(encryptedData) {
+    const payload = Buffer.from(encryptedData, 'base64');
+    if (payload.length < 16 || payload.subarray(0, 8).toString('ascii') !== 'Salted__') {
+        throw new Error('Invalid legacy auth data');
+    }
+    const salt = payload.subarray(8, 16);
+    const password = Buffer.from(ENCRYPTION_KEY, 'utf8');
+    let derived = Buffer.alloc(0);
+    let block = Buffer.alloc(0);
+    while (derived.length < 48) {
+        block = crypto.createHash('md5').update(Buffer.concat([block, password, salt])).digest();
+        derived = Buffer.concat([derived, block]);
+    }
+    const decipher = crypto.createDecipheriv('aes-256-cbc', derived.subarray(0, 32), derived.subarray(32, 48));
+    const decrypted = Buffer.concat([decipher.update(payload.subarray(16)), decipher.final()]);
+    return JSON.parse(decrypted.toString('utf8'));
 }
 
 /**
@@ -63,7 +96,8 @@ async function saveTokens(accessToken, refreshToken, user) {
     try {
         // Ensure .gent directory exists
         await fs.mkdir(gentDir, { recursive: true });
-        await fs.writeFile(authFilePath, JSON.stringify({ data: encryptedData }), 'utf8');
+        await fs.writeFile(authFilePath, JSON.stringify({ data: encryptedData }), { encoding: 'utf8', mode: 0o600 });
+        await fs.chmod(authFilePath, 0o600);
     } catch (error) {
         throw new Error(`Failed to save authentication data: ${error.message}`);
     }
@@ -161,7 +195,8 @@ async function updateTokens(newAccessToken, newRefreshToken) {
 
     // Ensure .gent directory exists
     await fs.mkdir(gentDir, { recursive: true });
-    await fs.writeFile(authFilePath, JSON.stringify({ data: encryptedData }), 'utf8');
+    await fs.writeFile(authFilePath, JSON.stringify({ data: encryptedData }), { encoding: 'utf8', mode: 0o600 });
+    await fs.chmod(authFilePath, 0o600);
 }
 
 // Back-compat alias: same as updateTokens with no rotated refresh.

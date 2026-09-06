@@ -158,7 +158,8 @@ async function merge(repo, theirRevision, options = {}) {
             baseBytes.toString('utf-8'),
             oursBytes.toString('utf-8'),
             theirsBytes.toString('utf-8'),
-            filePath
+            filePath,
+            { ours: 'HEAD', theirs: label }
         );
         const content = Buffer.from(result.content, 'utf-8');
         const oid = await repo.objects.write('blob', content);
@@ -183,7 +184,7 @@ async function merge(repo, theirRevision, options = {}) {
     }
     await index.write(repo.indexPath);
 
-    const message = options.message || `Merge ${label} into ${head.branch || 'HEAD'}`;
+    const message = options.message || `Merge branch '${label}'`;
 
     if (conflicts.length) {
         await ops.writeMergeState(repo, [theirs], `${message}\n\nConflicts:\n${conflicts.map(c => '  ' + c.path).join('\n')}\n`);

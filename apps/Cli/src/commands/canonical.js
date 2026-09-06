@@ -3,6 +3,7 @@
  */
 const fs = require('fs').promises;
 const path = require('path');
+const inquirer = require('inquirer');
 const repository = require('../utils/repository');
 const ops = require('../utils/gent-ops');
 const merge = require('../utils/merge-ops');
@@ -13,6 +14,7 @@ const { GitIndex } = require('../utils/git-index');
 const { Lock } = require('../utils/lockfile');
 const { AttributesMatcher, looksBinary } = require('../utils/attributes');
 const { formatUnifiedDiff } = require('../utils/diff-engine');
+const ai = require('../utils/ai-service');
 
 async function locatedCanonical() {
     let found;
@@ -154,17 +156,94 @@ const handlers = {
     async merge(repo, branch, options) {
         if (options.abort) return merge.abortMerge(repo);
         if (options.continue) return merge.concludeMerge(repo, options.message);
+        if (options.ai) {
+            await ai.prime();
+            if (!ai.isEnabled()) throw new Error(ai.disabledHint());
+        }
+        const beforeMerge = options.ai ? (await repo.refs.head()).oid : null;
         const result = await merge.merge(repo, branch, options);
-        console.log(result.status);
         if (result.status === 'conflicts') {
-            console.log('Resolve files, stage with gent add, then gent merge --continue or gent commit -m <message>.');
-            process.exitCode = 1;
+            for (const conflict of result.conflicts) {
+                if (conflict.kind === 'content') console.log(`Auto-merging ${conflict.path}`);
+                console.log(`CONFLICT (${conflict.kind}): Merge conflict in ${conflict.path}`);
+            }
+            if (options.ai) {
+                console.log('Resolving all text conflicts with Gent AI...');
+                await handlers.resolve(repo, { ai: true });
+            } else {
+                console.log('Automatic merge failed; fix conflicts and then commit the result.');
+                console.log('Resolve files, stage with gent add, then gent merge --continue or gent commit -m <message>.');
+                process.exitCode = 1;
+            }
+        } else {
+            console.log(result.status);
+            if (options.ai) await reviewCanonicalMerge(repo, beforeMerge, result.oid);
         }
     },
-    async resolve(repo) {
+    async resolve(repo, options = {}) {
         const index = await GitIndex.read(repo.indexPath);
-        for (const name of index.conflicts().keys()) console.log(name);
-        console.log('Edit conflicted files, then gent add <path> and gent merge --continue.');
+        const names = [...index.conflicts().keys()];
+        if (!names.length) {
+            console.log('No merge conflicts to resolve.');
+            return;
+        }
+        if (!options.ai && process.stdin.isTTY && process.stdout.isTTY) {
+            const { mode } = await inquirer.prompt([{
+                type: 'list',
+                name: 'mode',
+                message: 'How should Gent resolve this merge?',
+                choices: [
+                    { name: 'Merge with AI (fast) — resolve, commit, then review', value: 'ai' },
+                    { name: 'Resolve manually', value: 'manual' },
+                ],
+            }]);
+            options.ai = mode === 'ai';
+        }
+        if (!options.ai) {
+            for (const name of names) console.log(name);
+            console.log('Edit conflicted files, then gent add <path> and gent merge --continue.');
+            return;
+        }
+
+        await ai.prime();
+        if (!ai.isEnabled()) throw new Error(ai.disabledHint());
+
+        let resolved = 0;
+        for (const name of names) {
+            const sides = await merge.conflictSides(repo, name);
+            if ([sides.base, sides.ours, sides.theirs].some(value => value && looksBinary(value))) {
+                console.log(`Skipping binary conflict: ${name}`);
+                continue;
+            }
+            try {
+                const resolution = await ai.resolveConflictHunk({
+                    base: sides.base?.toString('utf8') || '',
+                    ours: sides.ours?.toString('utf8') || '',
+                    theirs: sides.theirs?.toString('utf8') || '',
+                    fileName: name,
+                });
+                worktree.assertSafeCheckoutPath(repo, name);
+                await worktree.assertNoSymlinkParent(repo, name);
+                const absolute = path.join(repo.worktree, name);
+                await fs.mkdir(path.dirname(absolute), { recursive: true });
+                await fs.writeFile(absolute, resolution.merged, 'utf8');
+                await merge.markResolved(repo, name);
+                resolved++;
+                console.log(`Resolved and staged ${name}`);
+                console.log(`  AI: ${resolution.summary}`);
+            } catch (error) {
+                console.log(`AI did not resolve ${name}: ${error.message}`);
+            }
+        }
+        console.log(`${resolved} of ${names.length} conflict(s) resolved with Gent AI.`);
+        if (resolved !== names.length) {
+            console.log('Unresolved conflicts remain; no merge commit was created.');
+            process.exitCode = 1;
+            return;
+        }
+        const commit = await merge.concludeMerge(repo);
+        console.log(`Merge committed: ${commit.oid.slice(0, 12)}`);
+        await reviewCanonicalMerge(repo, (await repo.objects.readCommit(commit.oid)).parents[0], commit.oid);
     },
     async stash(repo, sub = 'push', options = {}) {
         const position = Number(options.index || 0);
@@ -225,6 +304,41 @@ const handlers = {
         } else throw new Error('use gent config get <key> or gent config set user.name/user.email <value>');
     }
 };
+
+async function reviewCanonicalMerge(repo, beforeOid, afterOid) {
+    if (!beforeOid || !afterOid) return;
+    const beforeCommit = await repo.objects.readCommit(beforeOid);
+    const afterCommit = await repo.objects.readCommit(afterOid);
+    const before = await worktree.readTreeRecursive(repo, beforeCommit.tree);
+    const after = await worktree.readTreeRecursive(repo, afterCommit.tree);
+    const diff = (await treeDiffText(repo, before, after)).slice(0, 16000);
+    if (!diff) {
+        console.log('AI review: no content changes to review.');
+        return;
+    }
+    console.log('\nAI review of the completed merge');
+    try {
+        console.log(await ai.reviewChanges(diff, 'Review the completed merge result. Focus on integration regressions.'));
+    } catch (error) {
+        console.log(`Post-merge AI review unavailable: ${error.message}`);
+    }
+}
+
+async function treeDiffText(repo, before, after) {
+    const parts = [];
+    for (const name of new Set([...before.keys(), ...after.keys()])) {
+        const a = before.get(name), b = after.get(name);
+        const read = item => item ? repo.objects.readBlob(item.oid) : Buffer.alloc(0);
+        const oldBytes = await read(a), newBytes = await read(b);
+        if (oldBytes.equals(newBytes) && a?.mode === b?.mode) continue;
+        if (looksBinary(oldBytes) || looksBinary(newBytes)) {
+            parts.push(`${name}: binary file changed`);
+        } else {
+            parts.push(formatUnifiedDiff(name, oldBytes.toString(), newBytes.toString()));
+        }
+    }
+    return parts.filter(Boolean).join('\n\n');
+}
 
 async function printTreeDiff(repo, before, after, files = [], stat = false) {
     const wanted = files.map(name => repo.relativePath(path.resolve(name)));

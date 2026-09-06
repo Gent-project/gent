@@ -26,13 +26,13 @@ fs.mkdirSync(home, { recursive: true });
 const env = { ...process.env, HOME: home, USERPROFILE: home };
 
 let scenario = 'setup';
-function run(cwd, args) {
+function run(cwd, args, expectedStatus = 0) {
     const res = spawnSync('node', [CLI, ...args], { cwd, env, encoding: 'utf-8' });
-    if (res.status !== 0) {
+    if (res.status !== expectedStatus) {
         console.error(`\n[${scenario}] command failed: gent ${args.join(' ')}`);
         console.error('stdout:\n' + res.stdout);
         console.error('stderr:\n' + res.stderr);
-        throw new Error(`gent ${args[0]} exited with ${res.status}`);
+        throw new Error(`gent ${args[0]} exited with ${res.status}; expected ${expectedStatus}`);
     }
     // Combine streams: ora spinners write to stderr, console.log to stdout.
     return (res.stdout || '') + (res.stderr || '');
@@ -104,18 +104,36 @@ scenario = 'conflict-merge';
     run(w, ['add', 'bar.txt']);
     run(w, ['commit', '-m', 'main edit']);
 
-    const out = run(w, ['merge', 'feature']);
+    const out = run(w, ['merge', 'feature'], 1);
     assert.match(out, /CONFLICT/);
 
     const conflicted = read(w, 'bar.txt');
-    assert.match(conflicted, /<<<<<<< ours/);
+    assert.match(conflicted, /<<<<<<< HEAD/);
     assert.match(conflicted, /=======/);
-    assert.match(conflicted, />>>>>>> theirs/);
+    assert.match(conflicted, />>>>>>> feature/);
 
     // merge state recorded for `gent resolve`
     const staging = JSON.parse(read(w, path.join('.gent', 'staging.json')));
     assert.ok(staging.mergeState, 'mergeState should be recorded on conflict');
-    console.log('  ok   conflicting merge — markers written, merge state recorded');
+
+    const abortOut = run(w, ['merge', '--abort']);
+    assert.match(abortOut, /Merge aborted; working tree restored/);
+    assert.equal(read(w, 'bar.txt'), 'alpha\nBETA-MAIN');
+    assert.equal(JSON.parse(read(w, path.join('.gent', 'staging.json'))).mergeState, null);
+
+    const retryOut = run(w, ['merge', 'feature'], 1);
+    assert.match(retryOut, /CONFLICT/);
+    const retryStaging = JSON.parse(read(w, path.join('.gent', 'staging.json')));
+
+    write(w, 'bar.txt', ['alpha', 'BETA-RESOLVED']);
+    run(w, ['add', 'bar.txt']);
+    run(w, ['commit', '-m', 'resolve conflict']);
+    const resolvedRepository = JSON.parse(read(w, path.join('.gent', 'commits.json')));
+    const resolvedCommit = resolvedRepository.commits.find(c => c.hash === resolvedRepository.branches.main);
+    assert.equal(resolvedCommit.parent, retryStaging.mergeState.oursHash);
+    assert.equal(resolvedCommit.mergeParent, retryStaging.mergeState.theirsHash);
+    assert.equal(JSON.parse(read(w, path.join('.gent', 'staging.json'))).mergeState, null);
+    console.log('  ok   conflicting merge — abort restores HEAD; retry resolves to two-parent commit');
 }
 
 // ── Scenario 3: undo / redo a commit ───────────────────────────────────────
@@ -170,11 +188,88 @@ scenario = 'insight-commands';
     assert.match(graph, /Commit graph/);
     assert.match(graph, /\(HEAD\)/);
 
-    // explain without an API key still prints the diff + a hint
+    // explain while signed out still prints the diff + a hint
     const explained = run(w, ['explain']);
     assert.match(explained, /Commit [0-9a-f]{7}/);
-    assert.match(explained, /ANTHROPIC_API_KEY/);
+    assert.match(explained, /unavailable/);
     console.log('  ok   summary / log --graph / explain run cleanly');
+}
+
+// ── Scenario 5: checkout changes tracked files with the branch ────────────
+scenario = 'checkout-worktree';
+{
+    const w = newRepo('checkout');
+    const repo = () => JSON.parse(read(w, path.join('.gent', 'commits.json')));
+
+    write(w, 'test.json', ['{"version":"base"}']);
+    run(w, ['add', 'test.json']);
+    run(w, ['commit', '-m', 'base']);
+    run(w, ['checkout', '-b', 'master']);
+    write(w, 'test.json', ['{"version":"master"}']);
+    run(w, ['add', 'test.json']);
+    run(w, ['commit', '-m', 'second commit']);
+
+    const masterHead = repo().branches.master;
+    const beforeMergeCount = repo().commits.length;
+    run(w, ['checkout', 'main']);
+    assert.equal(read(w, 'test.json'), '{"version":"base"}');
+    run(w, ['checkout', 'master']);
+    assert.equal(read(w, 'test.json'), '{"version":"master"}');
+
+    const mergeOut = run(w, ['merge', 'main']);
+    assert.match(mergeOut, /Already up to date/);
+    assert.equal(repo().branches.master, masterHead);
+    assert.equal(repo().commits.length, beforeMergeCount, 'ancestor merge must not create a redundant commit');
+    assert.equal(read(w, 'test.json'), '{"version":"master"}');
+    console.log('  ok   checkout restores branch files; ancestor merge is a no-op');
+}
+
+// ── Scenario 6: checkout refuses to overwrite local modifications ─────────
+scenario = 'checkout-dirty';
+{
+    const w = newRepo('checkout-dirty');
+    write(w, 'test.txt', ['base']);
+    run(w, ['add', 'test.txt']);
+    run(w, ['commit', '-m', 'base']);
+    run(w, ['checkout', '-b', 'feature']);
+    write(w, 'test.txt', ['feature']);
+    run(w, ['add', 'test.txt']);
+    run(w, ['commit', '-m', 'feature']);
+    write(w, 'test.txt', ['local work']);
+
+    const out = run(w, ['checkout', 'main'], 1);
+    assert.match(out, /Local changes would be overwritten/);
+    assert.equal(JSON.parse(read(w, path.join('.gent', 'commits.json'))).currentBranch, 'feature');
+    assert.equal(read(w, 'test.txt'), 'local work');
+    console.log('  ok   checkout refuses dirty overwrite and preserves the current branch');
+}
+
+// ── Scenario 7: merge --abort without a merge preserves staged work ───────
+scenario = 'merge-abort-noop';
+{
+    const w = newRepo('merge-abort-noop');
+    write(w, 'base.txt', ['base']);
+    run(w, ['add', 'base.txt']);
+    run(w, ['commit', '-m', 'base']);
+    run(w, ['checkout', '-b', 'branch2']);
+    write(w, 'branch.txt', ['branch change']);
+    run(w, ['add', 'branch.txt']);
+    run(w, ['commit', '-m', 'branch change']);
+    run(w, ['checkout', 'main']);
+
+    write(w, 'pending.txt', ['keep staged']);
+    run(w, ['add', 'pending.txt']);
+    const before = read(w, path.join('.gent', 'staging.json'));
+
+    const blocked = run(w, ['merge', 'branch2'], 1);
+    assert.match(blocked, /Commit, stash, or unstage current changes before merging/);
+    assert.equal(read(w, path.join('.gent', 'staging.json')), before);
+
+    const out = run(w, ['merge', '--abort']);
+    assert.match(out, /No merge in progress/);
+    assert.equal(read(w, path.join('.gent', 'staging.json')), before);
+    assert.equal(read(w, 'pending.txt'), 'keep staged');
+    console.log('  ok   merge --abort with no merge preserves staged work');
 }
 
 console.log('\noffline e2e: all scenarios passed');

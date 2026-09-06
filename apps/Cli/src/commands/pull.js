@@ -24,10 +24,10 @@ const path = require('path');
 const chalk = require('chalk');
 const ora = require('ora');
 const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
-const { COMMITS_FILE, CONFIG_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
+const { COMMITS_FILE, CONFIG_FILE, STAGING_FILE, API_ENDPOINTS, buildRepoUrl, parseRemoteUrl } = require('../utils/constants');
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
-const { storeBlob, readBlob } = require('../utils/hash-engine');
+const { storeBlob, readBlob, hashBlob } = require('../utils/hash-engine');
 const { findMergeBase, mergeTreeEntries } = require('../utils/merge-engine');
 const pet = require('./pet');
 const { generateCommitHash } = require('../utils/helpers');
@@ -68,8 +68,12 @@ async function pull(remoteName, branchName, options) {
         }
 
         const repository = await readJSON(path.join(gentPath, COMMITS_FILE));
-        const branch = branchName || repository.currentBranch;
-        const localHead = repository.branches[branch] || null;
+        const currentBranch = repository.currentBranch;
+        const branch = branchName || currentBranch;
+        const localHead = repository.branches[currentBranch] || null;
+        const cwd = path.dirname(gentPath);
+
+        await assertCleanWorkingTree(gentPath, cwd, getCommitTree(repository.commits || [], localHead));
 
         // 1. Fetch commits + objects for this branch in a single call. `since`
         //    lets the server send only what we don't have on a fast-forward.
@@ -130,9 +134,9 @@ async function pull(remoteName, branchName, options) {
             // Fast-forward
             const previousTree = localHead ? getCommitTree(repository.commits, localHead) : [];
             const nextTree = getCommitTree(repository.commits, remoteHead);
-            repository.branches[branch] = remoteHead;
+            await checkoutTree(gentPath, cwd, previousTree, nextTree);
+            repository.branches[currentBranch] = remoteHead;
             await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
-            await checkoutTree(gentPath, process.cwd(), previousTree, nextTree);
 
             config.remoteRefs[`${remote}/${branch}`] = remoteHead;
             await writeJSON(path.join(gentPath, CONFIG_FILE), config);
@@ -156,11 +160,44 @@ async function pull(remoteName, branchName, options) {
             const oursTree = getTree(localHead);
             const theirsTree = getTree(remoteHead);
 
-            const mergeResult = await mergeTreeEntries(gentPath, baseTree, oursTree, theirsTree);
+            const mergeResult = await mergeTreeEntries(
+                gentPath,
+                baseTree,
+                oursTree,
+                theirsTree,
+                { ours: 'HEAD', theirs: `${remote}/${branch}` }
+            );
 
             // Build merge commit
             const { storeTree } = require('../utils/hash-engine');
             const mergedTreeHash = await storeTree(gentPath, mergeResult.mergedEntries);
+
+            if (mergeResult.hasConflicts) {
+                await checkoutTree(gentPath, cwd, oursTree, mergeResult.mergedEntries);
+                const staging = await readJSON(path.join(gentPath, STAGING_FILE));
+                staging.mergeState = {
+                    sourceBranch: `${remote}/${branch}`,
+                    oursHash: localHead,
+                    theirsHash: remoteHead,
+                    baseHash,
+                    mergedTreeHash,
+                    mergedEntries: mergeResult.mergedEntries,
+                    conflicts: mergeResult.conflicts
+                };
+                await writeJSON(path.join(gentPath, STAGING_FILE), staging);
+                await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
+
+                config.remoteRefs[`${remote}/${branch}`] = remoteHead;
+                await writeJSON(path.join(gentPath, CONFIG_FILE), config);
+
+                spinner.warn(chalk.yellow(`Pulled with ${mergeResult.conflicts.length} conflict(s)`));
+                for (const c of mergeResult.conflicts) {
+                    console.log(chalk.red(`  CONFLICT: ${c.file} (${c.type})`));
+                }
+                console.log(chalk.yellow('\nResolve conflicts, then "gent add" + "gent commit"'));
+                process.exitCode = 1;
+                return;
+            }
 
             const mergeCommit = {
                 hash: generateCommitHash(),
@@ -176,25 +213,15 @@ async function pull(remoteName, branchName, options) {
             };
 
             repository.commits.push(mergeCommit);
-            repository.branches[branch] = mergeCommit.hash;
+            repository.branches[currentBranch] = mergeCommit.hash;
             await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
-            if (!mergeResult.hasConflicts) {
-                await checkoutTree(gentPath, process.cwd(), oursTree, mergeResult.mergedEntries);
-            }
+            await checkoutTree(gentPath, cwd, oursTree, mergeResult.mergedEntries);
 
             config.remoteRefs[`${remote}/${branch}`] = remoteHead;
             await writeJSON(path.join(gentPath, CONFIG_FILE), config);
 
-            if (mergeResult.hasConflicts) {
-                spinner.warn(chalk.yellow(`Pulled with ${mergeResult.conflicts.length} conflict(s)`));
-                for (const c of mergeResult.conflicts) {
-                    console.log(chalk.red(`  CONFLICT: ${c.file} (${c.type})`));
-                }
-                console.log(chalk.yellow('\nResolve conflicts, then "gent add" + "gent commit"'));
-            } else {
-                spinner.succeed(chalk.green(`Merged ${newCount} remote commit(s)`));
-                console.log(chalk.gray(`  Merge commit: ${mergeCommit.hash.substring(0, 7)}`));
-            }
+            spinner.succeed(chalk.green(`Merged ${newCount} remote commit(s)`));
+            console.log(chalk.gray(`  Merge commit: ${mergeCommit.hash.substring(0, 7)}`));
         }
     } catch (error) {
         spinner.fail(chalk.red('Pull failed'));
@@ -216,13 +243,44 @@ async function pull(remoteName, branchName, options) {
  */
 function isAncestor(commits, hashA, hashB) {
     const commitMap = new Map(commits.map(c => [c.hash, c]));
-    let cur = hashB;
-    while (cur) {
+    const pending = [hashB];
+    const seen = new Set();
+    while (pending.length) {
+        const cur = pending.pop();
+        if (!cur || seen.has(cur)) continue;
         if (cur === hashA) return true;
+        seen.add(cur);
         const c = commitMap.get(cur);
-        cur = c ? c.parent : null;
+        if (c?.parent) pending.push(c.parent);
+        if (c?.mergeParent) pending.push(c.mergeParent);
     }
     return false;
+}
+
+function safePath(cwd, relativePath) {
+    if (!relativePath || path.isAbsolute(relativePath) || relativePath.split(/[\\/]/).includes('..')) {
+        throw new Error(`Unsafe repository path '${relativePath}'`);
+    }
+    const fullPath = path.resolve(cwd, relativePath);
+    if (fullPath !== cwd && !fullPath.startsWith(cwd + path.sep)) {
+        throw new Error(`Unsafe repository path '${relativePath}'`);
+    }
+    return fullPath;
+}
+
+async function assertCleanWorkingTree(gentPath, cwd, tree) {
+    const staging = await readJSON(path.join(gentPath, STAGING_FILE));
+    if ((staging.entries || []).length || (staging.files || []).length || staging.mergeState) {
+        throw new Error('Commit or stash staged changes before pulling');
+    }
+    for (const entry of tree) {
+        const relPath = entry.name || entry.path;
+        const fullPath = safePath(cwd, relPath);
+        const stat = await fs.lstat(fullPath).catch(() => null);
+        if (!stat || !stat.isFile() || hashBlob(await fs.readFile(fullPath)) !== entry.hash) {
+            throw new Error(`Local changes would be overwritten by pull: ${relPath}`);
+        }
+    }
 }
 
 function getCommitTree(commits, hash) {
@@ -237,26 +295,35 @@ function getCommitTree(commits, hash) {
 }
 
 async function checkoutTree(gentPath, cwd, previousTree, nextTree) {
+    const previousPaths = new Set(previousTree.map(e => e.name || e.path));
     const nextPaths = new Set(nextTree.map(e => e.name || e.path));
+    const writes = new Map();
+
+    // Validate collisions and read every required blob before mutating files.
+    for (const entry of nextTree) {
+        if (entry.type && entry.type !== 'blob') continue;
+        const relPath = entry.name || entry.path;
+        if (!relPath || !entry.hash) continue;
+        const fullPath = safePath(cwd, relPath);
+        if (!previousPaths.has(relPath) && await fs.lstat(fullPath).catch(() => null)) {
+            throw new Error(`Untracked file would be overwritten by pull: ${relPath}`);
+        }
+        writes.set(relPath, await readBlob(gentPath, entry.hash));
+    }
 
     for (const entry of previousTree) {
         const relPath = entry.name || entry.path;
         if (!relPath || nextPaths.has(relPath)) continue;
         try {
-            await fs.unlink(path.join(cwd, relPath));
+            await fs.unlink(safePath(cwd, relPath));
         } catch {
             // File already absent.
         }
     }
 
-    for (const entry of nextTree) {
-        if (entry.type && entry.type !== 'blob') continue;
-        const relPath = entry.name || entry.path;
-        if (!relPath || !entry.hash) continue;
-
+    for (const [relPath, buf] of writes) {
         // Write the raw Buffer so binary blobs round-trip byte-exact.
-        const buf = await readBlob(gentPath, entry.hash);
-        const fullPath = path.join(cwd, relPath);
+        const fullPath = safePath(cwd, relPath);
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
         await fs.writeFile(fullPath, buf);
     }

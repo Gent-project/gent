@@ -64,6 +64,33 @@ test('Git validates Gent binary objects, merge DAG, tags and packed history', as
     assert.equal(git(['status', '--porcelain']).toString(), '');
 });
 
+test('Git recognizes and validates a Gent conflict resolved into a merge commit', async t => {
+    const f = await fixture(t); if (!f) return;
+    const { repo, git, commit } = f;
+    await commit('shared.txt', 'shared base\n', 'base');
+    await ops.createBranch(repo, 'feature');
+    const ours = (await commit('shared.txt', 'main version\n', 'main edit')).oid;
+    await ops.checkout(repo, 'feature');
+    const theirs = (await commit('shared.txt', 'feature version\n', 'feature edit')).oid;
+    await ops.checkout(repo, 'main');
+
+    const conflicted = await merge.merge(repo, 'feature');
+    assert.equal(conflicted.status, 'conflicts');
+    assert.equal(git(['status', '--short']).toString(), 'UU shared.txt\n');
+    assert.deepEqual(
+        git(['ls-files', '--unmerged']).toString().trim().split('\n').map(line => line.match(/ ([123])\tshared\.txt$/)?.[1]),
+        ['1', '2', '3']
+    );
+    assert.equal(await fs.readFile(path.join(repo.worktree, 'shared.txt'), 'utf8'), '<<<<<<< HEAD\nmain version\n=======\nfeature version\n>>>>>>> feature\n');
+
+    await fs.writeFile(path.join(repo.worktree, 'shared.txt'), 'resolved version\n');
+    await ops.addPaths(repo, [path.join(repo.worktree, 'shared.txt')]);
+    const resolved = await merge.concludeMerge(repo, 'resolve conflict');
+    assert.deepEqual((await repo.objects.readCommit(resolved.oid)).parents, [ours, theirs]);
+    assert.equal(git(['status', '--short']).toString(), '');
+    git(['fsck', '--full', '--strict']);
+});
+
 test('Git and Gent can apply each other’s stashes', async t => {
     const f = await fixture(t); if (!f) return;
     const { repo, git, commit } = f;

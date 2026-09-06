@@ -4,9 +4,8 @@
  * ============================================================================
  *
  * PURPOSE:
- *   Turn a diff into a human explanation. With an API key set this uses Claude;
- *   without one it still prints the unified diff plus a hint, so the command is
- *   useful either way.
+ *   Turn a diff into a human explanation. AI-enabled installations get a fast
+ *   review; other installations still get the unified diff plus a hint.
  *
  * USAGE:
  *   gent explain            → explain the latest commit (HEAD)
@@ -116,6 +115,7 @@ async function explain(ref, options = {}) {
 
         console.log(chalk.bold.cyan(`\n${title}\n`));
 
+        await ai.prime();
         if (!ai.isEnabled()) {
             console.log(trimmed);
             console.log(chalk.gray(`\n${ai.disabledHint()}`));

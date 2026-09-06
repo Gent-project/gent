@@ -3,11 +3,76 @@
  * Changes the current working branch
  */
 
+const fs = require('fs').promises;
 const path = require('path');
 const chalk = require('chalk');
 const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
-const { COMMITS_FILE } = require('../utils/constants');
+const { COMMITS_FILE, STAGING_FILE } = require('../utils/constants');
+const { hashBlob, readBlob } = require('../utils/hash-engine');
 const journal = require('../utils/journal');
+
+function treeOf(repository, commitHash) {
+    if (!commitHash) return [];
+    const commit = (repository.commits || []).find(item => item.hash === commitHash);
+    if (!commit) throw new Error(`Commit '${commitHash}' not found`);
+    return commit.tree || (commit.files || []).map(file => ({
+        mode: '100644', name: file.path || file.name, hash: file.hash, type: 'blob'
+    }));
+}
+
+function safePath(cwd, relativePath) {
+    if (!relativePath || path.isAbsolute(relativePath) || relativePath.split(/[\\/]/).includes('..')) {
+        throw new Error(`Unsafe repository path '${relativePath}'`);
+    }
+    const fullPath = path.resolve(cwd, relativePath);
+    if (fullPath !== cwd && !fullPath.startsWith(cwd + path.sep)) {
+        throw new Error(`Unsafe repository path '${relativePath}'`);
+    }
+    return fullPath;
+}
+
+async function switchWorkingTree(gentPath, cwd, repository, currentHash, targetHash) {
+    const staging = await readJSON(path.join(gentPath, STAGING_FILE));
+    if ((staging.entries || []).length || (staging.files || []).length || staging.mergeState) {
+        throw new Error('Commit or stash staged changes before switching branches');
+    }
+
+    const currentTree = new Map(treeOf(repository, currentHash).map(entry => [entry.name || entry.path, entry]));
+    const targetTree = new Map(treeOf(repository, targetHash).map(entry => [entry.name || entry.path, entry]));
+    const changedPaths = [...new Set([...currentTree.keys(), ...targetTree.keys()])]
+        .filter(name => currentTree.get(name)?.hash !== targetTree.get(name)?.hash);
+    const writes = new Map();
+
+    // Read and validate every affected path before changing any file.
+    for (const name of changedPaths) {
+        const fullPath = safePath(cwd, name);
+        const current = currentTree.get(name);
+        const target = targetTree.get(name);
+        const stat = await fs.lstat(fullPath).catch(() => null);
+
+        if (current) {
+            if (!stat || !stat.isFile()) throw new Error(`Local changes would be overwritten by checkout: ${name}`);
+            const bytes = await fs.readFile(fullPath);
+            if (hashBlob(bytes) !== current.hash) {
+                throw new Error(`Local changes would be overwritten by checkout: ${name}`);
+            }
+        } else if (target && stat) {
+            throw new Error(`Untracked file would be overwritten by checkout: ${name}`);
+        }
+
+        if (target) writes.set(name, await readBlob(gentPath, target.hash));
+    }
+
+    for (const name of changedPaths) {
+        if (targetTree.has(name)) continue;
+        await fs.unlink(safePath(cwd, name));
+    }
+    for (const [name, bytes] of writes) {
+        const fullPath = safePath(cwd, name);
+        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+        await fs.writeFile(fullPath, bytes);
+    }
+}
 
 /**
  * Switch to a different branch
@@ -55,7 +120,11 @@ async function checkout(branch, options) {
             return;
         }
 
-        await journal.recordOp(gentPath, 'checkout', `switch to branch '${branch}'`);
+        const cwd = path.dirname(gentPath);
+        const currentCommit = branches[repository.currentBranch] || null;
+        const targetCommit = branches[branch] || null;
+        await switchWorkingTree(gentPath, cwd, repository, currentCommit, targetCommit);
+        await journal.recordOp(gentPath, 'checkout', `switch to branch '${branch}'`, { restoreTree: true });
 
         repository.currentBranch = branch;
         await writeJSON(path.join(gentPath, COMMITS_FILE), repository);

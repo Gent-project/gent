@@ -13,7 +13,7 @@
  *   History:     commit, log, show, tag, explain
  *   Branching:   branch, checkout, merge, resolve, stash
  *   Safety:      undo, redo
- *   Insight:     summary, ask, review, docs, changelog
+ *   Insight:     summary, ask, chat, review, docs, changelog
  *   Remote:      remote, repos, members, push, pull, search, web, share
  *   Auth:        register, login, logout, whoami, password
  *   AI:          ai (status|test|models)
@@ -72,6 +72,7 @@ const doctorCommand = require('./commands/doctor');
 const setupCommand = require('./commands/setup');
 const aiCommand = require('./commands/ai');
 const askCommand = route('ask', require('./commands/ask'));
+const chatCommand = require('./commands/chat');
 const reviewCommand = route('review', require('./commands/review'));
 const docsCommand = route('docs', require('./commands/docs'));
 const changelogCommand = route('changelog', require('./commands/changelog'));
@@ -188,7 +189,7 @@ program
     .description('Record changes to the repository')
     .option('-m, --message <message>', 'Commit message')
     .option('-a, --all', 'Automatically stage all modified files')
-    .option('--ai', 'Suggest a commit message with AI (needs ANTHROPIC_API_KEY)')
+    .option('--ai', 'Suggest a commit message with local Gent AI')
     .action(commitCommand);
 
 program
@@ -222,7 +223,7 @@ program
 program
     .command('summary')
     .description('Show a repository health & statistics dashboard')
-    .option('--ai', 'Add an AI-written health narrative (needs ANTHROPIC_API_KEY)')
+    .option('--ai', 'Add an AI-written health narrative')
     .action(summaryCommand);
 
 // ─── Branching & Merging ────────────────────────────────
@@ -258,6 +259,7 @@ program
     .command('merge [branch]')
     .description('Merge a branch into the current branch (3-way smart merge)')
     .option('-m, --message <message>', 'Merge commit message')
+    .option('--ai', 'Resolve conflicts with AI, commit, then review the merge')
     .option('--continue', 'Finish a resolved canonical merge')
     .option('--abort', 'Abort a canonical merge')
     .action(async (branch, options) => {
@@ -284,6 +286,7 @@ program
 program
     .command('resolve')
     .description('Interactively resolve merge conflicts left by "gent merge"')
+    .option('--ai', 'Resolve every text conflict with AI, commit, then review')
     .action(resolveCommand);
 
 program
@@ -316,12 +319,13 @@ program
     .action(remoteCommand);
 
 program
-    .command('repos')
+    .command('repos [names...]')
     .description('List or create remote repositories')
     .option('--create <name>', 'Create a new remote repository')
     .option('--description <text>', 'Repository description (with --create)')
     .option('--private', 'Make repository private (with --create)')
     .option('--default-branch <name>', 'Default branch name (with --create)')
+    .option('-y, --yes', 'Initialize the current folder without prompting')
     .action(reposCommand);
 
 program
@@ -350,30 +354,31 @@ program
 
 program
     .command('setup')
-    .description('Interactive first-run wizard (backend URL, login, AI key, identity)')
+    .description('Interactive first-run wizard (backend URL, login, identity)')
     .action(setupCommand);
 
 program
     .command('config [subcommand] [args...]')
-    .description('Manage CLI settings (list|get|set|unset|path) — e.g. gent config set ai.api_key <key>')
+    .description('Manage CLI settings (list|get|set|unset|path)')
     .action(configCommand);
 
 program
     .command('doctor')
-    .description('Run a health check across node, repo, auth, backend, and AI key')
-    .option('--ai', 'Also live-test the AI key with a tiny request')
+    .description('Run a health check across node, repo, auth, backend, and Gent AI')
+    .option('--ai', 'Also live-test Gent AI with a tiny request')
     .action(doctorCommand);
 
 program
-    .command('ai [subcommand]')
-    .description('Inspect AI integration (status|test|models)')
+    .command('ai [subcommand] [key]')
+    .description('Configure or inspect local AI (configure|status|test|models)')
+    .option('--model <id>', 'Pin an OpenRouter model id for this computer')
     .action(aiCommand);
 
 // ─── Platform-special (AI-powered) ──────────────────────
 
 program
     .command('ask [question]')
-    .description('Ask Claude a question about this repo (needs AI key)')
+    .description('Ask local Gent AI a question about this repo')
     .action(async (question, options) => {
         if (!question && interactive.isInteractive()) {
             question = await interactive.promptAsk();
@@ -387,6 +392,11 @@ program
     .option('--staged', 'Force review of staged changes')
     .option('--head', 'Force review of HEAD commit')
     .action(reviewCommand);
+
+program
+    .command('chat [message]')
+    .description('Chat with Gent AI about the current repository')
+    .action(chatCommand);
 
 program
     .command('docs')
@@ -550,7 +560,7 @@ function showQuickstart() {
     console.log(chalk.gray('A Git-like VCS with cloud sync + AI superpowers.\n'));
     console.log(chalk.bold('First time? Try:'));
     console.log(`  ${chalk.cyan('gent auto')}               ${chalk.gray('guided init → commit → push (interactive)')}`);
-    console.log(`  ${chalk.cyan('gent setup')}              ${chalk.gray('configure login + AI key + remote')}`);
+    console.log(`  ${chalk.cyan('gent setup')}              ${chalk.gray('configure login + identity + remote')}`);
     console.log(`  ${chalk.cyan('gent doctor')}             ${chalk.gray('check everything is wired up')}`);
     console.log(`  ${chalk.cyan('gent template list')}      ${chalk.gray('scaffold a starter project')}`);
     console.log();
@@ -558,9 +568,11 @@ function showQuickstart() {
     console.log(`  ${chalk.cyan('gent init && gent add -A && gent commit -m "init"')}`);
     console.log(`  ${chalk.cyan('gent push')} / ${chalk.cyan('gent pull')} / ${chalk.cyan('gent merge <branch>')}`);
     console.log();
-    console.log(chalk.bold('AI features (need an Anthropic key):'));
+    console.log(chalk.bold('Local AI features:'));
+    console.log(`  ${chalk.cyan('gent chat')}               ${chalk.gray('interactive repository chat')}`);
     console.log(`  ${chalk.cyan('gent ask "what does this repo do?"')}`);
     console.log(`  ${chalk.cyan('gent review')}             ${chalk.gray('review staged changes')}`);
+    console.log(`  ${chalk.cyan('gent merge dev --ai')}      ${chalk.gray('resolve, commit, then review')}`);
     console.log(`  ${chalk.cyan('gent docs --write')}       ${chalk.gray('generate README.md')}`);
     console.log(`  ${chalk.cyan('gent changelog')}          ${chalk.gray('grouped release notes')}`);
     console.log();
