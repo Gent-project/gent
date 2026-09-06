@@ -87,8 +87,11 @@ async function createRemote(repo, name, isPrivate) {
 async function importRepository(source, destination, options = {}) {
     const target = path.resolve(destination);
     if (await fs.access(target).then(() => true, () => false)) throw new Error(`destination already exists: ${target}`);
+    if (options.branch && options.all) throw new Error('choose either --branch or --all');
     const scratch = await fs.mkdtemp(path.join(os.tmpdir(), 'gent-import-'));
     const mirror = path.join(scratch, 'source.git');
+    let staging = null;
+    let published = false;
     try {
         const clone = spawnSync('git', ['clone', '--mirror', '--no-local', '--', source, mirror], { encoding: null, maxBuffer: 1024 * 1024 });
         if (clone.error) throw new Error(`Git is required for import: ${clone.error.message}`);
@@ -97,23 +100,38 @@ async function importRepository(source, destination, options = {}) {
             throw new Error('import accepts SHA-1 Git repositories only; this source is already SHA-256');
         }
         const lines = git(mirror, ['for-each-ref', '--format=%(refname) %(objectname)']).toString('utf8').trim().split('\n').filter(Boolean);
-        const refs = lines.map(line => {
+        const availableRefs = lines.map(line => {
             const [name, oid] = line.split(' ');
             if ((!name.startsWith('refs/heads/') && !name.startsWith('refs/tags/')) || !SOURCE_OID.test(oid)) throw new Error(`unsupported source ref: ${line}`);
             assertRefName(name);
             return { name, oid };
         });
-        if (!refs.some(ref => ref.name.startsWith('refs/heads/'))) throw new Error('source has no branch refs to import');
+        if (!availableRefs.some(ref => ref.name.startsWith('refs/heads/'))) throw new Error('source has no branch refs to import');
         const sourceHead = git(mirror, ['symbolic-ref', '-q', 'HEAD']).toString('utf8').trim();
-        const defaultRef = refs.some(ref => ref.name === sourceHead) ? sourceHead : refs.find(ref => ref.name.startsWith('refs/heads/')).name;
-        const { repo } = await repository.init(target, { defaultBranch: defaultRef.slice('refs/heads/'.length) });
+        let defaultRef = availableRefs.some(ref => ref.name === sourceHead)
+            ? sourceHead
+            : availableRefs.find(ref => ref.name.startsWith('refs/heads/')).name;
+        if (options.branch) {
+            const requested = options.branch.startsWith('refs/heads/') ? options.branch : `refs/heads/${options.branch}`;
+            assertRefName(requested);
+            if (!availableRefs.some(ref => ref.name === requested)) throw new Error(`source branch not found: ${options.branch}`);
+            defaultRef = requested;
+        }
+        const refs = options.all ? availableRefs : [availableRefs.find(ref => ref.name === defaultRef)];
+
+        await fs.mkdir(path.dirname(target), { recursive: true });
+        staging = await fs.mkdtemp(path.join(path.dirname(target), `.${path.basename(target)}.gent-import-`));
+        const { repo } = await repository.init(staging, { defaultBranch: defaultRef.slice('refs/heads/'.length) });
         const converted = new Map();
+        const sourceTypes = new Map();
+        const droppedGitlinks = new Set();
         const read = oid => {
             if (!SOURCE_OID.test(oid)) throw new Error(`invalid source object ID: ${oid}`);
             const type = git(mirror, ['cat-file', '-t', oid]).toString('utf8').trim();
+            sourceTypes.set(oid, type);
             return { type, payload: git(mirror, ['cat-file', type, oid]) };
         };
-        const convert = async oid => {
+        const convert = async (oid, treePath = '') => {
             if (converted.has(oid)) return converted.get(oid);
             const pending = (async () => {
                 const sourceObject = read(oid);
@@ -121,8 +139,22 @@ async function importRepository(source, destination, options = {}) {
                 if (sourceObject.type === 'tree') {
                     const entries = [];
                     for (const entry of parseSourceTree(sourceObject.payload)) {
-                        if (entry.mode === 0o160000) throw new Error(`submodule at '${entry.name}' cannot be imported; import its repository separately`);
-                        entries.push({ mode: entry.mode, name: entry.name, oid: await convert(entry.oid) });
+                        const entryPath = treePath ? `${treePath}/${entry.name}` : entry.name;
+                        if (entry.mode === 0o160000) {
+                            let linked;
+                            try { linked = read(entry.oid); }
+                            catch (_) {
+                                if (options.dropUnavailableGitlinks) {
+                                    droppedGitlinks.add(`${entryPath} ${entry.oid}`);
+                                    continue;
+                                }
+                                throw new Error(`gitlink at '${entryPath}' points to unavailable commit ${entry.oid}; import that submodule separately`);
+                            }
+                            if (linked.type !== 'commit') throw new Error(`gitlink at '${entryPath}' does not point to a commit`);
+                            entries.push({ mode: entry.mode, name: entry.name, oid: await convert(entry.oid) });
+                            continue;
+                        }
+                        entries.push({ mode: entry.mode, name: entry.name, oid: await convert(entry.oid, entryPath) });
                     }
                     return repo.objects.write('tree', serializeTree(entries));
                 }
@@ -159,17 +191,29 @@ async function importRepository(source, destination, options = {}) {
             await repo.refs.update(ref.name, oid, { expectedOldOid: null, reason: `import ${ref.name}` });
         }
         await ops.checkout(repo, defaultRef.slice('refs/heads/'.length), { force: true });
+        git(staging, ['fsck', '--full', '--strict']);
+        const commits = [...converted.keys()].filter(oid => sourceTypes.get(oid) === 'commit').length;
+        if (await fs.access(target).then(() => true, () => false)) throw new Error(`destination appeared during import: ${target}`);
+        await fs.rename(staging, target);
+        published = true;
+
         let remoteUrl;
         if (options.remote) {
-            remoteUrl = await createRemote(repo, options.remote, options.private);
-            const branches = refs.filter(ref => ref.name.startsWith('refs/heads/')).map(ref => ref.name.slice(11));
-            const defaultBranch = defaultRef.slice(11);
-            for (const branch of [defaultBranch, ...branches.filter(branch => branch !== defaultBranch)]) await transport.push(repo, 'origin', branch);
-            for (const ref of refs.filter(ref => ref.name.startsWith('refs/tags/'))) await transport.push(repo, 'origin', ref.name);
+            try {
+                const imported = await repository.open(target);
+                remoteUrl = await createRemote(imported, options.remote, options.private);
+                const branches = refs.filter(ref => ref.name.startsWith('refs/heads/')).map(ref => ref.name.slice(11));
+                const defaultBranch = defaultRef.slice(11);
+                for (const branch of [defaultBranch, ...branches.filter(branch => branch !== defaultBranch)]) await transport.push(imported, 'origin', branch);
+                for (const ref of refs.filter(ref => ref.name.startsWith('refs/tags/'))) await transport.push(imported, 'origin', ref.name);
+            } catch (error) {
+                throw new Error(`local import completed at ${target}, but remote publication failed: ${error.message}`);
+            }
         }
-        return { destination: target, commits: [...converted.keys()].filter(oid => read(oid).type === 'commit').length, refs: refs.length, remoteUrl };
+        return { destination: target, commits, refs: refs.length, remoteUrl, droppedGitlinks: [...droppedGitlinks] };
     } finally {
         await fs.rm(scratch, { recursive: true, force: true });
+        if (staging && !published) await fs.rm(staging, { recursive: true, force: true });
     }
 }
 
@@ -177,6 +221,10 @@ module.exports = async function importCommand(source, directory, options) {
     try {
         const result = await importRepository(source, directory, options);
         console.log(`Imported ${result.refs} ref(s) into ${result.destination}`);
+        if (result.droppedGitlinks.length) {
+            console.warn(`Warning: dropped ${result.droppedGitlinks.length} unavailable gitlink target(s); imported tree IDs differ from a complete source conversion.`);
+            for (const item of result.droppedGitlinks) console.warn(`  ${item}`);
+        }
         if (result.remoteUrl) console.log(`Pushed imported history to ${result.remoteUrl}`);
     } catch (error) {
         console.error(`Error: ${error.message}`);

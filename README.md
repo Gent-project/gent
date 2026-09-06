@@ -83,18 +83,28 @@ gent clone https://gent-api.onrender.com/<owner_id>/<repo_name>.git
 ### Import a GitHub repository
 
 GitHub repositories use SHA-1 object IDs while Gent uses SHA-256. Import converts
-the complete reachable branch and tag history into Gent objects, preserving each
-source commit or annotated tag ID in a `gent-source-sha1` header. Signed commit
-and tag signatures are not retained because conversion changes their bytes.
+the source's default branch into Gent objects, preserving each source commit ID
+in a `gent-source-sha1` header. Use `--branch <name>` to select another branch or
+`--all` to include every branch and tag. Signed commit and tag signatures are not
+retained because conversion changes their bytes.
 
 ```bash
 # Requires Git locally only for this read-only source adapter.
 gent import https://github.com/<owner>/<repo>.git ./<repo>-gent --remote <gent-repo-name>
+
+# Import every branch and tag instead of only the default branch.
+gent import https://github.com/<owner>/<repo>.git ./<repo>-gent --all
+
+# Explicitly omit historical gitlinks whose target commits no longer exist.
+gent import https://github.com/<owner>/<repo>.git ./<repo>-gent --all --drop-unavailable-gitlinks
 ```
 
-`--remote` creates the named Gent repository and pushes all imported branches and
-tags. Run `gent login` first. Git submodules and non-UTF-8 path names are refused
-instead of being silently altered.
+`--remote` creates the named Gent repository and pushes the selected refs. Run
+`gent login` first. Gitlinks are preserved when their commits exist in the source
+object database. External submodules and non-UTF-8 path names are refused instead
+of being silently altered. `--drop-unavailable-gitlinks` is an explicit exception:
+it omits missing gitlink entries and warns that imported tree IDs differ. A failed
+local import leaves no partial destination.
 
 Issues and pull requests are **not** implemented — they are out of scope for this version.
 

@@ -137,6 +137,9 @@ program
 program
     .command('import <source> <directory>')
     .description('Import a SHA-1 Git repository as SHA-256 Gent history')
+    .option('--branch <branch>', 'Import one branch instead of the source default')
+    .option('--all', 'Import every branch and tag')
+    .option('--drop-unavailable-gitlinks', 'Drop gitlinks whose commits are unavailable (alters imported trees)')
     .option('--remote <name>', 'Create this Gent remote repository and push imported refs')
     .option('--private', 'Make the created Gent remote private')
     .action(importCommand);

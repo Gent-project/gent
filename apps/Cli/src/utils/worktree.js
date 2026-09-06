@@ -281,11 +281,12 @@ function assertSafeCheckoutPath(repo, relativePath) {
         throw new WorktreeError(`refusing to write to '${relativePath}': absolute paths are not allowed`, 'GENT_UNSAFE_PATH');
     }
 
-    for (const component of relativePath.split('/')) {
+    for (const [index, component] of relativePath.split('/').entries()) {
         if (component === '') {
             throw new WorktreeError(`refusing to write to '${relativePath}': empty path component`, 'GENT_UNSAFE_PATH');
         }
-        if (FORBIDDEN_COMPONENTS.has(component.toLowerCase())) {
+        const metadata = component.toLowerCase();
+        if (FORBIDDEN_COMPONENTS.has(metadata) && !(metadata === '.gent' && index > 0)) {
             throw new WorktreeError(`refusing to write to '${relativePath}': '${component}' is repository metadata`, 'GENT_UNSAFE_PATH');
         }
         if (RESERVED_WINDOWS_NAMES.test(component)) {

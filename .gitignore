@@ -73,3 +73,6 @@ yarn-error.log*
 
 # Git worktrees (never commit these)
 .worktrees/
+
+# Gent repository metadata generated inside the CLI package
+apps/Cli/.gent/
