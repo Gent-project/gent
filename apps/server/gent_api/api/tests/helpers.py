@@ -29,6 +29,7 @@ class RepositoryAccessTestMixin:
             owner=self.owner,
             name='team-repo',
             is_private=True,
+            object_format='legacy',
         )
         Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 64)
         RepositoryMember.objects.create(

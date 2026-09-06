@@ -95,7 +95,7 @@ class Repository(models.Model):
     description = models.TextField(blank=True)
     is_private = models.BooleanField(default=False)
     default_branch = models.CharField(max_length=255, default='main')
-    object_format = models.CharField(max_length=10, default='legacy', choices=[('legacy', 'Legacy'), ('sha256', 'SHA-256')])
+    object_format = models.CharField(max_length=10, default='sha256', choices=[('legacy', 'Legacy'), ('sha256', 'SHA-256')])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

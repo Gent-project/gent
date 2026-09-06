@@ -26,6 +26,7 @@ module.exports = {
         PASSWORD_CHANGE: '/api/auth/password/change/',
         PASSWORD_RESET: '/api/auth/password/reset/',
         PASSWORD_RESET_CONFIRM: '/api/auth/password/reset/confirm/',
+        GIT_TOKENS: '/api/auth/git-tokens/',
 
         // Repository management
         REPOS: '/api/repos/',

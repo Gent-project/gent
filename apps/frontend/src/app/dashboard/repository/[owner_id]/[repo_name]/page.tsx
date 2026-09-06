@@ -191,7 +191,7 @@ export default function RepositoryPage() {
         </aside>
       </motion.div>
 
-      <GitOperationsModal isOpen={showGitOpsModal} onClose={() => setShowGitOpsModal(false)} ownerId={ownerId} repoName={repoName} isDark={isDark} repositoryUrl={cloneUrl} defaultBranch={repository.default_branch} />
+      <GitOperationsModal isOpen={showGitOpsModal} onClose={() => setShowGitOpsModal(false)} ownerId={ownerId} repoName={repoName} isDark={isDark} repositoryUrl={cloneUrl} defaultBranch={repository.default_branch} objectFormat={repository.object_format} />
     </div>
   );
 }

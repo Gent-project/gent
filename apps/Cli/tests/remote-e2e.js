@@ -160,7 +160,7 @@ async function waitForRemoteApi() {
 
     log('local repository: init, remote, status, add, diff, commit');
     fs.writeFileSync(path.join(work, 'README.md'), 'remote hello\n');
-    expectOutput(['init'], work, /Initialized empty Gent repository/);
+    expectOutput(['init', '--object-format', 'legacy'], work, /Initialized empty Gent repository/);
     expectOutput(['remote', 'add', 'origin', remoteUrl], work, /Added remote/);
     expectOutput(['remote', '-v'], work, new RegExp(remoteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     expectOutput(['status'], work, /Untracked files/);
@@ -196,7 +196,7 @@ async function waitForRemoteApi() {
     expectOutput(['status'], cloneDir, /Last commit/);
 
     log('init --remote creates and links deployed repository');
-    expectOutput(['init', '--remote', autoRepoName], autoDir, /Remote 'origin' configured/);
+    expectOutput(['init', '--object-format', 'legacy', '--remote', autoRepoName], autoDir, /Remote 'origin' configured/);
     const config = JSON.parse(fs.readFileSync(path.join(autoDir, '.gent', 'config.json'), 'utf8'));
     assert.match(config.remotes.origin.url, new RegExp(`/api/repos/${ownerId}/${autoRepoName}`));
 

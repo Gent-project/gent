@@ -17,7 +17,7 @@ def read(repository, key):
     return item.type, data
 
 
-def closure(roots, resolve):
+def closure(roots, resolve, max_objects=MAX_OBJECTS, max_bytes=MAX_BYTES):
     objects, pending, total = {}, list(roots), 0
     while pending:
         key, expected = pending.pop()
@@ -33,11 +33,35 @@ def closure(roots, resolve):
         if object_id(kind, data) != key:
             raise GitError('object ID mismatch')
         total += len(data)
-        if total > MAX_BYTES or len(objects) >= MAX_OBJECTS:
+        if ((max_bytes is not None and total > max_bytes)
+                or (max_objects is not None and len(objects) >= max_objects)):
             raise GitError('reachable history exceeds service limits')
         objects[key] = item
         pending.extend(dependencies(kind, data))
     return objects
+
+
+def reachable_ids(roots, resolve, excluded=None):
+    """Walk verified history while retaining only object IDs in memory."""
+    excluded = excluded or set()
+    seen, ordered, pending = set(), [], list(roots)
+    while pending:
+        key, expected = pending.pop()
+        oid(key)
+        if key in seen or key in excluded:
+            continue
+        item = resolve(key)
+        if item is None:
+            raise GitError(f'missing reachable object {key}')
+        kind, data = item
+        if expected and expected != kind:
+            raise GitError('object relationship has incorrect type')
+        if object_id(kind, data) != key:
+            raise GitError('object ID mismatch')
+        seen.add(key)
+        ordered.append(key)
+        pending.extend(dependencies(kind, data))
+    return ordered
 
 
 def public_refs(repository):
@@ -99,7 +123,7 @@ def publish(repository, user, updates, incoming, authorize=None):
             raise GitError('supplied object ID mismatch')
         dependencies(kind, data)
     reachable = closure([(key, 'commit' if name.startswith('refs/heads/') else None)
-                         for name, key in current.items()], resolve)
+                         for name, key in current.items()], resolve, None, None)
     # Unreachable incoming objects are quarantined and discarded.
     for key, (kind, data) in reachable.items():
         _, created = GitObject.objects.get_or_create(repository=repository, oid=key,

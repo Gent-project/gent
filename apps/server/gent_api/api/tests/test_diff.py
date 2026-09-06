@@ -17,7 +17,7 @@ class CommitDiffAPITestCase(TestCase):
             first_name='Diff', last_name='User',
         )
         self.token = str(RefreshToken.for_user(self.user).access_token)
-        self.repo = Repository.objects.create(owner=self.user, name='diff-repo')
+        self.repo = Repository.objects.create(owner=self.user, name='diff-repo', object_format='legacy')
         Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 64)
 
         # Blobs

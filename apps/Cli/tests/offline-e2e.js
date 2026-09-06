@@ -48,7 +48,7 @@ function setIdentity(workDir) {
 function newRepo(name) {
     const work = path.join(root, name);
     fs.mkdirSync(work, { recursive: true });
-    run(work, ['init', '-y']);
+    run(work, ['init', '-y', '--object-format', 'legacy']);
     setIdentity(work);
     return work;
 }

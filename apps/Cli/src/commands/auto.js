@@ -268,3 +268,4 @@ async function pushChanges() {
 }
 
 module.exports = auto;
+module.exports.ensureAuth = ensureAuth;

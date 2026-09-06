@@ -46,6 +46,7 @@ export default function NewRepositoryModal({
     description: "",
     is_private: false,
     default_branch: "main",
+    object_format: "sha256",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -58,6 +59,7 @@ export default function NewRepositoryModal({
         description: "",
         is_private: false,
         default_branch: "main",
+        object_format: "sha256",
       });
       setErrors({});
       return;

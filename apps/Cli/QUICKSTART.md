@@ -179,7 +179,7 @@ gent summary --ai      # health narrative
 3. **Run `gent summary`** after a sprint to see who changed what and how big the repo has grown.
 4. **`gent log --graph`** gives you a visual picture of your branch and merge history.
 5. **Commit often** — small commits are easier to track and undo individually.
-6. **Use `.gentignore`** — exclude `node_modules/`, `.env`, build artifacts.
+6. **Use `.gitignore`** — Gent and Git read the same ignore rules.
 7. **Descriptive messages** — `gent commit --ai` can help when you are stuck.
 8. **Branch for features** — keep `main` stable.
 

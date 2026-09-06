@@ -1,5 +1,7 @@
 # 07 — Presentation Guide
 
+> Legacy v12 presentation chapter. Use [the v13 compatibility notes](../docs/git-compat/review-fixes.md) and [release evidence](../docs/git-compat/release-evidence.md) for the current defense.
+
 ## One-Minute Project Explanation
 
 Gent CLI is a Git-like version control system built with Node.js. It allows users to initialize repositories, stage files, create commits, inspect changes, manage branches, merge branches, undo mistakes, and synchronize with a remote backend. The project demonstrates key software engineering concepts such as content-addressable storage, SHA-256 hashing, LCS diff, diff3 merge, DAG traversal, JWT authentication, REST API integration, and modular command-line design.
@@ -164,4 +166,3 @@ I would implement Myers diff, deterministic commit hashes based on full commit c
 ## Final Closing Statement
 
 Gent CLI demonstrates that version control can be built from clear algorithms and data structures: hashes identify content, commits form a graph, diffs compare line sequences, merges use a common ancestor, and remote sync transfers missing objects. The project is modular, testable, and suitable for explaining both practical software engineering and algorithmic design.
-

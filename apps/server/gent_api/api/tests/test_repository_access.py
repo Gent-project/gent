@@ -107,11 +107,13 @@ class AnonymousPublicRepositoryAccessTestCase(TestCase):
             owner=self.owner,
             name='open-repo',
             is_private=False,
+            object_format='legacy',
         )
         self.private_repo = Repository.objects.create(
             owner=self.owner,
             name='closed-repo',
             is_private=True,
+            object_format='legacy',
         )
         for repo in (self.public_repo, self.private_repo):
             Branch.objects.create(

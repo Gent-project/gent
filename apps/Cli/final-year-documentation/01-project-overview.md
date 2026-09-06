@@ -1,5 +1,7 @@
 # 01 — Project Overview
 
+> Legacy v12 report chapter. For implemented v13 Git compatibility, use [the current review fixes](../docs/git-compat/review-fixes.md).
+
 ## Project Name
 
 Gent CLI
@@ -169,4 +171,3 @@ This project demonstrates several important software engineering topics:
 - Security concepts: token storage, access token refresh, authenticated requests.
 - User experience: interactive prompts, grouped help, diagnostics, templates.
 - Testing: unit tests for hashing, diffing, merging, and merge-base logic.
-

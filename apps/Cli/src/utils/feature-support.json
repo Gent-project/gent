@@ -3,7 +3,7 @@
   "formatMarker": "gent-format-13",
   "objectFormat": "sha256",
   "repositoryFormatVersion": 1,
-  "notes": "Canonical engine capability declarations, not a claim that every tool/version is verified. CLI consumes this file; server integration is future work. See docs/git-compat/review-fixes.md for tested scope.",
+  "notes": "Canonical engine and transport capability declarations. See docs/git-compat/release-evidence.md for the verified tool matrix.",
   "features": [
     {
       "id": "object-format.sha256",
@@ -176,15 +176,16 @@
     },
     {
       "id": "transport.smart-http-v0",
-      "status": "unsupported",
+      "status": "supported",
       "title": "Smart HTTP protocol v0",
-      "detail": "Not implemented yet. Canonical remote commands refuse until the server and transport phases are complete."
+      "detail": "Native pkt-line discovery, incremental fetch, push status, atomic ref publication, SHA-256 negotiation and streamed pack responses."
     },
     {
       "id": "transport.smart-http-v2",
-      "status": "unsupported",
+      "status": "partial",
       "title": "Smart HTTP protocol v2",
-      "detail": "Not implemented. No fallback advertisement is currently served."
+      "detail": "A version=2 request receives the supported protocol-v0 advertisement.",
+      "remedy": "Clients must permit protocol-v0 fallback."
     },
     {
       "id": "transport.ssh",

@@ -45,7 +45,7 @@ def advertisement(repository, service):
 
 
 def upload(repository, data):
-    pos, wants, done, caps = 0, [], False, []
+    pos, wants, haves, done, caps = 0, [], [], False, []
     while pos < len(data):
         line, pos = packet(data, pos)
         if line is None:
@@ -58,7 +58,7 @@ def upload(repository, data):
                 raise GitError('capabilities only allowed on first want')
             wants.append(oid(fields[1]))
         elif fields[0] == 'have' and len(fields) == 2:
-            oid(fields[1])  # Legal baseline: NAK and send a full closure.
+            haves.append(oid(fields[1]))
         elif fields == ['done']:
             done = True
         else:
@@ -72,8 +72,12 @@ def upload(repository, data):
         raise GitError('want is not an advertised ref')
     if not done:
         return pkt('NAK\n')
-    objects = store.closure([(key, None) for key in wants], lambda key: store.read(repository, key))
-    return pkt('NAK\n') + pack.encode(list(objects.values()))
+    resolve = lambda key: store.read(repository, key)
+    common_roots = [key for key in haves if resolve(key) is not None]
+    common = set(store.reachable_ids([(key, None) for key in common_roots], resolve)) if common_roots else set()
+    missing = store.reachable_ids([(key, None) for key in wants], resolve, common)
+    acknowledgement = pkt(f'ACK {common_roots[0]}\n') if common_roots else pkt('NAK\n')
+    return acknowledgement, pack.encode_spooled((resolve(key) for key in missing), len(missing))
 
 
 def receive(repository, user, data, authorize=None):

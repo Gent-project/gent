@@ -13,6 +13,11 @@ const { GitIndex } = require('../utils/git-index');
 const { Lock } = require('../utils/lockfile');
 const { AttributesMatcher, looksBinary } = require('../utils/attributes');
 const { formatUnifiedDiff } = require('../utils/diff-engine');
+const apiClient = require('../utils/api-client');
+const authStorage = require('../utils/auth-storage');
+const { API_ENDPOINTS } = require('../utils/constants');
+const { isInteractive } = require('../utils/interactive');
+const inquirer = require('inquirer');
 
 async function locatedCanonical() {
     let found;
@@ -33,17 +38,34 @@ function route(name, legacy) {
             }
             if (name === 'init') {
                 const options = args[0] || {};
-                if (!options.objectFormat) {
-                    const existing = await locatedCanonical();
-                    if (!existing) return legacy(...args);
+                let found = null;
+                try { found = await repository.findGitdir(); } catch (error) {
+                    if (error.code !== 'GENT_NOT_A_REPOSITORY') throw error;
+                }
+                if (found) {
+                    if (await repository.isLegacyRepository(found.commondir)) return legacy(...args);
+                    const existing = await repository.open();
                     console.log(`Repository already initialized: ${existing.gitdir}`);
+                    if (options.remote) await createCanonicalRemote(existing, options.remote);
                     return;
                 }
-                if (options.objectFormat !== 'sha256') throw new Error('only --object-format=sha256 is supported');
-                if (options.remote) throw new Error('canonical remote creation is not implemented yet');
+                if (options.objectFormat === 'legacy') return legacy(...args);
+                if (options.objectFormat && options.objectFormat !== 'sha256') throw new Error('object format must be sha256 or legacy');
                 const result = await repository.init(process.cwd());
                 console.log(`Initialized SHA-256 repository: ${result.gitdir}`);
+                if (options.remote) await createCanonicalRemote(result.repo, options.remote);
                 return;
+            }
+            if (name === 'auto' || (name === 'remote' && args[0] === 'add')) {
+                let found = null;
+                try { found = await repository.findGitdir(); } catch (error) {
+                    if (error.code !== 'GENT_NOT_A_REPOSITORY') throw error;
+                }
+                if (!found) {
+                    if (name === 'auto' && !isInteractive()) throw new Error('gent auto needs an interactive terminal');
+                    const result = await repository.init(process.cwd());
+                    console.log(`Initialized SHA-256 repository: ${result.gitdir}`);
+                }
             }
             // CLI-global settings remain available inside canonical repositories.
             if (name === 'config' && args[1]?.[0] && !/^(user\.|core\.|remote\.|branch\.)/i.test(args[1][0])) {
@@ -75,8 +97,118 @@ function route(name, legacy) {
     return handler;
 }
 
+async function createCanonicalRemote(repo, requestedName, options = {}) {
+    if (!await authStorage.isAuthenticated()) throw new Error('run gent login before creating a remote repository');
+    if (repo.config.get('remote.origin.url')) throw new Error("remote 'origin' already exists");
+    const name = typeof requestedName === 'string' ? requestedName : path.basename(repo.worktree);
+    if (!/^[A-Za-z0-9_-]+$/.test(name)) throw new Error('repository name must use letters, digits, _ or -');
+    const head = await repo.refs.head();
+    const data = await apiClient.post(API_ENDPOINTS.REPOS_CREATE, {
+        name,
+        description: 'A gent repository',
+        is_private: Boolean(options.private),
+        default_branch: head.branch || 'main',
+        object_format: 'sha256',
+    });
+    const remoteRepo = data.repository || data;
+    const base = (await apiClient.resolveBaseUrl()).replace(/\/api\/?$/, '').replace(/\/$/, '');
+    const url = `${base}/${encodeURIComponent(remoteRepo.owner_id)}/${encodeURIComponent(remoteRepo.name)}.git`;
+    repo.localConfig.set('remote.origin.url', url);
+    repo.localConfig.set('remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*');
+    if (head.branch) {
+        repo.localConfig.set(`branch.${head.branch}.remote`, 'origin');
+        repo.localConfig.set(`branch.${head.branch}.merge`, `refs/heads/${head.branch}`);
+    }
+    await repo.localConfig.save();
+    console.log(`Created remote repository: ${url}`);
+}
+
 const transport = require('../utils/smart-http');
 const handlers = {
+    async auto(repo) {
+        if (!isInteractive()) throw new Error('gent auto needs an interactive terminal');
+        await require('./auto').ensureAuth();
+        const user = await authStorage.getUser();
+        let changedConfig = false;
+        if (!repo.config.get('user.name')) {
+            const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ');
+            repo.localConfig.set('user.name', fullName || user?.username || user?.email?.split('@')[0] || 'Gent User');
+            changedConfig = true;
+        }
+        if (!repo.config.get('user.email') && user?.email) {
+            repo.localConfig.set('user.email', user.email);
+            changedConfig = true;
+        }
+        if (changedConfig) await repo.localConfig.save();
+
+        let linked = Boolean(repo.config.get('remote.origin.url'));
+        if (!linked) {
+            const { how } = await inquirer.prompt([{
+                type: 'list',
+                name: 'how',
+                message: 'No remote linked yet. Link one?',
+                choices: [
+                    { name: 'Create a new repository on Gent', value: 'create' },
+                    { name: 'Link an existing smart HTTP URL', value: 'existing' },
+                    { name: 'Skip for now', value: 'skip' },
+                ],
+            }]);
+            if (how === 'existing') {
+                const { url } = await inquirer.prompt([{
+                    type: 'input', name: 'url', message: 'Remote URL:',
+                    validate: value => { try { transport.remoteUrl(value); return true; } catch (error) { return error.message; } },
+                }]);
+                repo.localConfig.set('remote.origin.url', transport.remoteUrl(url));
+                repo.localConfig.set('remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*');
+                await repo.localConfig.save();
+                linked = true;
+            } else if (how === 'create') {
+                const remote = await inquirer.prompt([
+                    { type: 'input', name: 'name', message: 'Repository name:', default: path.basename(repo.worktree),
+                        validate: value => /^[A-Za-z0-9_-]+$/.test(value) || 'Use letters, digits, _ or -' },
+                    { type: 'confirm', name: 'private', message: 'Private repository?', default: false },
+                ]);
+                await createCanonicalRemote(repo, remote.name, { private: remote.private });
+                linked = true;
+            }
+        }
+
+        const { stage } = await inquirer.prompt([{
+            type: 'list',
+            name: 'stage',
+            message: 'What should Gent stage?',
+            choices: [
+                { name: 'All changes', value: 'all' },
+                { name: 'Specific paths', value: 'paths' },
+                { name: 'Nothing', value: 'none' },
+            ],
+        }]);
+        if (stage !== 'none') {
+            let paths = [];
+            if (stage === 'paths') {
+                const answer = await inquirer.prompt([{
+                    type: 'input', name: 'paths', message: 'Paths (space-separated):',
+                    validate: value => value.trim() ? true : 'Enter at least one path',
+                }]);
+                paths = answer.paths.trim().split(/\s+/);
+            }
+            await ops.addPaths(repo, paths, { all: stage === 'all' });
+        }
+        const status = await ops.status(repo);
+        if (status.staged.length) {
+            const { message } = await inquirer.prompt([{
+                type: 'input', name: 'message', message: 'Commit message:',
+                validate: value => value.trim() ? true : 'Commit message is required',
+            }]);
+            const result = await ops.createCommit(repo, { message });
+            console.log(`[${result.branch || 'detached'} ${result.oid.slice(0, 12)}] ${message}`);
+        }
+        if (linked && (await repo.refs.head()).oid) {
+            await transport.push(repo, 'origin');
+            console.log('Push complete');
+        }
+        console.log('All done.');
+    },
     async remote(repo, sub, args = []) {
         const [name = 'origin', url] = args;
         transport.nameCheck(name);
@@ -184,9 +316,18 @@ const handlers = {
         else for (const item of await ops.listTags(repo)) console.log(item.name);
     },
     async log(repo, options) {
-        if (options.graph || options.stat) throw new Error('canonical log --graph/--stat formatting is not implemented yet; use log --oneline');
         for (const commit of await ops.walkHistory(repo, { max: Number(options.number) })) {
-            console.log(`${commit.oid.slice(0, 12)} ${commit.message.toString().split('\n')[0]}`);
+            const graph = options.graph ? '* ' : '';
+            console.log(`${graph}${commit.oid.slice(0, 12)} ${commit.message.toString().split('\n')[0]}`);
+            if (options.stat) {
+                const current = await worktree.readTreeRecursive(repo, commit.tree);
+                const parent = commit.parents[0]
+                    ? await worktree.readTreeRecursive(repo, (await repo.objects.readCommit(commit.parents[0])).tree)
+                    : new Map();
+                const changed = [...new Set([...current.keys(), ...parent.keys()])]
+                    .filter(name => current.get(name)?.oid !== parent.get(name)?.oid || current.get(name)?.mode !== parent.get(name)?.mode);
+                console.log(` ${changed.length} file${changed.length === 1 ? '' : 's'} changed`);
+            }
         }
     },
     async show(repo, ref = 'HEAD', options = {}) {

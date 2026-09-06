@@ -23,6 +23,7 @@ interface GitOperationsModalProps {
   isDark: boolean;
   repositoryUrl: string;
   defaultBranch: string;
+  objectFormat?: "legacy" | "sha256";
 }
 
 export default function GitOperationsModal({ 
@@ -32,7 +33,8 @@ export default function GitOperationsModal({
   repoName, 
   isDark,
   repositoryUrl,
-  defaultBranch 
+  defaultBranch,
+  objectFormat,
 }: GitOperationsModalProps) {
   const [activeTab, setActiveTab] = useState<'clone' | 'push' | 'pull'>('clone');
   
@@ -56,6 +58,7 @@ export default function GitOperationsModal({
 
   const setupCommands = [
     `cd ${repoName}`,
+    objectFormat === "legacy" ? "gent init --object-format legacy" : "gent init --object-format sha256",
     `echo "# ${repoName}" >> README.md`,
     `gent add README.md`,
     `gent commit -m "Initial commit"`,

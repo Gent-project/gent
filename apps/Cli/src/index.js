@@ -20,7 +20,7 @@
  *   Templates:   template (list|use)
  *
  * @author Abdalrahman Kanawati
- * @version 7.0.0
+ * @version 13.0.0
  */
 
 // Boot: load env files BEFORE anything else reads process.env.
@@ -80,6 +80,7 @@ const shareCommand = route('share', require('./commands/share'));
 const searchCommand = require('./commands/search');
 const templateCommand = require('./commands/template');
 const petCommand = require('./commands/pet');
+const gitTokenCommand = require('./commands/git-token');
 
 // Configure CLI
 program
@@ -98,7 +99,7 @@ program
     .command('init')
     .description('Initialize a new gent repository')
     .option('-y, --yes', 'Skip prompts and use defaults')
-    .option('--object-format <format>', 'Opt into the canonical SHA-256 engine')
+    .option('--object-format <format>', 'Repository object format: sha256 (default) or legacy')
     .option('--remote [name]', 'Create a remote repository on the backend')
     .action(initCommand);
 
@@ -329,6 +330,18 @@ program
     .description('Manage repo collaborators (list | add <email> | remove <email>)')
     .option('--role <role>', 'Role when adding a member: write or read', 'write')
     .action(membersCommand);
+
+program
+    .command('git-token [action] [id]')
+    .description('Create, list, or revoke HTTPS credentials for Git clients')
+    .option('--name <name>', 'Token name')
+    .option('--repository <id>', 'Limit the token to one repository')
+    .option('--write', 'Allow pushes')
+    .option('--expires-days <days>', 'Expire after 1 to 365 days')
+    .action(async (action, id, options) => {
+        try { await gitTokenCommand(action, id, options); }
+        catch (error) { console.error(`Error: ${error.response?.data?.error || error.message}`); process.exitCode = 1; }
+    });
 
 program
     .command('push [remote] [branch]')

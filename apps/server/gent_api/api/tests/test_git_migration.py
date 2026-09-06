@@ -13,7 +13,7 @@ class MigrationTests(TestCase):
     def setUp(self):
         self.fixture = json.loads((Path(__file__).resolve().parents[5] / 'tests/fixtures/git-compat/legacy.json').read_text())
         self.user = User.objects.create_user(email='author@example.com')
-        self.repo = Repository.objects.create(owner=self.user, name='legacy')
+        self.repo = Repository.objects.create(owner=self.user, name='legacy', object_format='legacy')
         c = self.fixture['history']['commits'][0]
         blob_id = next(iter(self.fixture['blobs']))
         raw = base64.b64decode(self.fixture['blobs'][blob_id])

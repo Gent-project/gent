@@ -1,5 +1,7 @@
 # 05 — Data Models and Storage
 
+> Legacy v12 report chapter. For implemented v13 Git-compatible storage, use [the format contract](../docs/git-compat/format-contract.md).
+
 ## Storage Overview
 
 Gent uses two storage locations:
@@ -313,4 +315,3 @@ flowchart LR
     Pack --> API["POST backend push endpoint"]
     API --> RemoteRefs["Update config.remoteRefs"]
 ```
-

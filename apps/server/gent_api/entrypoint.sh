@@ -38,4 +38,6 @@ print('Superuser %s %s' % (email, 'created' if created else 'updated'))
 fi
 
 echo "Starting Gunicorn server..."
-exec gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 gent_api.wsgi:application
+GENT_GUNICORN_WORKERS="${GENT_GUNICORN_WORKERS:-4}"
+GENT_GUNICORN_TIMEOUT="${GENT_GUNICORN_TIMEOUT:-300}"
+exec gunicorn --bind 0.0.0.0:8000 --workers "$GENT_GUNICORN_WORKERS" --timeout "$GENT_GUNICORN_TIMEOUT" gent_api.wsgi:application

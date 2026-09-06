@@ -27,7 +27,7 @@ class BranchAPITestCase(TestCase):
         refresh2 = RefreshToken.for_user(self.user2)
         self.user2_token = str(refresh2.access_token)
 
-        self.repo = Repository.objects.create(owner=self.user, name='test-repo')
+        self.repo = Repository.objects.create(owner=self.user, name='test-repo', object_format='legacy')
         self.branch = Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 64)
 
         self.tree = Tree.objects.create(repository=self.repo, sha='tree123abc', entries=[])
@@ -199,5 +199,4 @@ class BranchMemberAccessTestCase(RepositoryAccessTestMixin, TestCase):
             format='json',
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
 

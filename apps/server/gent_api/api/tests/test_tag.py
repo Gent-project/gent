@@ -25,7 +25,7 @@ class TagAPITestCase(TestCase):
         refresh_other = RefreshToken.for_user(self.other_user)
         self.other_token = str(refresh_other.access_token)
 
-        self.repo = Repository.objects.create(owner=self.user, name='test-repo')
+        self.repo = Repository.objects.create(owner=self.user, name='test-repo', object_format='legacy')
         self.tree = Tree.objects.create(repository=self.repo, sha='tree123abc', entries=[])
         self.commit = Commit.objects.create(
             repository=self.repo,

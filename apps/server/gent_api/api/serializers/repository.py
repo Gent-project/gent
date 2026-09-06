@@ -33,6 +33,7 @@ class RepositorySerializer(serializers.ModelSerializer):
 
 class RepositoryCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating a repository."""
+    object_format = serializers.ChoiceField(choices=('legacy', 'sha256'), default='sha256')
     class Meta:
         model = Repository
         fields = ['name', 'description', 'is_private', 'default_branch', 'object_format']

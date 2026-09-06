@@ -12,7 +12,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const chalk = require('chalk');
 const { pathExists, ensureDir } = require('../utils/fileSystem');
-const initCommand = require('./init');
+const repository = require('../utils/repository');
 
 const TEMPLATES = {
     node: {
@@ -25,7 +25,7 @@ const TEMPLATES = {
                 scripts: { start: 'node index.js' },
             }, null, 2) + '\n',
             'index.js': "console.log('hello from __NAME__');\n",
-            '.gentignore': 'node_modules/\n.env\n',
+            '.gitignore': 'node_modules/\n.env\n',
             'README.md': '# __NAME__\n\nA Node.js project scaffolded with `gent template use node`.\n',
         },
     },
@@ -34,7 +34,7 @@ const TEMPLATES = {
         files: {
             'main.py': "def main():\n    print('hello from __NAME__')\n\nif __name__ == '__main__':\n    main()\n",
             'requirements.txt': '',
-            '.gentignore': '__pycache__/\n.venv/\n*.pyc\n.env\n',
+            '.gitignore': '__pycache__/\n.venv/\n*.pyc\n.env\n',
             'README.md': '# __NAME__\n\nA Python project scaffolded with `gent template use python`.\n',
         },
     },
@@ -51,7 +51,7 @@ const TEMPLATES = {
             }, null, 2) + '\n',
             'index.html': '<!doctype html>\n<html><head><title>__NAME__</title></head>\n<body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>\n',
             'src/main.jsx': "import React from 'react';\nimport { createRoot } from 'react-dom/client';\ncreateRoot(document.getElementById('root')).render(<h1>__NAME__</h1>);\n",
-            '.gentignore': 'node_modules/\ndist/\n.env\n',
+            '.gitignore': 'node_modules/\ndist/\n.env\n',
             'README.md': '# __NAME__\n\nRun `npm install && npm run dev` to start.\n',
         },
     },
@@ -60,7 +60,7 @@ const TEMPLATES = {
         files: {
             'manage.py': "#!/usr/bin/env python\nimport os, sys\nif __name__ == '__main__':\n    os.environ.setdefault('DJANGO_SETTINGS_MODULE', '__NAME__.settings')\n    from django.core.management import execute_from_command_line\n    execute_from_command_line(sys.argv)\n",
             'requirements.txt': 'Django>=5.0\n',
-            '.gentignore': '__pycache__/\n*.pyc\n.venv/\ndb.sqlite3\n.env\n',
+            '.gitignore': '__pycache__/\n*.pyc\n.venv/\ndb.sqlite3\n.env\n',
             'README.md': '# __NAME__\n\nRun `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`.\n',
         },
     },
@@ -125,7 +125,7 @@ async function use(name, directory) {
     const originalCwd = process.cwd();
     try {
         process.chdir(targetPath);
-        await initCommand({});
+        await repository.init(targetPath);
     } finally {
         process.chdir(originalCwd);
     }

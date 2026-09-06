@@ -1,7 +1,7 @@
 /** Independent bounded protocol-v0 client. No external Git engine. */
 const fs = require('fs').promises;
 const path = require('path');
-const axios = require('axios');
+const { apiClient } = require('./api-client');
 const objects = require('./git-objects');
 const { buildPack, readPackStream } = require('./packfile');
 const { assertRefName: validateRefName } = require('./refs');
@@ -37,17 +37,23 @@ function remoteUrl(value) {
 }
 async function request(url, service, body) {
     const headers = {};
+    let skipAuthRefresh = false;
     if (process.env.GENT_HTTP_TOKEN) {
         if (!process.env.GENT_HTTP_USER) throw new Error('set GENT_HTTP_USER with GENT_HTTP_TOKEN');
         headers.Authorization = 'Basic ' + Buffer.from(`${process.env.GENT_HTTP_USER}:${process.env.GENT_HTTP_TOKEN}`).toString('base64');
+        skipAuthRefresh = true;
     }
     const suffix = body ? service : `info/refs?service=${service}`;
     if (body) headers['Content-Type'] = `application/x-${service}-request`;
-    const result = await axios({ url: `${remoteUrl(url)}/${suffix}`, method: body ? 'POST' : 'GET', data: body,
-        headers, responseType: 'arraybuffer', timeout: 30000, maxRedirects: 0,
-        maxBodyLength: MAX_BYTES, maxContentLength: MAX_BYTES,
-        validateStatus: () => true });
-    if (result.status !== 200) throw new Error(`remote returned HTTP ${result.status}`);
+    let result;
+    try {
+        result = await apiClient({ url: `${remoteUrl(url)}/${suffix}`, method: body ? 'POST' : 'GET', data: body,
+            headers, responseType: 'arraybuffer', timeout: 30000, maxRedirects: 0,
+            maxBodyLength: MAX_BYTES, maxContentLength: MAX_BYTES, skipAuthRefresh });
+    } catch (error) {
+        if (error.response) throw new Error(`remote returned HTTP ${error.response.status}`);
+        throw error;
+    }
     const expected = `application/x-${service}-${body ? 'result' : 'advertisement'}`;
     if (result.headers['content-type']?.split(';')[0] !== expected) throw new Error('invalid smart HTTP content type');
     return Buffer.from(result.data);
@@ -86,7 +92,7 @@ function dependencies(item) {
     if (item.type === 'tag') { const t = objects.parseTag(item.payload); return [[t.object, t.targetType]]; }
     throw new Error('invalid object type');
 }
-async function closure(roots, resolve) {
+async function closure(roots, resolve, options = {}) {
     const result = new Map(), todo = [...roots]; let total = 0;
     while (todo.length) {
         const [oid, expected] = todo.pop();
@@ -95,7 +101,7 @@ async function closure(roots, resolve) {
         if (result.has(oid)) continue;
         if (objects.hashObject(item.type, item.payload) !== oid) throw new Error('object ID mismatch');
         total += item.payload.length;
-        if (total > MAX_BYTES || result.size >= 10000) throw new Error('history exceeds transfer limits');
+        if (options.bounded !== false && (total > MAX_BYTES || result.size >= 10000)) throw new Error('history exceeds transfer limits');
         result.set(oid, { ...item, oid }); todo.push(...dependencies(item));
     }
     return result;
@@ -127,13 +133,21 @@ async function fetch(repo, name = 'origin', url = configured(repo, name)) {
     }
     if (selected.length) {
         const wants = [...new Set(selected.map(([, oid]) => oid))];
-        const body = Buffer.concat([...wants.map((oid, i) => pkt(`want ${oid}${i ? '' : ' object-format=sha256'}\n`)), Buffer.from('0000'), pkt('done\n')]);
+        const localRefs = await repo.refs.list();
+        const haves = [];
+        for (const oid of new Set(localRefs.values())) if (await repo.objects.has(oid)) haves.push(oid);
+        const body = Buffer.concat([
+            ...wants.map((oid, i) => pkt(`want ${oid}${i ? '' : ' object-format=sha256'}\n`)),
+            Buffer.from('0000'),
+            ...haves.map(oid => pkt(`have ${oid}\n`)),
+            pkt('done\n'),
+        ]);
         const data = await request(url, 'git-upload-pack', body);
         const first = packet(data, 0);
-        if (first.line?.toString() !== 'NAK\n') throw new Error('unsupported upload response');
-        const incoming = await readPackStream(data.subarray(first.pos), { maxObjects: 10000, resolveBase: oid => repo.objects.has(oid).then(has => has ? repo.objects.read(oid) : null) });
+        if (first.line?.toString() !== 'NAK\n' && !first.line?.toString().startsWith('ACK ')) throw new Error('unsupported upload response');
+        const incoming = await readPackStream(data.subarray(first.pos), { maxObjects: 250000, resolveBase: oid => repo.objects.has(oid).then(has => has ? repo.objects.read(oid) : null) });
         const byOid = new Map(incoming.map(item => [item.oid, item]));
-        await closure(selected.map(([ref, oid]) => [oid, ref.startsWith('refs/heads/') ? 'commit' : null]), oid => byOid.get(oid) || repo.objects.read(oid));
+        await closure(selected.map(([ref, oid]) => [oid, ref.startsWith('refs/heads/') ? 'commit' : null]), oid => byOid.get(oid) || repo.objects.read(oid), { bounded: false });
         for (const item of incoming) await repo.objects.writeVerified(item.oid, item.type, item.payload);
         await repo.refs.updateMany(updates, `fetch ${name}`);
     }
@@ -154,8 +168,14 @@ async function push(repo, name = 'origin', branch, options = {}) {
         throw new Error('non-fast-forward push; fetch and merge first');
     }
     if (!ad.caps.includes('report-status')) throw new Error('remote must report ref status');
-    const all = await closure([[target, ref.startsWith('refs/heads/') ? 'commit' : null]], oid => repo.objects.read(oid));
-    const body = Buffer.concat([pkt(`${old} ${target} ${ref}\0report-status object-format=sha256\n`), Buffer.from('0000'), buildPack([...all.values()]).pack]);
+    const all = await closure([[target, ref.startsWith('refs/heads/') ? 'commit' : null]], oid => repo.objects.read(oid), { bounded: false });
+    const remoteRoots = [];
+    for (const oid of new Set(ad.refs.values())) if (await repo.objects.has(oid)) remoteRoots.push([oid, null]);
+    const remoteObjects = remoteRoots.length
+        ? await closure(remoteRoots, oid => repo.objects.read(oid), { bounded: false })
+        : new Map();
+    const outgoing = [...all].filter(([oid]) => !remoteObjects.has(oid)).map(([, item]) => item);
+    const body = Buffer.concat([pkt(`${old} ${target} ${ref}\0report-status object-format=sha256\n`), Buffer.from('0000'), buildPack(outgoing).pack]);
     const data = await request(url, 'git-receive-pack', body);
     let pos = 0; const lines = [];
     while (pos < data.length) { const row = packet(data, pos); pos = row.pos; if (row.line === null) break; lines.push(row.line.toString().trim()); }
@@ -184,11 +204,15 @@ async function clone(url, directory) {
 }
 async function migrationInfo(url) {
     const headers = {};
+    let skipAuthRefresh = false;
     if (process.env.GENT_HTTP_TOKEN) {
         if (!process.env.GENT_HTTP_USER) throw new Error('set GENT_HTTP_USER with GENT_HTTP_TOKEN');
         headers.Authorization = 'Basic ' + Buffer.from(`${process.env.GENT_HTTP_USER}:${process.env.GENT_HTTP_TOKEN}`).toString('base64');
+        skipAuthRefresh = true;
     }
-    const result = await axios.get(remoteUrl(url) + '/gent-migration', { headers, timeout: 30000, maxRedirects: 0, maxContentLength: MAX_BYTES });
+    const result = await apiClient.get(remoteUrl(url) + '/gent-migration', {
+        headers, timeout: 30000, maxRedirects: 0, maxContentLength: MAX_BYTES, skipAuthRefresh,
+    });
     if (result.data?.format !== 'gent-migration-1' || result.data.object_format !== 'sha256') throw new Error('server cutover must finish before connected migration');
     return result.data;
 }

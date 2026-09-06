@@ -20,6 +20,8 @@ urlpatterns = [
         name='password_reset_confirm',
     ),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/git-tokens/', views.git_token_list_create, name='git-token-list-create'),
+    path('auth/git-tokens/<int:token_id>/', views.git_token_delete, name='git-token-delete'),
 
     # Repository endpoints
     path('repos/', views.repository_list, name='repository-list'),

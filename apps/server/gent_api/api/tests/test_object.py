@@ -17,7 +17,7 @@ class BlobAndTreeAPITestCase(TestCase):
         )
         refresh = RefreshToken.for_user(self.user)
         self.token = str(refresh.access_token)
-        self.repo = Repository.objects.create(owner=self.user, name='test-repo')
+        self.repo = Repository.objects.create(owner=self.user, name='test-repo', object_format='legacy')
 
     def test_create_blob(self):
         url = reverse('blob-create', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})

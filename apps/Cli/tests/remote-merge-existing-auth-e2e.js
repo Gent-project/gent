@@ -64,7 +64,7 @@ assert.ok(remoteMatch, created);
 const ownerId = remoteMatch[1];
 const remoteUrl = `/api/repos/${ownerId}/${repoName}`;
 
-run(source, ['init', '-y']);
+run(source, ['init', '-y', '--object-format', 'legacy']);
 run(source, ['remote', 'add', 'origin', remoteUrl]);
 write(source, 'test.json', '{"version":"base"}\n');
 run(source, ['add', 'test.json']);

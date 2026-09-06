@@ -126,7 +126,7 @@ async function plan(root) {
     }
     const index = new GitIndex();
     for (const entry of flat.values()) index.add(new IndexEntry(entry));
-    await closure([...converted.refs].map(([name, oid]) => [oid, name.startsWith('refs/heads/') ? 'commit' : null]), oid => converted.incoming.get(oid));
+    await closure([...converted.refs].map(([name, oid]) => [oid, name.startsWith('refs/heads/') ? 'commit' : null]), oid => converted.incoming.get(oid), { bounded: false });
     if (before !== await digestDirectory(source)) throw new Error('legacy metadata changed during inspection; stop other writers and retry');
     const remotes = {};
     for (const [name, remote] of Object.entries(config.remotes || {})) {
@@ -244,7 +244,7 @@ async function migrate(root, options = {}) {
         await writeAtomic(path.join(repo.gentMetaDir, 'legacy-config.json'), JSON.stringify(value.config, null, 2));
         const gentIgnore = (await readFileOrNull(path.join(root, '.gentignore')))?.toString() || '';
         await writeAtomic(path.join(repo.gitdir, 'info', 'exclude'), DEFAULT_IGNORE_PATTERNS.filter(p => !['.gitignore', '.gentignore'].includes(p)).join('\n') + '\n' + gentIgnore + '\n');
-        await closure([...value.refs].map(([name, oid]) => [oid, name.startsWith('refs/heads/') ? 'commit' : null]), oid => repo.objects.read(oid));
+        await closure([...value.refs].map(([name, oid]) => [oid, name.startsWith('refs/heads/') ? 'commit' : null]), oid => repo.objects.read(oid), { bounded: false });
         for (const url of Object.values(value.remotes)) await migrationInfo(url);
         if (await exists(p.pointer) || await digestDirectory(value.source) !== value.before) throw new Error('legacy repository changed during migration; active state was preserved');
         await writeAtomic(path.join(repo.gitdir, 'gent', 'migration-pointer.json'), JSON.stringify({ id }));

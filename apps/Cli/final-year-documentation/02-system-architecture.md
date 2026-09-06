@@ -1,5 +1,7 @@
 # 02 — System Architecture
 
+> Legacy v12 report chapter. For implemented v13 storage and transport, use [the format contract](../docs/git-compat/format-contract.md).
+
 ## Architecture Summary
 
 Gent CLI is organized into layers. The entry point parses commands, command modules coordinate workflows, utility engines perform core algorithms, and local files under `.gent/` store repository state.
@@ -257,4 +259,3 @@ sequenceDiagram
 | Recoverability | Journal-based undo/redo reduces risk during history operations. |
 | Educational value | Algorithms are implemented directly rather than hidden behind Git libraries. |
 | Extensibility | New commands can be added by creating a command module and registering it in `index.js`. |
-

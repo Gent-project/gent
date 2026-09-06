@@ -96,7 +96,7 @@ def convert(history, read_blob):
             tagger = identity(tag.get('tagger') or {}, tag.get('timestamp'))
             key = put('tag', (f'object {key}\ntype commit\ntag {name}\ntagger {tagger}\n\n' + (tag.get('message') or '')).encode())
         refs['refs/tags/' + name] = key
-    store.closure([(key, 'commit' if name.startswith('refs/heads/') else None) for name, key in refs.items()], incoming.get)
+    store.closure([(key, 'commit' if name.startswith('refs/heads/') else None) for name, key in refs.items()], incoming.get, None, None)
     return incoming, mapping, refs
 
 

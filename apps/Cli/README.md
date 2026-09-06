@@ -1,6 +1,6 @@
 # Gent CLI
 
-Gent is a Git-like version control CLI with cloud authentication and remote sync.
+Gent is a Git-compatible SHA-256 version control CLI with cloud authentication and remote sync. Its object, index, ref, pack, and smart-HTTP implementations are owned by Gent and do not invoke the `git` executable.
 
 Global API URL:
 
@@ -116,14 +116,14 @@ cd my-project
 gent init
 ```
 
-This creates:
+This creates a canonical SHA-256 repository:
 
 ```text
 .gent/
-.gentignore
+.git
 ```
 
-The `.gent` directory stores local commits, objects, branches, tags, staging data, and config.
+The `.gent` directory is a canonical SHA-256 Git directory containing objects, refs, reflogs, index, config, and Gent recovery metadata. The `.git` file points Git tools to it.
 
 ### 6. Create a remote repository
 
@@ -131,24 +131,18 @@ The `.gent` directory stores local commits, objects, branches, tags, staging dat
 gent repos --create my-project --description "My first Gent repository"
 ```
 
-Expected output includes a remote path like:
+Expected output includes a smart-HTTP URL like:
 
 ```text
-/api/repos/2/my-project
-```
-
-Keep this path. It is not a local URL. The CLI combines it with the global API URL:
-
-```text
-https://gent-api.onrender.com/api/repos/2/my-project
+https://gent-api.onrender.com/2/my-project.git
 ```
 
 ### 7. Link the local repo to the remote repo
 
-Use the `/api/repos/<owner_id>/<repo_name>` path from the previous command:
+Use the `.git` URL from the previous command:
 
 ```bash
-gent remote add origin /api/repos/2/my-project
+gent remote add origin https://gent-api.onrender.com/2/my-project.git
 ```
 
 If the current folder is not initialized yet, `gent remote add` initializes `.gent` first, then adds the remote. You can still run `gent init` yourself before this step if you prefer the explicit flow.
@@ -162,7 +156,7 @@ gent remote -v
 Expected output:
 
 ```text
-origin -> /api/repos/2/my-project
+origin -> https://gent-api.onrender.com/2/my-project.git
 ```
 
 ### 8. Create files
@@ -253,7 +247,7 @@ Go outside your current project:
 
 ```bash
 cd ..
-gent clone /api/repos/2/my-project my-project-clone
+gent clone https://gent-api.onrender.com/2/my-project.git my-project-clone
 cd my-project-clone
 ```
 
@@ -422,6 +416,9 @@ gent login
 gent login -e user@example.com -p StrongPass123!
 gent whoami
 gent logout
+gent git-token create --name "Git Graph" --write --repository <repository_id>
+gent git-token list
+gent git-token revoke <token_id>
 ```
 
 ### Repository Setup
@@ -429,7 +426,7 @@ gent logout
 ```bash
 gent init
 gent init --remote my-repo
-gent clone /api/repos/<owner_id>/<repo_name> [directory]
+gent clone https://gent-api.onrender.com/<owner_id>/<repo_name>.git [directory]
 ```
 
 ### Staging and Working Tree
@@ -527,8 +524,8 @@ gent repos --create <name> --description "Description"
 gent repos --create <name> --private
 gent remote
 gent remote -v
-gent remote add origin /api/repos/<owner_id>/<repo_name>
-gent remote set-url origin /api/repos/<owner_id>/<repo_name>
+gent remote add origin https://gent-api.onrender.com/<owner_id>/<repo_name>.git
+gent remote set-url origin https://gent-api.onrender.com/<owner_id>/<repo_name>.git
 gent remote remove origin
 gent push
 gent push origin main
@@ -544,16 +541,16 @@ The global API base is fixed:
 https://gent-api.onrender.com
 ```
 
-Remote repository paths should be stored like this:
+Remote repository URLs use smart HTTP:
 
 ```text
-/api/repos/<owner_id>/<repo_name>
+https://gent-api.onrender.com/<owner_id>/<repo_name>.git
 ```
 
 Example:
 
 ```bash
-gent remote add origin /api/repos/2/my-project
+gent remote add origin https://gent-api.onrender.com/2/my-project.git
 ```
 
 Do not use:
@@ -565,19 +562,20 @@ http://127.0.0.1:8000
 
 ## Files Created by Gent
 
-Inside each repo:
+Inside each new repository:
 
 ```text
+.git                 # pointer to .gent
 .gent/
-├── config.json
-├── commits.json
-├── staging.json
-├── journal.json   # operation journal for undo/redo (created on first op)
+├── config            # canonical Git configuration
 ├── HEAD
+├── index             # canonical Git index
 ├── objects/
-└── refs/
+├── refs/
+├── logs/
+└── gent/             # Gent-only operation metadata
 
-.gentignore
+.gitignore            # optional project ignore rules
 ```
 
 Global auth:
@@ -588,17 +586,16 @@ Global auth:
 
 ## Ignore Rules
 
-Gent creates a `.gentignore` file by default:
+Canonical repositories use standard `.gitignore` files. Add one when the project needs ignore rules:
 
 ```text
 node_modules/
 .DS_Store
 *.log
 .env
-.gent/
 ```
 
-Add project-specific ignored files there.
+Gent metadata is excluded locally through `.gent/info/exclude`, so it does not enter commits.
 
 ## Test the Full Remote Flow
 
@@ -674,7 +671,7 @@ gent init
 Add an origin remote:
 
 ```bash
-gent remote add origin /api/repos/<owner_id>/<repo_name>
+gent remote add origin https://gent-api.onrender.com/<owner_id>/<repo_name>.git
 ```
 
 ### Push says everything up-to-date

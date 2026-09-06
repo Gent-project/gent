@@ -1,5 +1,7 @@
 # 06 — Testing and Evaluation
 
+> Legacy v12 report chapter. Use [the v13 release evidence](../docs/git-compat/release-evidence.md) for current test results.
+
 ## Test Strategy
 
 The project uses Node.js built-in testing for core algorithms and local behavior.
@@ -129,4 +131,3 @@ Expected result:
 If asked whether Gent is a full Git replacement, answer:
 
 > No. Gent is an educational version control system that implements core Git-like ideas in a readable way: object storage, commits, branches, diffs, merges, remote sync, and authentication. It is suitable for demonstrating algorithms and system design, but Git remains more complete and optimized.
-

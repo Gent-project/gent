@@ -18,11 +18,7 @@ For a Git-like CLI, you may want to support SSH key authentication similar to Gi
 - This is more secure and convenient for CLI tools
 
 #### Personal Access Tokens (PATs)
-Consider implementing Personal Access Tokens:
-- Long-lived tokens with specific scopes/permissions
-- Users can create multiple tokens for different purposes
-- Better for automation and CI/CD integration
-- Tokens can be revoked individually
+Implemented at `/api/auth/git-tokens/`. Secrets are shown once, stored as SHA-256 digests, optionally repository-scoped, independently revocable, and can be read-only or read/write.
 
 #### OAuth2 Support
 For third-party integrations:
@@ -95,15 +91,15 @@ GET    /api/repos/{owner}/{repo}/blob/{sha}    # Get blob
    - Cons: Additional complexity, vendor lock-in
    - Use for: Production, large files
 
-4. **Git Backend (libgit2, dulwich)**
-   - Pros: Native Git support, efficient
-   - Cons: Complex, requires Git knowledge
-   - Use for: Full Git compatibility
+4. **Gent canonical Git object storage**
+   - Pros: Native SHA-256 Git compatibility while Gent owns every layer
+   - Cons: Gent must maintain protocol and pack-format correctness
+   - Use for: Current canonical repositories
 
 ### Recommendation
-- Use database for metadata (repos, commits, branches)
-- Use object storage or file system for actual file contents
-- Consider using `dulwich` (pure Python Git library) for Git operations
+- Store exact canonical object bytes and refs transactionally in PostgreSQL.
+- Keep parsed commit/tree/blob/tag rows as the web API's derived index.
+- Move large-object bytes to durable object storage when database size requires it.
 
 ## 4. Performance Considerations
 
@@ -162,24 +158,11 @@ Git uses Smart HTTP for push/pull operations:
 - `POST /{repo}.git/git-upload-pack` (fetch)
 - `POST /{repo}.git/git-receive-pack` (push)
 
-### Implementation Options
-1. **Use dulwich** (Python Git library)
-   - Handles Git protocol
-   - Pure Python, no C dependencies
-   - Good for API-based Git
-
-2. **Use libgit2 via pygit2**
-   - More performant
-   - C library, requires compilation
-   - Better for high-performance scenarios
-
-3. **Proxy to Git daemon**
-   - Run actual Git server
-   - Most compatible
-   - More complex deployment
-
-### Recommendation
-Start with dulwich for simplicity, migrate to libgit2 if performance becomes an issue.
+### Current implementation
+Gent implements protocol v0 itself. The plain Django endpoints parse pkt-lines,
+decode SHA-256 packfiles and deltas, publish objects and refs transactionally,
+and stream incremental upload packs. No Git subprocess, Dulwich, libgit2, or Git
+daemon participates in repository operations.
 
 ## 7. CLI Integration Patterns
 
@@ -291,7 +274,7 @@ class Commit(models.Model):
 - Basic permissions
 - Branch management
 
-### Phase 3: Git Operations
+### Phase 3: Git Operations (implemented)
 - Commit storage
 - Tree/blob management
 - Smart HTTP protocol
@@ -302,31 +285,16 @@ class Commit(models.Model):
 - Webhooks
 - CI/CD integration
 
-## 12. Recommended Next Steps
+## 12. Operational checks
 
-1. **Install additional packages:**
-   ```bash
-   pip install dulwich  # For Git operations
-   pip install psycopg2-binary  # For PostgreSQL (when ready)
-   ```
-
-2. **Create Repository model and migrations**
-
-3. **Implement repository API endpoints**
-
-4. **Add permission system**
-
-5. **Implement basic Git operations (commit, tree, blob)**
-
-6. **Add Smart HTTP protocol support**
-
-7. **Implement CLI client library**
+Run the Django suite, the live Git/Gent HTTP interoperability tests, and the
+PostgreSQL concurrency test before release. Re-run the live HTTP suite through
+the deployed proxy whenever its worker or buffering configuration changes.
 
 ## Questions to Consider
 
-1. **Do you need full Git compatibility?**
-   - If yes, use dulwich/libgit2
-   - If no, simpler custom format may work
+1. **Which optional Git features need future support?**
+   - Current limits are recorded in the CLI feature manifest.
 
 2. **What's your scale target?**
    - Small team: File system storage

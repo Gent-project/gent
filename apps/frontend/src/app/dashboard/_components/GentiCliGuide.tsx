@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import GentiMascot, { type GentiScene } from "@/app/components/site/GentiMascot";
 import type { Repository } from "@/types/repository";
+import { getCloneUrl } from "@/hooks/use-git-operations";
 import { getDashboardTheme } from "./dashboard-theme";
 
 type WorkflowKey = "guide" | "push" | "pull" | "merge";
@@ -41,8 +42,11 @@ export default function GentiCliGuide({
   const t = getDashboardTheme(isDark);
   const branch = repository?.default_branch || "main";
   const remoteUrl = repository
-    ? `https://gent-api.onrender.com/api/repos/${repository.owner_id}/${repository.name}`
-    : "https://gent-api.onrender.com/api/repos/<owner_id>/<repo_name>";
+    ? getCloneUrl(repository.owner_id, repository.name, "https", repository.object_format)
+    : "https://gent-api.onrender.com/<owner_id>/<repo_name>.git";
+  const initCommand = repository?.object_format === "legacy"
+    ? "gent init --object-format legacy"
+    : "gent init --object-format sha256";
   const workflows: Record<WorkflowKey, Workflow> = {
     guide: hasContent
       ? {
@@ -65,7 +69,7 @@ export default function GentiCliGuide({
           scene: "push",
           icon: Rocket,
           commands: [
-            "gent init",
+            initCommand,
             `gent remote add origin ${remoteUrl}`,
             "gent add .",
             'gent commit -m "Initial commit"',

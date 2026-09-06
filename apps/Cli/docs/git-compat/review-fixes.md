@@ -1,16 +1,15 @@
 # Local engine review fixes
 
-This is an opt-in local-engine preview inside v12, not a v13 release or a
-claim that all Phase 0–5 acceptance gates are complete. Migration and canonical
-remote transport remain unimplemented. Existing v12 repositories retain their
-legacy handlers and storage.
+Gent v13 uses the canonical SHA-256 engine for new repositories. Migration and
+Gent-owned smart HTTP are implemented. Existing v12 repositories retain their
+legacy handlers and storage until `gent migrate` converts them.
 
 ## Entry point and behavior changes
 
-Create a separate new repository with:
+Create a new repository with:
 
 ```sh
-gent init --object-format=sha256 -y
+gent init -y
 gent config set user.name "Your Name"
 gent config set user.email you@example.com
 ```
@@ -24,7 +23,7 @@ Connected commands: add, rm, status, commit, branch, checkout, reset, diff,
 log, show, tag, merge, resolve guidance, stash, summary, undo and redo.
 Canonical config writes currently support user.name and user.email.
 
-Behavior changes apply to canonical repositories only:
+Behavior changes apply to canonical repositories:
 
 - Non-forced branch checkout refuses staged changes, conservatively even when
   Git might carry them across. Forced checkout and hard reset restore bytes
@@ -38,7 +37,7 @@ Behavior changes apply to canonical repositories only:
   unstaged differences. Intervening changes cause refusal. Private
   `refs/gent/journal/...` roots retain objects across Git pruning; these refs
   may appear in external tools showing all refs. There is no automatic journal
-  pruning in this preview.
+  pruning.
 - Interrupted worktree updates keep a recovery record through index and HEAD
   publication. `gent checkout --abort` restores recorded files/index only if
   their contents and HEAD still match recognized states. It refuses newer
@@ -47,11 +46,9 @@ Behavior changes apply to canonical repositories only:
   filesystem-wide atomic transaction and does not promise recovery after
   arbitrary manual metadata changes.
 
-Canonical push/pull/remote and legacy-only AI adapters refuse explicitly.
-Graph/stat formatting for canonical log remains unsupported. No smart HTTP
-service, migration command, or universal tool-support claim is shipped here.
-These remaining items must be tracked before calling Phase 5 complete or
-releasing v13.
+Canonical push/pull/remote, migration, graph, and stat paths are implemented.
+Legacy-only AI adapters still refuse explicitly. Smart HTTP v0 runs through
+Gent-owned Node and Python implementations without a Git subprocess.
 
 ## Corrections to the implementation
 
@@ -68,8 +65,7 @@ releasing v13.
 - Ordinary commit recognizes merge parents from MERGE_HEAD.
 - Init canonicalizes the repository root and checks existing metadata before
   creating or replacing format files.
-- The feature manifest marks smart HTTP unsupported; no nonexistent server
-  integration is claimed.
+- The feature manifest marks smart HTTP v0 supported and v2 fallback partial.
 
 ## Executable checks
 

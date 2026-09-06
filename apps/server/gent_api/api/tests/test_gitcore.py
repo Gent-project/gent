@@ -86,6 +86,39 @@ class GitCoreTests(TestCase):
         with self.assertRaises(objects.GitError):
             protocol.upload(self.repo, protocol.pkt(f'want {blob_id} object-format=sha256\n') + b'0000' + protocol.pkt('done\n'))
 
+    def test_upload_streams_only_objects_missing_from_have_history(self):
+        self.publish()
+        first = objects.parse_commit(self.incoming[self.key][1])
+        second_data = (
+            f'tree {first["tree"]}\nparent {self.key}\n'
+            'author Outside <outside@example.com> 1700000100 +0300\n'
+            'committer Other <other@example.com> 1700000110 +0000\n\nsecond\n'
+        ).encode()
+        second = objects.object_id('commit', second_data)
+        store.publish(
+            self.repo,
+            self.user,
+            [(self.key, second, 'refs/heads/main')],
+            {second: ('commit', second_data)},
+        )
+        request = (
+            protocol.pkt(f'want {second} object-format=sha256\n')
+            + b'0000'
+            + protocol.pkt(f'have {self.key}\n')
+            + protocol.pkt('done\n')
+        )
+        response = self.client.post(
+            '/owner/canonical.git/git-upload-pack',
+            request,
+            content_type='application/x-git-upload-pack-request',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.streaming)
+        payload = b''.join(response.streaming_content)
+        acknowledgement, pos = protocol.packet(payload, 0)
+        self.assertEqual(acknowledgement, f'ACK {self.key}\n'.encode())
+        self.assertEqual(pack.decode(payload[pos:]), {second: ('commit', second_data)})
+
     def test_authentication_scope_revocation_and_legacy_guard(self):
         endpoint = '/owner/canonical.git/info/refs?service=git-receive-pack'
         self.assertEqual(self.client.get(endpoint).status_code, 401)

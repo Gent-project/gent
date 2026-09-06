@@ -1,5 +1,7 @@
 # 04 — Command Reference
 
+> Legacy v12 report chapter. Use `gent --help` and [the v13 compatibility notes](../docs/git-compat/review-fixes.md) for current behavior.
+
 This file explains all CLI commands currently registered in `src/index.js`.
 
 ## Command Categories
@@ -166,4 +168,3 @@ If the merge creates a conflict, show:
 ```bash
 gent resolve
 ```
-

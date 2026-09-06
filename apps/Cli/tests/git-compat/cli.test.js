@@ -17,10 +17,11 @@ test('canonical CLI initializes, commits, checks out, stashes and rejects unconf
         assert.equal(result.status, 0, result.stderr || result.stdout);
         return result.stdout;
     }
-    gent('init', '--object-format=sha256', '-y');
+    gent('init', '-y');
     await fs.writeFile(path.join(cwd, 'a'), 'base\n');
     gent('add', 'a'); gent('commit', '-m', 'base');
     assert.match(gent('log', '--oneline'), /base/);
+    assert.match(gent('log', '--graph', '--stat'), /^\* .+base\n 1 file changed/m);
     gent('undo');
     assert.match(gent('status'), /staged added: a/);
     gent('redo');
@@ -44,6 +45,31 @@ test('canonical CLI initializes, commits, checks out, stashes and rejects unconf
     const push = spawnSync(process.execPath, [cli, 'push'], { cwd, env, encoding: 'utf8' });
     assert.equal(push.status, 1);
     assert.match(push.stderr, /not configured/);
+});
+
+test('built-in templates initialize canonical repositories', async t => {
+    const cwd = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'gent-template-canonical-')));
+    t.after(() => fs.rm(cwd, { recursive: true, force: true }));
+    const result = spawnSync(process.execPath, [cli, 'template', 'use', 'node', 'project'], {
+        cwd,
+        encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal((await fs.readFile(path.join(cwd, 'project', '.git'), 'utf8')).trim(), 'gitdir: .gent');
+    assert.match(await fs.readFile(path.join(cwd, 'project', '.gent', 'config'), 'utf8'), /objectFormat = sha256/i);
+    assert.equal(await fs.readFile(path.join(cwd, 'project', '.gitignore'), 'utf8'), 'node_modules/\n.env\n');
+});
+
+test('remote add outside a repository initializes canonical storage', async t => {
+    const cwd = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'gent-remote-canonical-')));
+    t.after(() => fs.rm(cwd, { recursive: true, force: true }));
+    const result = spawnSync(process.execPath, [cli, 'remote', 'add', 'origin', 'http://127.0.0.1:8000/1/project.git'], {
+        cwd,
+        encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal((await fs.readFile(path.join(cwd, '.git'), 'utf8')).trim(), 'gitdir: .gent');
+    assert.match(await fs.readFile(path.join(cwd, '.gent', 'config'), 'utf8'), /objectFormat = sha256/i);
 });
 
 test('canonical CLI completes the Git-compatible conflict, abort and resolve lifecycle', async t => {

@@ -86,6 +86,7 @@ async function createRepo(options) {
         name,
         description: options.description || '',
         is_private: !!options.private,
+        object_format: 'sha256',
     };
 
     if (options.defaultBranch) {
@@ -94,10 +95,12 @@ async function createRepo(options) {
 
     const data = await apiClient.post(API_ENDPOINTS.REPOS_CREATE, payload);
     const repo = data.repository || data;
+    const base = (await apiClient.resolveBaseUrl()).replace(/\/api\/?$/, '').replace(/\/$/, '');
+    const remote = `${base}/${encodeURIComponent(repo.owner_id)}/${encodeURIComponent(repo.name)}.git`;
 
     spinner.succeed(chalk.green(`Created repository '${repo.name}'`));
-    console.log(chalk.gray(`  URL: /api/repos/${repo.owner_id}/${repo.name}`));
-    console.log(chalk.gray(`  Use "gent remote add origin /api/repos/${repo.owner_id}/${repo.name}" to link`));
+    console.log(chalk.gray(`  URL: ${remote}`));
+    console.log(chalk.gray(`  Use "gent remote add origin ${remote}" to link`));
 }
 
 module.exports = repos;

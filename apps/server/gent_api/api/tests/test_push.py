@@ -34,7 +34,7 @@ class PushAPITestCase(TestCase):
         refresh_other = RefreshToken.for_user(self.other_user)
         self.other_token = str(refresh_other.access_token)
 
-        self.repo = Repository.objects.create(owner=self.user, name='test-repo')
+        self.repo = Repository.objects.create(owner=self.user, name='test-repo', object_format='legacy')
         Branch.objects.create(repository=self.repo, name='main', commit_sha='0' * 64)
         self.push_url = reverse('push', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
 

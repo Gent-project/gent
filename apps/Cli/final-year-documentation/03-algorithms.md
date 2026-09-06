@@ -1,5 +1,7 @@
 # 03 — Algorithms Used in Gent CLI
 
+> Legacy v12 report chapter. For implemented v13 canonical object, pack, ref, index, migration, and smart-HTTP algorithms, use [the format contract](../docs/git-compat/format-contract.md).
+
 This file explains the important algorithms used in the project. It is the most important technical document for the final-year defense.
 
 ## Algorithm Summary Table
@@ -863,4 +865,3 @@ AI is optional. It never replaces core algorithms such as hashing, diffing, comm
 | JSON merge | Safely merges disjoint object key changes. | Falls back for arrays or conflicting same-key changes. |
 | Undo/redo | Simple and effective for branch pointer changes. | It is not a full filesystem snapshot system. |
 | Remote sync | Sends compact object pack and tracks remote refs. | Depends on backend API compatibility and authentication. |
-

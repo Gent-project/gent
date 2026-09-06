@@ -2,7 +2,7 @@
 import base64
 import binascii
 import hashlib
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -85,6 +85,12 @@ def smart_http(request, owner_ref, repo_name, endpoint):
         else:
             if request.content_type != f'application/x-{service}-request':
                 return HttpResponse('incorrect protocol content type', status=415)
+            try:
+                content_length = int(request.META.get('CONTENT_LENGTH') or 0)
+            except (TypeError, ValueError):
+                return HttpResponse('invalid content length', status=400)
+            if content_length > MAX_BYTES:
+                return HttpResponse('transfer too large', status=413)
             data = request.read(MAX_BYTES + 1)
             if len(data) > MAX_BYTES:
                 return HttpResponse('transfer too large', status=413)
@@ -92,6 +98,20 @@ def smart_http(request, owner_ref, repo_name, endpoint):
             suffix = 'result'
     except (GitError, UnicodeError, ValueError) as error:
         body, suffix = protocol.pkt('ERR ' + str(error) + '\n'), 'result'
-    response = HttpResponse(body, content_type=f'application/x-{service}-{suffix}')
+    if isinstance(body, tuple):
+        acknowledgement, spool = body
+        def chunks():
+            try:
+                yield acknowledgement
+                while True:
+                    chunk = spool.read(64 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                spool.close()
+        response = StreamingHttpResponse(chunks(), content_type=f'application/x-{service}-{suffix}')
+    else:
+        response = HttpResponse(body, content_type=f'application/x-{service}-{suffix}')
     response['Cache-Control'] = 'no-cache, max-age=0, must-revalidate'
     return response

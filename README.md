@@ -2,7 +2,7 @@
 
 Gent is a GitHub-like source-control platform built from scratch: a command-line client, a REST API, and a web UI.
 
-The CLI does not wrap the `git` binary. It implements git's object model itself — files are hashed into **blobs**, directories into **trees**, and history into **commits**, all content-addressed with **SHA-256** (git uses SHA-1) and stored zlib-compressed under `.gent/objects/`. The server stores the same three object types as database rows, so `gent push` transfers a real object pack, not a diff of text.
+The CLI does not wrap the `git` binary. It implements Git's SHA-256 repository format itself: canonical blobs, trees, commits, tags, indexes, refs, packfiles, and smart HTTP. Git and Gent can work on the same repository, while Gent still runs when the `git` executable is absent.
 
 Live: **[web app](https://gent-nu2e.onrender.com)** · **[API](https://gent-api.onrender.com/api/)** · CLI on npm as [`gent-cli`](https://www.npmjs.com/package/gent-cli)
 
@@ -14,18 +14,18 @@ Live: **[web app](https://gent-nu2e.onrender.com)** · **[API](https://gent-api.
 flowchart LR
     subgraph local["Developer machine"]
         CLI["gent CLI<br/>(Node.js, no git binary)"]
-        OBJ[(".gent/objects/<br/>SHA-256 blobs & trees<br/>zlib-compressed")]
+        OBJ[(".gent Git directory<br/>SHA-256 objects, refs,<br/>index and packfiles")]
         CLI <--> OBJ
     end
 
     subgraph render["Render.com"]
         API["Django + DRF API<br/>gent-api.onrender.com"]
-        DB[("PostgreSQL<br/>Blob · Tree · Commit<br/>Branch · Tag · Repository")]
+        DB[("PostgreSQL<br/>canonical Git objects & refs<br/>derived API indexes")]
         WEB["Next.js web app<br/>gent-nu2e.onrender.com"]
         API <--> DB
     end
 
-    CLI -- "JWT · push / pull / clone<br/>object pack over JSON" --> API
+    CLI -- "Git smart HTTP<br/>pkt-line + pack protocol" --> API
     WEB -- "JWT · repos, commits,<br/>branches, tags" --> API
     Browser(("Browser")) --> WEB
 ```
@@ -53,7 +53,7 @@ gent whoami
 
 # 3. Make a repository locally
 mkdir gent-demo && cd gent-demo
-gent init -y
+gent init -y --remote gent-demo
 echo "# Gent demo" > README.md
 
 # 4. Stage and commit — entirely local, no network
@@ -61,13 +61,10 @@ gent add -A
 gent commit -m "Initial commit"
 gent log --oneline
 
-# 5. Create the matching remote repository and link it as 'origin'
-gent init --remote gent-demo
-
-# 6. Upload the commit, its tree and its blobs
+# 5. Upload the commit, its tree and its blobs
 gent push
 
-# 7. Open it in the web UI
+# 6. Open it in the web UI
 gent web               # or: gent share   (prints the URL only)
 ```
 
@@ -80,7 +77,7 @@ gent status            # working tree vs staging vs HEAD
 gent log --graph       # ASCII branch/merge graph
 gent config list       # shows api.base_url and web.base_url
 gent doctor            # health check: node, repo, auth, backend
-gent clone /api/repos/<owner_id>/<repo_name>   # clone it back down
+gent clone https://gent-api.onrender.com/<owner_id>/<repo_name>.git
 ```
 
 Issues and pull requests are **not** implemented — they are out of scope for this version.

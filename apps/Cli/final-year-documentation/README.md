@@ -1,5 +1,14 @@
 # Gent CLI Final-Year Project Documentation
 
+> **v13 compatibility note:** This report package was written for the legacy
+> v12 JSON repository format. Its `commits.json`, `staging.json`, `.gentignore`,
+> and REST-pack descriptions are historical. The implemented v13 design uses
+> canonical SHA-256 Git objects, refs, index and config plus Gent-owned smart
+> HTTP. Use [`../docs/git-compat/review-fixes.md`](../docs/git-compat/review-fixes.md),
+> [`../docs/git-compat/format-contract.md`](../docs/git-compat/format-contract.md),
+> and [`../docs/git-compat/release-evidence.md`](../docs/git-compat/release-evidence.md)
+> for the current architecture and presentation evidence.
+
 This folder contains the complete documentation package for presenting and explaining the Gent CLI project.
 
 Gent CLI is a Git-like version control command-line application written in Node.js. It supports local repository management, staging, commits, branches, merges, undo/redo, cloud synchronization, authentication, repository collaboration, and optional AI-assisted features.
@@ -66,4 +75,3 @@ For the final-year project defense:
 3. Study [03-algorithms.md](03-algorithms.md) carefully; this is the most important technical file.
 4. Use [04-command-reference.md](04-command-reference.md) to prepare a live demo.
 5. Use [07-presentation-guide.md](07-presentation-guide.md) before the presentation.
-

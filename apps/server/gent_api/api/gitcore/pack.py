@@ -2,11 +2,12 @@
 import hashlib
 import struct
 import zlib
+import tempfile
 from .objects import GitError, object_id
 
 MAX_OBJECT = 32 * 1024 * 1024
 MAX_BYTES = 128 * 1024 * 1024
-MAX_OBJECTS = 10000
+MAX_OBJECTS = 250000
 MAX_DEPTH = 64
 TYPES = {1: 'commit', 2: 'tree', 3: 'blob', 4: 'tag'}
 
@@ -173,3 +174,30 @@ def encode(objects):
         parts.extend((bytes(header), zlib.compress(data)))
     body = b''.join(parts)
     return body + hashlib.sha256(body).digest()
+
+
+def encode_spooled(objects, count):
+    """Build a pack in a bounded-memory spool suitable for an HTTP stream."""
+    output = tempfile.SpooledTemporaryFile(max_size=4 * 1024 * 1024)
+    digest = hashlib.sha256()
+
+    def write(data):
+        output.write(data)
+        digest.update(data)
+
+    write(b'PACK' + struct.pack('!II', 2, count))
+    codes = {v: k for k, v in TYPES.items()}
+    for kind, data in objects:
+        size = len(data)
+        byte = (codes[kind] << 4) | (size & 15)
+        size >>= 4
+        header = bytearray()
+        while size:
+            header.append(byte | 128)
+            byte, size = size & 127, size >> 7
+        header.append(byte)
+        write(bytes(header))
+        write(zlib.compress(data))
+    output.write(digest.digest())
+    output.seek(0)
+    return output
