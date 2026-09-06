@@ -122,7 +122,13 @@ function ExploreContent() {
             <p className="text-sm font-semibold text-fg">
               {active.isLoading
                 ? "Searching…"
-                : `${total} ${type === "repos" ? "repository" : "user"}${total === 1 ? "" : "s"}`}
+                : active.isError
+                  ? "Search results"
+                  : `${total} ${
+                      type === "repos"
+                        ? total === 1 ? "repository" : "repositories"
+                        : total === 1 ? "user" : "users"
+                    }`}
             </p>
 
             {type === "repos" && (
