@@ -33,12 +33,12 @@ interface FileToolbarProps {
 }
 
 export default function FileToolbar({
+  canWrite = false,
   currentPath,
   repoName,
   isDark,
   onCreate,
   onUpload,
-  canWrite = false,
   branches,
   selectedBranch,
   defaultBranch,

@@ -4,6 +4,7 @@ import { Search, Plus, Menu, Moon, Sun, Globe2 } from "lucide-react";
 import Link from "next/link";
 import { getDashboardTheme } from "./dashboard-theme";
 import { PUBLIC_PATH } from "@/routes/path";
+import GlobalSearch from "@/components/search/GlobalSearch";
 import { LanguageToggle } from "@/app/language-provider";
 
 interface DashboardTopBarProps {
@@ -75,6 +76,8 @@ export default function DashboardTopBar({
           </Link>
         )}
       </div>
+
+      <GlobalSearch className="hidden min-w-0 max-w-xs flex-1 lg:block" />
 
       <span
         className="hidden rounded-full border px-2.5 py-1 font-mono text-[10px] font-medium sm:inline"

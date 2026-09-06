@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GitBranch, Menu, Moon, Search, Sun, Terminal, X } from "lucide-react";
+import GlobalSearch from "@/components/search/GlobalSearch";
 import { useDispatch, useSelector } from "react-redux";
 
 import { AUTH_PATH, DASHBOARD_PATH } from "@/routes/path";
@@ -62,6 +63,9 @@ export default function SharedNavigation() {
             </span>
           </span>
         </Link>
+
+        {/* header search — available signed in or out */}
+        <GlobalSearch className="hidden min-w-0 flex-1 max-w-xs lg:block" />
 
         {/* desktop links */}
         <nav className="hidden items-center gap-0.5 md:flex">
@@ -135,6 +139,9 @@ export default function SharedNavigation() {
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
+
+        {/* Keep discovery visible on the home page and every public route on phones. */}
+        <GlobalSearch className="order-3 basis-full md:hidden" />
       </div>
 
       {/* mobile drawer */}
@@ -148,6 +155,7 @@ export default function SharedNavigation() {
             className="glass-strong absolute inset-x-3 top-[4.5rem] rounded-2xl p-3 md:hidden"
           >
             <div className="space-y-1">
+              <GlobalSearch className="mb-2" />
               {navLinks.map((link) => (
                 <Link
                   key={link.href}

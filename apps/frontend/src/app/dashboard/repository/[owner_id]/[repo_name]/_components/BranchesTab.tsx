@@ -19,7 +19,8 @@ interface BranchesTabProps {
   userEmail: string;
 }
 
-export default function BranchesTab({ 
+export default function BranchesTab({
+  canWrite = false,
   branches, 
   isLoading, 
   isDark, 
@@ -27,7 +28,6 @@ export default function BranchesTab({
   ownerId,
   repoName,
   userEmail,
-  canWrite = false,
 }: BranchesTabProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
@@ -51,6 +51,7 @@ export default function BranchesTab({
   const handleDelete = async (branchName: string) => {
     if (branchName === defaultBranch) return;
     
+    if (!canWrite) return;
     try {
       await deleteBranch.mutateAsync({
         ownerId,
@@ -135,7 +136,9 @@ export default function BranchesTab({
                 {canWrite && branch.name !== defaultBranch && (
                   <div className="relative">
                     <button
-                      onClick={() => setDeleteConfirmation(deleteConfirmation === branch.name ? null : branch.name)}
+                      hidden={!canWrite}
+                    disabled={!canWrite}
+                    onClick={() => setDeleteConfirmation(deleteConfirmation === branch.name ? null : branch.name)}
                       className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                       style={{ color: t.textMuted }}
                     >
@@ -176,6 +179,8 @@ export default function BranchesTab({
             </p>
             {canWrite && (
             <button
+              hidden={!canWrite}
+              disabled={!canWrite}
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               style={{
@@ -193,7 +198,7 @@ export default function BranchesTab({
 
       {/* Create Branch Modal */}
       <CreateBranchModal
-        isOpen={showCreateModal}
+        isOpen={canWrite && showCreateModal}
         onClose={() => setShowCreateModal(false)}
         ownerId={ownerId}
         repoName={repoName}

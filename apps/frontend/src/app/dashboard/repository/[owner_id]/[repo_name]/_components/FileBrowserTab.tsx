@@ -54,12 +54,12 @@ const startsWithPath = (path: string[], prefix: string[]) =>
   prefix.every((segment, index) => path[index] === segment);
 
 export default function FileBrowserTab({
+  canWrite = false,
   ownerId,
   repoName,
   isDark,
   defaultBranch,
   userEmail,
-  canWrite = false,
 }: FileBrowserTabProps) {
   const [currentPath, setCurrentPath] = useState<string[]>([]);
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
@@ -551,7 +551,7 @@ export default function FileBrowserTab({
         </div>
 
         <CreateFileModal
-          isOpen={showCreateModal}
+          isOpen={canWrite && showCreateModal}
           onClose={() => setShowCreateModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -562,7 +562,7 @@ export default function FileBrowserTab({
           currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
-          isOpen={showUploadModal}
+          isOpen={canWrite && showUploadModal}
           onClose={() => setShowUploadModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -621,7 +621,7 @@ export default function FileBrowserTab({
         </div>
 
         <CreateFileModal
-          isOpen={showCreateModal}
+          isOpen={canWrite && showCreateModal}
           onClose={() => setShowCreateModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -632,7 +632,7 @@ export default function FileBrowserTab({
           currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
-          isOpen={showUploadModal}
+          isOpen={canWrite && showUploadModal}
           onClose={() => setShowUploadModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -693,6 +693,8 @@ export default function FileBrowserTab({
                 <Copy className="w-4 h-4" />
               </button>
               <button
+                disabled={!canWrite}
+                hidden={!canWrite}
                 onClick={handleEditFile}
                 disabled={fileBlob?.encoding === "base64"}
                 className="rounded-lg border p-2 transition-colors"
@@ -760,7 +762,7 @@ export default function FileBrowserTab({
         </div>
 
         <CreateFileModal
-          isOpen={showCreateModal}
+          isOpen={canWrite && showCreateModal}
           onClose={() => setShowCreateModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -771,7 +773,7 @@ export default function FileBrowserTab({
           currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
-          isOpen={showUploadModal}
+          isOpen={canWrite && showUploadModal}
           onClose={() => setShowUploadModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -915,7 +917,7 @@ export default function FileBrowserTab({
       </div>
 
       <CreateFileModal
-        isOpen={showCreateModal}
+        isOpen={canWrite && showCreateModal}
         onClose={() => setShowCreateModal(false)}
         ownerId={ownerId}
         repoName={repoName}
@@ -926,7 +928,7 @@ export default function FileBrowserTab({
         currentTreeSha={activeTreeSha}
       />
       <UploadFileModal
-        isOpen={showUploadModal}
+        isOpen={canWrite && showUploadModal}
         onClose={() => setShowUploadModal(false)}
         ownerId={ownerId}
         repoName={repoName}

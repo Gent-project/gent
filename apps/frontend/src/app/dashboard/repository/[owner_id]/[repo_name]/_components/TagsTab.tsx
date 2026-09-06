@@ -19,7 +19,8 @@ interface TagsTabProps {
   userEmail: string;
 }
 
-export default function TagsTab({ 
+export default function TagsTab({
+  canWrite = false,
   tags, 
   isLoading, 
   isDark,
@@ -27,7 +28,6 @@ export default function TagsTab({
   repoName,
   branches,
   userEmail,
-  canWrite = false,
 }: TagsTabProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
@@ -49,6 +49,7 @@ export default function TagsTab({
   };
 
   const handleDelete = async (tagName: string) => {
+    if (!canWrite) return;
     try {
       await deleteTag.mutateAsync({
         ownerId,
@@ -141,6 +142,8 @@ export default function TagsTab({
                 {canWrite && (
                 <div className="relative">
                   <button
+                    hidden={!canWrite}
+                    disabled={!canWrite}
                     onClick={() => setDeleteConfirmation(deleteConfirmation === tag.name ? null : tag.name)}
                     className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     style={{ color: t.textMuted }}
@@ -182,6 +185,8 @@ export default function TagsTab({
             </p>
             {canWrite && (
             <button
+              hidden={!canWrite}
+              disabled={!canWrite}
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               style={{
@@ -199,7 +204,7 @@ export default function TagsTab({
 
       {/* Create Tag Modal */}
       <CreateTagModal
-        isOpen={showCreateModal}
+        isOpen={canWrite && showCreateModal}
         onClose={() => setShowCreateModal(false)}
         ownerId={ownerId}
         repoName={repoName}
