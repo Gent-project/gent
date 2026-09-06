@@ -10,9 +10,11 @@ const stash = require('../utils/stash-ops');
 const journal = require('../utils/canonical-journal');
 const worktree = require('../utils/worktree');
 const { GitIndex } = require('../utils/git-index');
+const { assertRefName } = require('../utils/refs');
 const { Lock } = require('../utils/lockfile');
 const { AttributesMatcher, looksBinary } = require('../utils/attributes');
 const { formatUnifiedDiff } = require('../utils/diff-engine');
+const ai = require('../utils/ai-service');
 const apiClient = require('../utils/api-client');
 const authStorage = require('../utils/auth-storage');
 const { API_ENDPOINTS } = require('../utils/constants');
@@ -102,17 +104,32 @@ async function createCanonicalRemote(repo, requestedName, options = {}) {
     if (repo.config.get('remote.origin.url')) throw new Error("remote 'origin' already exists");
     const name = typeof requestedName === 'string' ? requestedName : path.basename(repo.worktree);
     if (!/^[A-Za-z0-9_-]+$/.test(name)) throw new Error('repository name must use letters, digits, _ or -');
-    const head = await repo.refs.head();
+    let head = await repo.refs.head();
+    const defaultBranch = options.defaultBranch || head.branch || 'main';
+    assertRefName(`refs/heads/${defaultBranch}`);
+    if (options.defaultBranch && head.oid && head.branch !== options.defaultBranch) {
+        throw new Error(`default branch must match the checked-out branch '${head.branch}'`);
+    }
+    if (head.detached) throw new Error('check out a branch before creating a remote repository');
     const data = await apiClient.post(API_ENDPOINTS.REPOS_CREATE, {
         name,
-        description: 'A gent repository',
+        description: options.description || 'A gent repository',
         is_private: Boolean(options.private),
-        default_branch: head.branch || 'main',
+        default_branch: defaultBranch,
         object_format: 'sha256',
     });
     const remoteRepo = data.repository || data;
     const base = (await apiClient.resolveBaseUrl()).replace(/\/api\/?$/, '').replace(/\/$/, '');
-    const url = `${base}/${encodeURIComponent(remoteRepo.owner_id)}/${encodeURIComponent(remoteRepo.name)}.git`;
+    const owner = remoteRepo.owner_username || remoteRepo.owner_id;
+    const url = `${base}/${encodeURIComponent(String(owner))}/${encodeURIComponent(remoteRepo.name)}.git`;
+    if (head.unborn && head.branch !== defaultBranch) {
+        await repo.refs.setHeadSymbolic(
+            `refs/heads/${defaultBranch}`,
+            `branch: set default to ${defaultBranch}`,
+            head,
+        );
+        head = await repo.refs.head();
+    }
     repo.localConfig.set('remote.origin.url', url);
     repo.localConfig.set('remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*');
     if (head.branch) {
@@ -121,6 +138,7 @@ async function createCanonicalRemote(repo, requestedName, options = {}) {
     }
     await repo.localConfig.save();
     console.log(`Created remote repository: ${url}`);
+    return url;
 }
 
 const transport = require('../utils/smart-http');
@@ -297,10 +315,58 @@ const handlers = {
             process.exitCode = 1;
         } else console.log(result.status);
     },
-    async resolve(repo) {
+    async resolve(repo, options = {}) {
         const index = await GitIndex.read(repo.indexPath);
-        for (const name of index.conflicts().keys()) console.log(name);
-        console.log('Edit conflicted files, then gent add <path> and gent merge --continue.');
+        const names = [...index.conflicts().keys()];
+        if (!names.length) {
+            console.log('No merge conflicts to resolve.');
+            return;
+        }
+        if (!options.ai) {
+            for (const name of names) console.log(name);
+            console.log('Edit conflicted files, then gent add <path> and gent merge --continue.');
+            return;
+        }
+
+        await ai.prime();
+        if (!ai.isEnabled()) throw new Error(ai.disabledHint());
+
+        let resolved = 0;
+        for (const name of names) {
+            const sides = await merge.conflictSides(repo, name);
+            if ([sides.base, sides.ours, sides.theirs].some(value => value && looksBinary(value))) {
+                console.log(`Skipping binary conflict: ${name}`);
+                continue;
+            }
+            try {
+                const suggestion = await ai.resolveConflictHunk({
+                    base: sides.base?.toString('utf8') || '',
+                    ours: sides.ours?.toString('utf8') || '',
+                    theirs: sides.theirs?.toString('utf8') || '',
+                    fileName: name,
+                });
+                console.log(`\nAI suggestion for ${name} (review before accepting):\n${suggestion}`);
+                const { accept } = await inquirer.prompt([{
+                    type: 'confirm',
+                    name: 'accept',
+                    message: `Apply and stage this resolution for ${name}?`,
+                    default: false,
+                }]);
+                if (!accept) continue;
+                worktree.assertSafeCheckoutPath(repo, name);
+                await worktree.assertNoSymlinkParent(repo, name);
+                const absolute = path.join(repo.worktree, name);
+                await fs.mkdir(path.dirname(absolute), { recursive: true });
+                await fs.writeFile(absolute, suggestion, 'utf8');
+                await merge.markResolved(repo, name);
+                resolved++;
+                console.log(`Resolved and staged ${name}`);
+            } catch (error) {
+                console.log(`AI did not resolve ${name}: ${error.message}`);
+            }
+        }
+        console.log(`${resolved} of ${names.length} conflict(s) resolved with reviewed AI suggestions.`);
+        console.log('Review and test the files, then run gent merge --continue.');
     },
     async stash(repo, sub = 'push', options = {}) {
         const position = Number(options.index || 0);
@@ -384,4 +450,4 @@ async function printTreeDiff(repo, before, after, files = [], stat = false) {
     }
 }
 
-module.exports = { route };
+module.exports = { route, createCanonicalRemote };

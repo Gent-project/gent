@@ -293,6 +293,7 @@ program
 program
     .command('resolve')
     .description('Interactively resolve merge conflicts left by "gent merge"')
+    .option('--ai', 'Ask AI for each conflict resolution and review it before applying')
     .action(resolveCommand);
 
 program
@@ -325,12 +326,13 @@ program
     .action(remoteCommand);
 
 program
-    .command('repos')
+    .command('repos [names...]')
     .description('List or create remote repositories')
     .option('--create <name>', 'Create a new remote repository')
     .option('--description <text>', 'Repository description (with --create)')
     .option('--private', 'Make repository private (with --create)')
     .option('--default-branch <name>', 'Default branch name (with --create)')
+    .option('-y, --yes', 'Initialize the current folder without prompting')
     .action(reposCommand);
 
 program
