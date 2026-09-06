@@ -105,7 +105,7 @@ f.txt
 ❯ Keep ours
   Keep theirs
   Keep both (ours then theirs)
-  Ask AI (claude-opus-4-8)      ← shown only when ANTHROPIC_API_KEY is set
+  Merge with AI (fast)          ← resolve, commit, then review
   Edit manually
   Skip the rest of this file
 ```
@@ -188,21 +188,18 @@ Tokens are stored encrypted in `~/.gent/auth.json`.
 
 ## Optional AI features
 
-AI features are **off by default** and fully optional — every one has a reliable
-non-AI path. Enable them by setting an API key:
+AI features call OpenAI directly from the CLI with short task-specific prompts.
+The installation provisions the credential, so commands never ask users for a
+provider key.
 
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-# optional: pick a cheaper/faster model (default: claude-opus-4-8)
-export GENT_AI_MODEL=claude-haiku-4-5
-```
-
-| Where | What it does without a key | What `--ai` / AI adds |
+| Where | What it does without local AI | What `--ai` / AI adds |
 |---|---|---|
 | `gent commit --ai` | Prompts for a message | Suggests a message from the staged diff (editable) |
 | `gent explain` | Prints the diff + a hint | Writes a plain-language summary |
 | `gent resolve` | Ours/theirs/both/edit | Adds an "Ask AI" option that proposes a merged hunk |
 | `gent summary --ai` | Prints the dashboard | Adds a short health narrative |
+| `gent chat [message]` | Reports AI unavailable | Starts one-shot or interactive repository chat |
+| `gent merge <branch> --ai` | Normal three-way merge | Resolves text conflicts, commits, then reviews the merge |
 
-If a key is absent or a request fails, the command falls back to its algorithmic
+If local AI is unavailable or a request fails, the command falls back to its algorithmic
 behaviour and never errors out.

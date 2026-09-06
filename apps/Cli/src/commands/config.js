@@ -7,12 +7,10 @@
  *   gent config unset <key>               → remove a setting
  *   gent config path                      → print config file location
  *
- *   gent config set ai.api_key <key>      ← stored obfuscated
  *   gent config set api.base_url http://localhost:8000
  */
 
 const chalk = require('chalk');
-const inquirer = require('inquirer');
 const userConfig = require('../utils/user-config');
 
 async function config(subcommand, args, options) {
@@ -102,26 +100,13 @@ async function set(key, value, options) {
         process.exit(1);
     }
 
-    // Secret prompt: if no value given for ai.api_key, prompt with masking.
-    if ((value === undefined || value === '') && key === 'ai.api_key') {
-        const answers = await inquirer.prompt([{
-            type: 'password',
-            name: 'value',
-            message: 'Anthropic API key:',
-            mask: '*',
-            validate: (input) => input.length > 0 || 'Key cannot be empty',
-        }]);
-        value = answers.value;
-    }
-
     if (value === undefined) {
         console.error(chalk.red('Usage: gent config set <key> <value>'));
         process.exit(1);
     }
 
     await userConfig.set(key, value);
-    const display = key === 'ai.api_key' ? userConfig.maskSecret(value) : value;
-    console.log(chalk.green(`✓ ${key} = ${display}`));
+    console.log(chalk.green(`✓ ${key} = ${value}`));
 
     const envName = userConfig.ENV_OVERRIDES[key];
     if (envName && process.env[envName]) {

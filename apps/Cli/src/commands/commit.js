@@ -41,6 +41,7 @@ async function commit(options) {
 
         // Optional: AI-suggested commit message (`gent commit --ai`)
         if (!message && options.ai) {
+            await ai.prime();
             if (!ai.isEnabled()) {
                 console.log(chalk.yellow(ai.disabledHint()));
             } else {

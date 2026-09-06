@@ -31,6 +31,7 @@ const { generateCommitHash } = require('../utils/helpers');
 const authStorage = require('../utils/auth-storage');
 const journal = require('../utils/journal');
 const ai = require('../utils/ai-service');
+const reviewCommand = require('./review');
 
 async function resolve(options = {}) {
     try {
@@ -62,6 +63,19 @@ async function resolve(options = {}) {
             console.log(chalk.green('No conflict markers to resolve.'));
             console.log(chalk.cyan('Run "gent commit" to finalize the merge.'));
             return;
+        }
+
+        if (!options.ai && ai.isEnabled() && process.stdin.isTTY && process.stdout.isTTY) {
+            const { mode } = await inquirer.prompt([{
+                type: 'list',
+                name: 'mode',
+                message: 'How should Gent resolve this merge?',
+                choices: [
+                    { name: 'Merge with AI (fast) — resolve, commit, then review', value: 'ai' },
+                    { name: 'Resolve manually — choose each conflict', value: 'manual' },
+                ],
+            }]);
+            options.ai = mode === 'ai';
         }
 
         console.log(chalk.bold.cyan(`\nResolving merge of '${mergeState.sourceBranch}' — ${markerFiles.length} file(s)\n`));
@@ -126,23 +140,28 @@ async function resolve(options = {}) {
 
         if (unresolvedFiles > 0) {
             console.log(chalk.yellow(`\n${unresolvedFiles} file(s) still have conflicts. Re-run "gent resolve" when ready.`));
+            process.exitCode = 1;
             return;
         }
 
         // All conflicts resolved — offer to finalize the merge commit.
-        const { finalize } = await inquirer.prompt([{
+        const finalize = options.ai || (await inquirer.prompt([{
             type: 'confirm',
             name: 'finalize',
             message: 'All conflicts resolved. Create the merge commit now?',
             default: true
-        }]);
+        }])).finalize;
 
         if (!finalize) {
             console.log(chalk.cyan('Resolved files staged. Run "gent commit" when ready.'));
             return;
         }
 
-        await finalizeMerge(gentPath, staging, mergeState, entriesByName);
+        const mergeCommit = await finalizeMerge(gentPath, staging, mergeState, entriesByName);
+        if (options.ai) {
+            console.log(chalk.bold.cyan('\nAI review of the completed merge'));
+            await reviewCommand(mergeCommit.hash, { head: true });
+        }
     } catch (error) {
         if (error.code === 'ENOENT' && error.message.includes('.gent')) {
             console.error(chalk.red('Error: Not a gent repository'));
@@ -177,9 +196,9 @@ async function resolveHunk(seg, file, idx, total, options = {}) {
     choices.push({ name: 'Skip the rest of this file', value: 'skip' });
 
     if (options.ai) {
-        const suggestion = await askAiForHunk(seg, file);
+        const suggestion = await askAiForHunk(seg, file, true);
         if (suggestion !== null) return suggestion;
-        console.log(chalk.yellow('    Choose a manual resolution instead.'));
+        return null;
     }
 
     const { choice } = await inquirer.prompt([{
@@ -212,13 +231,17 @@ async function resolveHunk(seg, file, idx, total, options = {}) {
     }
 }
 
-async function askAiForHunk(seg, file) {
+async function askAiForHunk(seg, file, autoAccept = false) {
     try {
         const suggestion = await ai.resolveConflictHunk({
             ours: seg.ours.join('\n'),
             theirs: seg.theirs.join('\n'),
             fileName: file
         });
+        if (autoAccept) {
+            console.log(chalk.green(`    ✓ AI resolved ${file}`));
+            return suggestion.split('\n');
+        }
         console.log(chalk.cyan('    AI suggestion (review before accepting):'));
         suggestion.split('\n').forEach(line => console.log(chalk.cyan(`      ${line}`)));
         const { accept } = await inquirer.prompt([{
@@ -297,6 +320,7 @@ async function finalizeMerge(gentPath, staging, mergeState, entriesByName) {
     await writeJSON(path.join(gentPath, STAGING_FILE), staging);
 
     console.log(chalk.green(`\n✓ Merge committed — ${mergeCommit.hash.substring(0, 7)}`));
+    return mergeCommit;
 }
 
 module.exports = resolve;

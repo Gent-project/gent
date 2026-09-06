@@ -43,11 +43,11 @@ gent pull
 | Command | Syntax | Description |
 |---|---|---|
 | `auto` | `gent auto` | Guided flow: sign in/register, initialize repo, link or create remote, stage, commit, and push. |
-| `setup` | `gent setup` | Interactive first-run wizard for backend URL, login, AI key, and identity. |
+| `setup` | `gent setup` | Interactive first-run wizard for backend URL, login, and identity. |
 | `init` | `gent init [-y] [--remote [name]]` | Creates `.gent/`, default config, staging file, commits file, refs, and `.gentignore`. |
 | `clone` | `gent clone [url] [directory]` | Downloads a remote repository from the backend. |
-| `doctor` | `gent doctor [--ai]` | Checks Node version, CLI version, repo status, auth, API connection, and optionally AI key. |
-| `config` | `gent config list|get|set|unset|path` | Manages global CLI config such as AI key, API base URL, and default identity. |
+| `doctor` | `gent doctor [--ai]` | Checks Node version, CLI version, repo status, auth, API connection, and optionally Gent AI. |
+| `config` | `gent config list|get|set|unset|path` | Manages global CLI config such as API base URL and default identity. |
 
 ## Working Tree and Staging Commands
 
@@ -156,6 +156,8 @@ echo "Main line" >> app.txt
 gent add app.txt
 gent commit -m "Add main line"
 gent merge feature
+gent merge feature --ai
+gent chat "review the current repository structure"
 gent log --graph
 gent undo
 gent redo
@@ -165,5 +167,9 @@ If the merge creates a conflict, show:
 
 ```bash
 gent resolve
+gent resolve --ai
 ```
 
+The AI merge mode resolves text conflicts without per-hunk confirmation, creates the
+merge commit, and immediately reviews the completed result. Binary conflicts remain
+manual so they cannot be silently corrupted.

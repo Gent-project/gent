@@ -30,6 +30,7 @@ async function docs(options = {}) {
         const cwd = process.cwd();
         const gentPath = await getGentPath();
 
+        await ai.prime();
         if (!ai.isEnabled()) {
             console.error(chalk.red('AI is required for `gent docs`.'));
             console.log(chalk.yellow(ai.disabledHint()));
@@ -45,6 +46,7 @@ async function docs(options = {}) {
         let draft;
         try {
             draft = await ai.complete({
+                profile: 'docs',
                 system:
                     'You write clear, accurate, well-formatted README.md files. ' +
                     'Use plain GitHub-flavored Markdown. Do not invent features that are not ' +

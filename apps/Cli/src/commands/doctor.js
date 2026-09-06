@@ -2,7 +2,7 @@
  * Doctor Command - Health check for the gent CLI.
  *
  *   gent doctor              → run all checks
- *   gent doctor --ai         → also ping Anthropic with a 1-token request
+ *   gent doctor --ai         → also ping the Gent AI service
  *
  * Each row prints PASS / WARN / FAIL plus a hint on how to fix the issue.
  */
@@ -131,37 +131,37 @@ async function checkApi() {
 }
 
 async function checkAiKey(probe) {
-    const { value: key, source } = await ai.resolveKey();
-    if (!key) {
+    const { value: available, source } = await ai.resolveKey();
+    if (!available) {
         return {
-            name: 'AI key',
+            name: 'AI service',
             status: 'warn',
-            detail: 'not configured (AI features will be skipped, not failed)',
-            hint: 'Run `gent config set ai.api_key <key>` or set ANTHROPIC_API_KEY.',
+            detail: 'unavailable in this CLI installation',
+            hint: 'Ask the Gent distributor to provision the local AI credential.',
         };
     }
 
     if (!probe) {
         return {
-            name: 'AI key',
+            name: 'AI service',
             status: 'pass',
-            detail: `present [${source}], model: ${await ai.resolveModel()} (use --ai to live-test)`,
+            detail: `direct OpenAI [${source}], model: ${await ai.resolveModel()} (use --ai to live-test)`,
         };
     }
 
     try {
         await ai.complete({ prompt: 'ping', maxTokens: 4 });
         return {
-            name: 'AI key',
+            name: 'AI service',
             status: 'pass',
-            detail: `verified — model ${await ai.resolveModel()} responded`,
+            detail: 'verified — OpenAI responded',
         };
     } catch (err) {
         return {
-            name: 'AI key',
+            name: 'AI service',
             status: 'fail',
             detail: err.message,
-            hint: 'Re-check the key (`gent config set ai.api_key`) or model (`gent config set ai.model`).',
+            hint: 'Retry later or ask the Gent distributor to check AI quota and credentials.',
         };
     }
 }

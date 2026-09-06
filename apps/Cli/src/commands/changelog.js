@@ -40,6 +40,7 @@ async function changelog(range, options = {}) {
         )}`;
         console.log('\n' + header + '\n');
 
+        if (!options.plain) await ai.prime();
         if (options.plain || !ai.isEnabled()) {
             for (const c of selected) {
                 const short = (c.hash || '').slice(0, 7);
@@ -59,6 +60,7 @@ async function changelog(range, options = {}) {
         const spinner = ora(`Grouping with ${ai.getModel()}...`).start();
         try {
             const out = await ai.complete({
+                profile: 'changelog',
                 system:
                     'You write release-note-style changelogs. Group commits into ' +
                     'Features / Fixes / Improvements / Other. Keep each bullet to one line ' +

@@ -15,6 +15,8 @@ const { findMergeBase, mergeTreeEntries, autoMerge } = require('../utils/merge-e
 const { storeTree, readBlob, hashBlob } = require('../utils/hash-engine');
 const pet = require('./pet');
 const journal = require('../utils/journal');
+const ai = require('../utils/ai-service');
+const reviewCommand = require('./review');
 
 /**
  * Merge a branch into the current branch
@@ -25,6 +27,11 @@ async function merge(sourceBranch, options) {
     const spinner = ora(`Merging '${sourceBranch}'...`).start();
 
     try {
+        if (options.ai) {
+            await ai.prime();
+            if (!ai.isEnabled()) throw new Error(ai.disabledHint());
+        }
+
         const gentPath = await getGentPath();
         const cwd = path.dirname(gentPath);
         const repository = await readJSON(path.join(gentPath, COMMITS_FILE));
@@ -95,6 +102,10 @@ async function merge(sourceBranch, options) {
 
             spinner.succeed(chalk.green(`Fast-forward merge: ${currentBranch} → ${theirsHash.substring(0, 7)}`));
             await pet.celebrate('merge');
+            if (options.ai) {
+                console.log(chalk.bold.cyan('\nAI review of the completed merge'));
+                await reviewCommand(theirsHash, { head: true });
+            }
             return;
         }
 
@@ -134,8 +145,10 @@ async function merge(sourceBranch, options) {
                 }
             }
 
-            console.log(chalk.yellow(`\nConflict markers: <<<<<<< HEAD / ======= / >>>>>>> ${sourceBranch}`));
-            console.log(chalk.cyan('Resolve conflicts, then run "gent add" and "gent commit"'));
+            if (!options.ai) {
+                console.log(chalk.yellow(`\nConflict markers: <<<<<<< HEAD / ======= / >>>>>>> ${sourceBranch}`));
+                console.log(chalk.cyan('Resolve conflicts, then run "gent resolve"'));
+            }
         }
 
         // Store merged tree
@@ -199,6 +212,10 @@ async function merge(sourceBranch, options) {
             console.log(chalk.gray(`  Ours: ${oursHash.substring(0, 7)}  Theirs: ${theirsHash.substring(0, 7)}`));
             console.log(chalk.green(`  ${autoResolved} file(s) merged automatically`));
             await pet.celebrate('merge');
+            if (options.ai) {
+                console.log(chalk.bold.cyan('\nAI review of the completed merge'));
+                await reviewCommand(mergeCommit.hash, { head: true });
+            }
         } else {
             // Stage the merge state for manual resolution
             const staging = await readJSON(path.join(gentPath, STAGING_FILE));
@@ -212,7 +229,12 @@ async function merge(sourceBranch, options) {
                 conflicts: mergeResult.conflicts
             };
             await writeJSON(path.join(gentPath, STAGING_FILE), staging);
-            process.exitCode = 1;
+            if (options.ai) {
+                process.exitCode = 0;
+                await require('./resolve')({ ai: true });
+            } else {
+                process.exitCode = 1;
+            }
         }
 
     } catch (error) {

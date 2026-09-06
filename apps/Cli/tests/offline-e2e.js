@@ -179,10 +179,10 @@ scenario = 'insight-commands';
     assert.match(graph, /Commit graph/);
     assert.match(graph, /\(HEAD\)/);
 
-    // explain without an API key still prints the diff + a hint
+    // explain while signed out still prints the diff + a hint
     const explained = run(w, ['explain']);
     assert.match(explained, /Commit [0-9a-f]{7}/);
-    assert.match(explained, /ANTHROPIC_API_KEY/);
+    assert.match(explained, /unavailable/);
     console.log('  ok   summary / log --graph / explain run cleanly');
 }
 

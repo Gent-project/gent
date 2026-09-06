@@ -240,8 +240,6 @@ Supported keys:
 
 | Key | Meaning |
 |---|---|
-| `ai.api_key` | Anthropic API key, obfuscated when stored. |
-| `ai.model` | AI model name. |
 | `api.base_url` | Backend API base URL. |
 | `user.name` | Default author name. |
 | `user.email` | Default author email. |
@@ -313,4 +311,3 @@ flowchart LR
     Pack --> API["POST backend push endpoint"]
     API --> RemoteRefs["Update config.remoteRefs"]
 ```
-

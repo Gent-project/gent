@@ -3,7 +3,7 @@
  *
  *   gent setup
  *
- * Walks the user through: backend URL → login/register → AI key → identity.
+ * Walks the user through: backend URL → login/register → identity.
  * Each step is skippable; nothing is required.
  */
 
@@ -15,7 +15,6 @@ const axios = require('axios');
 const userConfig = require('../utils/user-config');
 const authStorage = require('../utils/auth-storage');
 const authService = require('../services/auth-service');
-const ai = require('../utils/ai-service');
 
 async function setup() {
     console.log(boxen(
@@ -26,7 +25,6 @@ async function setup() {
 
     await stepBackend();
     await stepAuth();
-    await stepAiKey();
     await stepIdentity();
 
     console.log(chalk.green('\n✓ Setup complete!'));
@@ -125,56 +123,8 @@ async function stepAuth() {
     }
 }
 
-async function stepAiKey() {
-    console.log(chalk.bold('\n3. AI features (optional)'));
-    const existing = await ai.resolveKey();
-    if (existing.value) {
-        console.log(chalk.gray(`   Key already configured [${existing.source}] — skipping.`));
-        return;
-    }
-
-    console.log(chalk.gray('   Gent uses Anthropic Claude for commit-message suggestions,'));
-    console.log(chalk.gray('   diff explanations, AI conflict resolution, code review, and more.'));
-    console.log(chalk.gray('   Get a key at: https://console.anthropic.com/settings/keys'));
-
-    const { provide } = await inquirer.prompt([{
-        type: 'confirm',
-        name: 'provide',
-        message: 'Add an Anthropic API key now?',
-        default: true,
-    }]);
-    if (!provide) return;
-
-    const { key } = await inquirer.prompt([{
-        type: 'password',
-        name: 'key',
-        message: 'Anthropic API key:',
-        mask: '*',
-        validate: (v) => v.length > 0 || 'Cannot be empty',
-    }]);
-
-    await userConfig.set('ai.api_key', key);
-
-    const { testNow } = await inquirer.prompt([{
-        type: 'confirm',
-        name: 'testNow',
-        message: 'Test the key now (1 small request)?',
-        default: true,
-    }]);
-    if (testNow) {
-        const spinner = ora('Asking Claude to say hi...').start();
-        try {
-            await ai.complete({ prompt: 'Reply with the single word: ok', maxTokens: 4 });
-            spinner.succeed(chalk.green('AI key works'));
-        } catch (err) {
-            spinner.fail(chalk.red(err.message));
-            console.log(chalk.yellow('   You can fix this with `gent config set ai.api_key <key>`.'));
-        }
-    }
-}
-
 async function stepIdentity() {
-    console.log(chalk.bold('\n4. Default identity'));
+    console.log(chalk.bold('\n3. Default identity'));
     const currentName = await userConfig.getResolved('user.name');
     const currentEmail = await userConfig.getResolved('user.email');
 
