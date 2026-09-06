@@ -693,10 +693,9 @@ export default function FileBrowserTab({
                 <Copy className="w-4 h-4" />
               </button>
               <button
-                disabled={!canWrite}
+                disabled={!canWrite || fileBlob?.encoding === "base64"}
                 hidden={!canWrite}
                 onClick={handleEditFile}
-                disabled={fileBlob?.encoding === "base64"}
                 className="rounded-lg border p-2 transition-colors"
                 style={{ color: t.textMuted, borderColor: t.border }}
                 title="Edit file"
