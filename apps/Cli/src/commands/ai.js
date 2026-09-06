@@ -1,26 +1,66 @@
 /**
  * AI Command - Manage and verify AI integration.
  *
- *   gent ai status            → show the managed service status
+ *   gent ai configure         → securely save your own key for this computer
+ *   gent ai configure <key>   → same, without the interactive prompt
+ *   gent ai status            → show local AI status
  *   gent ai test              → make a tiny live request to confirm it works
  *   gent ai models            → show provider management information
  */
 
 const chalk = require('chalk');
+const inquirer = require('inquirer');
 const ora = require('ora');
 const ai = require('../utils/ai-service');
+const localAiConfig = require('../utils/local-ai-config');
 
-async function aiCommand(subcommand) {
+async function aiCommand(subcommand, key, options = {}) {
     const sub = (subcommand || 'status').toLowerCase();
     switch (sub) {
+        case 'configure': return configure(key, options);
         case 'status': return status();
         case 'test': return test();
         case 'models': return models();
         default:
             console.error(chalk.red(`Unknown subcommand '${sub}'`));
-            console.log(chalk.gray('Usage: gent ai <status|test|models>'));
+            console.log(chalk.gray('Usage: gent ai <configure|status|test|models>'));
             process.exit(1);
     }
+}
+
+async function configure(key, options = {}) {
+    // A key passed as an argument keeps `gent ai configure` usable in scripts,
+    // over SSH, and anywhere stdin is not a terminal.
+    let apiKey = typeof key === 'string' ? key.trim() : '';
+
+    if (!apiKey) {
+        if (!process.stdin.isTTY || !process.stdout.isTTY) {
+            console.error(chalk.red('No terminal available for the masked prompt.'));
+            console.log(chalk.gray('  Pass the key directly: gent ai configure <your-openrouter-key>'));
+            process.exitCode = 1;
+            return;
+        }
+        ({ apiKey } = await inquirer.prompt([{
+            type: 'password',
+            name: 'apiKey',
+            message: 'OpenRouter API key:',
+            mask: '*',
+            validate: value => localAiConfig.validateApiKey(value) || 'Enter a valid OpenRouter key beginning with sk-or-v1-.',
+        }]));
+    }
+
+    if (!localAiConfig.validateApiKey(apiKey)) {
+        console.error(chalk.red('That is not a valid OpenRouter key. Keys begin with sk-or-v1-.'));
+        console.log(chalk.gray('  Create one at https://openrouter.ai/keys'));
+        process.exitCode = 1;
+        return;
+    }
+
+    const savedPath = await localAiConfig.saveApiKey(apiKey, { model: options.model });
+    console.log(chalk.green('✓ Gent AI configured for this computer with your own key.'));
+    console.log(chalk.gray(`  Stored locally in ${savedPath} with owner-only permissions.`));
+    console.log(chalk.gray(`  Model: ${await ai.resolveModel()}`));
+    console.log(chalk.gray('  Run `gent ai test` to verify it.'));
 }
 
 async function status() {
@@ -28,7 +68,7 @@ async function status() {
 
     console.log(chalk.bold.cyan('\nGent AI status\n'));
     if (available) {
-        console.log(`  ${chalk.green('●')} Service:   ${chalk.white(`direct OpenAI [${source}]`)}`);
+        console.log(`  ${chalk.green('●')} Service:   ${chalk.white(source)}`);
     } else {
         console.log(`  ${chalk.gray('○')} Service:   ${chalk.gray('unavailable')}`);
         console.log(chalk.gray('             ↳ ' + ai.disabledHint()));
@@ -49,7 +89,7 @@ async function test() {
     try {
         const reply = await ai.complete({
             prompt: 'Reply with the single word: pong',
-            maxTokens: 8,
+            maxTokens: 32,
         });
         spinner.succeed(chalk.green(`✓ Reachable. Reply: "${reply}"`));
     } catch (err) {

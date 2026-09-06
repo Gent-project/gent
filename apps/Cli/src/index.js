@@ -369,8 +369,9 @@ program
     .action(doctorCommand);
 
 program
-    .command('ai [subcommand]')
-    .description('Inspect AI integration (status|test|models)')
+    .command('ai [subcommand] [key]')
+    .description('Configure or inspect local AI (configure|status|test|models)')
+    .option('--model <id>', 'Pin an OpenRouter model id for this computer')
     .action(aiCommand);
 
 // ─── Platform-special (AI-powered) ──────────────────────

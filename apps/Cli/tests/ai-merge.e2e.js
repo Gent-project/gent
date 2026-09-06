@@ -69,12 +69,18 @@ const server = http.createServer((request, response) => {
     request.on('data', chunk => { body += chunk; });
     request.on('end', () => {
         const payload = JSON.parse(body);
-        const text = /Resolve this merge conflict/.test(payload.instructions)
-            ? (/BASE:\nalpha\nbase/.test(payload.input) ? 'alpha\nmain\nfeature' : 'main\nfeature')
+        const instructions = payload.messages[0].content;
+        const input = payload.messages[1].content;
+        const isMerge = /Resolve this merge conflict/.test(instructions);
+        const text = isMerge
+            ? JSON.stringify({
+                merged: /BASE:\nalpha\nbase/.test(input) ? 'alpha\nmain\nfeature' : 'main\nfeature',
+                summary: 'Kept the main change and merged the feature behavior.',
+            })
             : 'No blocking issues.';
         response.writeHead(200, { 'Content-Type': 'application/json' });
         response.end(JSON.stringify({
-            output: [{ type: 'message', content: [{ type: 'output_text', text }] }],
+            choices: [{ finish_reason: 'stop', message: { content: text } }],
         }));
     });
 });
@@ -83,13 +89,14 @@ server.listen(0, '127.0.0.1', async () => {
     try {
         const address = server.address();
         const aiEnv = {
-            OPENAI_API_KEY: 'test-key',
-            GENT_AI_API_URL: `http://127.0.0.1:${address.port}/v1/responses`,
+            OPENROUTER_API_KEY: 'test-key',
+            GENT_AI_API_URL: `http://127.0.0.1:${address.port}/v1/chat/completions`,
             GENT_NO_PET: '1',
         };
         const result = await runAsync(work, ['merge', 'feature', '--ai'], aiEnv);
         assert.equal(result.code, 0, result.output);
         assert.match(result.output, /Merge committed/);
+        assert.match(result.output, /AI: Kept the main change and merged the feature behavior\./);
         assert.match(result.output, /AI review of the completed merge/);
         assert.match(result.output, /No blocking issues/);
         assert.equal(fs.readFileSync(path.join(work, 'app.txt'), 'utf8'), 'alpha\nmain\nfeature');
@@ -119,6 +126,7 @@ server.listen(0, '127.0.0.1', async () => {
         const canonicalResult = await runAsync(canonical, ['merge', 'feature', '--ai'], aiEnv);
         assert.equal(canonicalResult.code, 0, canonicalResult.output);
         assert.match(canonicalResult.output, /Merge committed/);
+        assert.match(canonicalResult.output, /AI: Kept the main change and merged the feature behavior\./);
         assert.match(canonicalResult.output, /AI review of the completed merge/);
         assert.equal(fs.readFileSync(path.join(canonical, 'app.txt'), 'utf8'), 'alpha\nmain\nfeature');
         const fsck = spawnSync('git', ['fsck', '--strict'], { cwd: canonical, encoding: 'utf8' });

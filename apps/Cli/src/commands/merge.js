@@ -24,20 +24,28 @@ const reviewCommand = require('./review');
  * @param {Object} options - Command options
  */
 async function merge(sourceBranch, options) {
-    const spinner = ora(`Merging '${sourceBranch}'...`).start();
+    options = options || {};
+    const spinner = ora(options.abort ? 'Aborting merge...' : `Merging '${sourceBranch}'...`).start();
 
     try {
-        if (options.ai) {
-            await ai.prime();
-            if (!ai.isEnabled()) throw new Error(ai.disabledHint());
-        }
-
         const gentPath = await getGentPath();
         const cwd = path.dirname(gentPath);
         const repository = await readJSON(path.join(gentPath, COMMITS_FILE));
         const commits = repository.commits || [];
         const branches = repository.branches || {};
         const currentBranch = repository.currentBranch;
+
+        if (options.abort) {
+            await abortMerge(gentPath, cwd, repository, spinner);
+            return;
+        }
+        if (options.continue) {
+            throw new Error('Legacy merge continuation uses "gent resolve"');
+        }
+        if (options.ai) {
+            await ai.prime();
+            if (!ai.isEnabled()) throw new Error(ai.disabledHint());
+        }
 
         // Validate branches
         if (!branches.hasOwnProperty(sourceBranch)) {
@@ -276,8 +284,11 @@ function safePath(cwd, relativePath) {
 
 async function assertCleanWorkingTree(gentPath, cwd, commit) {
     const staging = await readJSON(path.join(gentPath, STAGING_FILE));
-    if ((staging.entries || []).length || (staging.files || []).length || staging.mergeState) {
-        throw new Error('Commit or stash staged changes before merging');
+    if (staging.mergeState) {
+        throw new Error('A merge is already in progress; run "gent resolve" or "gent merge --abort"');
+    }
+    if ((staging.entries || []).length || (staging.files || []).length) {
+        throw new Error('Commit, stash, or unstage current changes before merging');
     }
     for (const entry of treeOf(commit)) {
         const fullPath = safePath(cwd, entry.name || entry.path);
@@ -286,6 +297,44 @@ async function assertCleanWorkingTree(gentPath, cwd, commit) {
             throw new Error(`Local changes would be overwritten by merge: ${entry.name || entry.path}`);
         }
     }
+}
+
+async function abortMerge(gentPath, cwd, repository, spinner) {
+    const staging = await readJSON(path.join(gentPath, STAGING_FILE));
+    const state = staging.mergeState;
+    if (!state) {
+        spinner.info(chalk.yellow('No merge in progress'));
+        return;
+    }
+
+    const oursCommit = (repository.commits || []).find(commit => commit.hash === state.oursHash);
+    if (!oursCommit) throw new Error('Cannot abort merge: original commit is missing');
+
+    const oursTree = treeOf(oursCommit);
+    const mergeTree = state.mergedEntries || [];
+    const oursNames = new Set(oursTree.map(entry => entry.name || entry.path));
+    const restored = new Map();
+    for (const entry of oursTree) {
+        restored.set(entry.name || entry.path, await readBlob(gentPath, entry.hash));
+    }
+    for (const entry of mergeTree) {
+        const name = entry.name || entry.path;
+        if (!oursNames.has(name)) {
+            await fs.unlink(safePath(cwd, name)).catch(error => {
+                if (error.code !== 'ENOENT') throw error;
+            });
+        }
+    }
+    for (const [name, bytes] of restored) {
+        const fullPath = safePath(cwd, name);
+        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+        await fs.writeFile(fullPath, bytes);
+    }
+    staging.entries = [];
+    staging.files = [];
+    staging.mergeState = null;
+    await writeJSON(path.join(gentPath, STAGING_FILE), staging);
+    spinner.succeed(chalk.green('Merge aborted; working tree restored'));
 }
 
 async function checkoutTree(gentPath, cwd, previousEntries, nextEntries) {

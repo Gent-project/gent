@@ -1,14 +1,19 @@
-/** Direct, low-latency OpenAI client for Gent's local AI commands. */
+/** Direct, low-latency OpenRouter client for Gent's local AI commands. */
 
 const axios = require('axios');
 
-const API_URL = 'https://api.openai.com/v1/responses';
-const DEFAULT_MODEL = 'gpt-4.1-mini';
+const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const DEFAULT_MODEL = 'xiaomi/mimo-v2.5:nitro';
+// The default model reasons before answering, and those tokens come out of the
+// same budget as the reply. Too small a budget returns content: null with
+// finish_reason "length", so keep a floor and add headroom on every request.
+const MIN_OUTPUT_TOKENS = 256;
+const REASONING_HEADROOM = 512;
 
 const PROMPTS = Object.freeze({
     chat: 'Answer as a concise senior engineer. Use the repository context. Give the direct answer first.',
     review: 'Review fast. Return only concrete correctness, security, or regression risks, then brief fixes. If none, say "No blocking issues."',
-    merge: 'Resolve this merge conflict fast. Preserve both intended behaviors. Return only the final merged text with no markdown fence or explanation.',
+    merge: 'Resolve this merge conflict fast. Preserve both intended behaviors. Return only valid JSON with this shape: {"merged":"final merged text","summary":"one sentence, at most 18 words, saying what was kept or combined"}. Do not use markdown fences.',
     commit: 'Write one concise conventional commit message. Return only the message.',
     explain: 'Explain this change briefly and concretely. Return short bullets only.',
     docs: 'Write concise, accurate repository documentation from only the supplied context.',
@@ -17,7 +22,9 @@ const PROMPTS = Object.freeze({
 });
 
 function getApiKey() {
-    return process.env.OPENAI_API_KEY || null;
+    // OPENAI_API_KEY stays readable so installs configured before the
+    // OpenRouter switch keep working until they reconfigure.
+    return process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || null;
 }
 
 function getModel() {
@@ -30,7 +37,7 @@ function getApiUrl() {
 
 async function resolveKey() {
     const value = getApiKey();
-    return { value, source: value ? 'local Gent installation' : 'unset' };
+    return { value, source: value ? 'local CLI configuration (OpenRouter)' : 'unset' };
 }
 
 async function resolveModel() {
@@ -46,11 +53,23 @@ function isEnabled() {
 }
 
 function disabledHint() {
-    return 'Gent AI is unavailable in this CLI installation.';
+    return 'Gent AI is unavailable. Run `gent ai configure` once on this computer.';
 }
 
 function extractText(payload) {
     const chunks = [];
+    // OpenRouter / chat-completions shape.
+    for (const choice of payload?.choices || []) {
+        const content = choice?.message?.content;
+        if (typeof content === 'string') {
+            chunks.push(content);
+        } else if (Array.isArray(content)) {
+            for (const part of content) {
+                if (typeof part?.text === 'string') chunks.push(part.text);
+            }
+        }
+    }
+    // Responses-API shape, still accepted so a custom GENT_AI_API_URL works.
     for (const item of payload?.output || []) {
         if (item.type !== 'message') continue;
         for (const content of item.content || []) {
@@ -60,27 +79,40 @@ function extractText(payload) {
     return chunks.join('').trim();
 }
 
+function truncatedByBudget(payload) {
+    return (payload?.choices || []).some(choice => choice?.finish_reason === 'length');
+}
+
 async function complete({ prompt, system, profile = 'chat', maxTokens = 1024 }) {
     const apiKey = getApiKey();
     if (!apiKey) throw new Error(disabledHint());
-
     const instructions = [PROMPTS[profile], system].filter(Boolean).join('\n\n');
+    const budget = Math.max(MIN_OUTPUT_TOKENS, maxTokens) + REASONING_HEADROOM;
     try {
         const response = await axios.post(getApiUrl(), {
             model: getModel(),
-            input: prompt,
-            instructions,
-            max_output_tokens: maxTokens,
-            store: false,
+            messages: [
+                ...(instructions ? [{ role: 'system', content: instructions }] : []),
+                { role: 'user', content: prompt },
+            ],
+            max_tokens: budget,
+            // Keep reasoning models brief; ignored by models without reasoning.
+            reasoning: { effort: 'low' },
         }, {
             headers: {
                 Authorization: `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://github.com/gent-cli',
+                'X-Title': 'Gent CLI',
             },
-            timeout: 30000,
+            timeout: 60000,
         });
         const text = extractText(response.data);
-        if (!text) throw new Error('OpenAI returned an empty response');
+        if (!text) {
+            throw new Error(truncatedByBudget(response.data)
+                ? `Model "${getModel()}" used the whole ${budget}-token budget before replying. Raise it or set GENT_AI_MODEL to a lighter model.`
+                : `Model "${getModel()}" returned an empty response.`);
+        }
         return text;
     } catch (error) {
         throw enrichAiError(error);
@@ -90,10 +122,17 @@ async function complete({ prompt, system, profile = 'chat', maxTokens = 1024 }) 
 function enrichAiError(error) {
     const status = error?.response?.status;
     const apiError = error?.response?.data?.error;
-    if (status === 401 || status === 403) return new Error('Gent AI credential was rejected.');
-    if (apiError?.code === 'insufficient_quota') return new Error('Gent AI quota is exhausted.');
-    if (status === 429) return new Error('Gent AI is busy. Retry in a moment.');
+    const apiCode = typeof apiError === 'object' ? apiError?.code : null;
+    const apiType = typeof apiError === 'object' ? apiError?.type : null;
+    const quotaCodes = ['insufficient_quota', 'credit_balance_exhausted', 'billing_hard_limit_reached'];
+    if (status === 401 || status === 403) return new Error('OpenRouter rejected the configured CLI credential. Run `gent ai configure` with a valid key.');
+    if (status === 404) return new Error(`OpenRouter has no model "${getModel()}". Set GENT_AI_MODEL to a model id from https://openrouter.ai/models.`);
+    if (status === 402 || quotaCodes.includes(apiCode) || quotaCodes.includes(apiType)) {
+        return new Error('OpenRouter billing: this key has no credits left. Add credits at https://openrouter.ai/credits — the key itself is valid.');
+    }
+    if (status === 429) return new Error('Gent AI is rate limited. Retry in a moment.');
     if (apiError?.message) return new Error(`Gent AI failed: ${apiError.message}`);
+    if (typeof apiError === 'string') return new Error(apiError);
     return error;
 }
 
@@ -120,12 +159,49 @@ async function resolveConflictHunk({ base, ours, theirs, fileName }) {
         `BASE:\n${base || '(none)'}\n\n` +
         `OURS:\n${ours}\n\n` +
         `THEIRS:\n${theirs}`;
-    return complete({ profile: 'merge', prompt, maxTokens: 1400 });
+    const response = await complete({ profile: 'merge', prompt, maxTokens: 1400 });
+    return parseMergeResolution(response);
+}
+
+function parseMergeResolution(response) {
+    const cleaned = response
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/, '')
+        .trim();
+    try {
+        const parsed = JSON.parse(cleaned);
+        if (typeof parsed.merged !== 'string') throw new Error('missing merged text');
+        return {
+            merged: parsed.merged,
+            summary: briefSummary(parsed.summary),
+        };
+    } catch {
+        return {
+            merged: response,
+            summary: 'Combined the conflicting changes.',
+        };
+    }
+}
+
+function briefSummary(value) {
+    const summary = typeof value === 'string'
+        ? value.replace(/\s+/g, ' ').trim()
+        : '';
+    if (!summary) return 'Combined the conflicting changes.';
+    const words = summary.split(' ');
+    const wordLimited = words.length <= 18
+        ? summary
+        : `${words.slice(0, 18).join(' ')}...`;
+    return wordLimited.length <= 160
+        ? wordLimited
+        : `${wordLimited.slice(0, 157).trimEnd()}...`;
 }
 
 module.exports = {
     PROMPTS,
     DEFAULT_MODEL,
+    MIN_OUTPUT_TOKENS,
+    REASONING_HEADROOM,
     isEnabled,
     getModel,
     getApiKey,
@@ -138,5 +214,6 @@ module.exports = {
     explainChanges,
     reviewChanges,
     resolveConflictHunk,
+    parseMergeResolution,
     extractText,
 };

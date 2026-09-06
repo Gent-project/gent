@@ -116,15 +116,24 @@ scenario = 'conflict-merge';
     const staging = JSON.parse(read(w, path.join('.gent', 'staging.json')));
     assert.ok(staging.mergeState, 'mergeState should be recorded on conflict');
 
+    const abortOut = run(w, ['merge', '--abort']);
+    assert.match(abortOut, /Merge aborted; working tree restored/);
+    assert.equal(read(w, 'bar.txt'), 'alpha\nBETA-MAIN');
+    assert.equal(JSON.parse(read(w, path.join('.gent', 'staging.json'))).mergeState, null);
+
+    const retryOut = run(w, ['merge', 'feature'], 1);
+    assert.match(retryOut, /CONFLICT/);
+    const retryStaging = JSON.parse(read(w, path.join('.gent', 'staging.json')));
+
     write(w, 'bar.txt', ['alpha', 'BETA-RESOLVED']);
     run(w, ['add', 'bar.txt']);
     run(w, ['commit', '-m', 'resolve conflict']);
     const resolvedRepository = JSON.parse(read(w, path.join('.gent', 'commits.json')));
     const resolvedCommit = resolvedRepository.commits.find(c => c.hash === resolvedRepository.branches.main);
-    assert.equal(resolvedCommit.parent, staging.mergeState.oursHash);
-    assert.equal(resolvedCommit.mergeParent, staging.mergeState.theirsHash);
+    assert.equal(resolvedCommit.parent, retryStaging.mergeState.oursHash);
+    assert.equal(resolvedCommit.mergeParent, retryStaging.mergeState.theirsHash);
     assert.equal(JSON.parse(read(w, path.join('.gent', 'staging.json'))).mergeState, null);
-    console.log('  ok   conflicting merge — markers, nonzero exit, resolution and two-parent commit');
+    console.log('  ok   conflicting merge — abort restores HEAD; retry resolves to two-parent commit');
 }
 
 // ── Scenario 3: undo / redo a commit ───────────────────────────────────────
@@ -233,6 +242,34 @@ scenario = 'checkout-dirty';
     assert.equal(JSON.parse(read(w, path.join('.gent', 'commits.json'))).currentBranch, 'feature');
     assert.equal(read(w, 'test.txt'), 'local work');
     console.log('  ok   checkout refuses dirty overwrite and preserves the current branch');
+}
+
+// ── Scenario 7: merge --abort without a merge preserves staged work ───────
+scenario = 'merge-abort-noop';
+{
+    const w = newRepo('merge-abort-noop');
+    write(w, 'base.txt', ['base']);
+    run(w, ['add', 'base.txt']);
+    run(w, ['commit', '-m', 'base']);
+    run(w, ['checkout', '-b', 'branch2']);
+    write(w, 'branch.txt', ['branch change']);
+    run(w, ['add', 'branch.txt']);
+    run(w, ['commit', '-m', 'branch change']);
+    run(w, ['checkout', 'main']);
+
+    write(w, 'pending.txt', ['keep staged']);
+    run(w, ['add', 'pending.txt']);
+    const before = read(w, path.join('.gent', 'staging.json'));
+
+    const blocked = run(w, ['merge', 'branch2'], 1);
+    assert.match(blocked, /Commit, stash, or unstage current changes before merging/);
+    assert.equal(read(w, path.join('.gent', 'staging.json')), before);
+
+    const out = run(w, ['merge', '--abort']);
+    assert.match(out, /No merge in progress/);
+    assert.equal(read(w, path.join('.gent', 'staging.json')), before);
+    assert.equal(read(w, 'pending.txt'), 'keep staged');
+    console.log('  ok   merge --abort with no merge preserves staged work');
 }
 
 console.log('\noffline e2e: all scenarios passed');

@@ -101,7 +101,7 @@ src/
 │   ├── diff-engine.js       # LCS line diff (prefix/suffix trimmed) + hunks
 │   ├── merge-engine.js      # diff3 merge + JSON/import-aware + tree merge + DAG merge base
 │   ├── journal.js           # Operation journal (undo/redo)
-│   ├── ai-service.js        # Direct low-latency OpenAI integration
+│   ├── ai-service.js        # Direct low-latency OpenRouter integration
 │   ├── fileSystem.js        # File I/O helpers
 │   ├── helpers.js           # General utilities
 │   ├── constants.js         # Config values + API endpoints
@@ -336,12 +336,12 @@ See [ALGORITHMS.md §4](ALGORITHMS.md#4-operation-journal-undo--redo).
 
 **Location:** `src/utils/ai-service.js`
 
-A direct OpenAI Responses API client powering optional enhancements: repository
+A direct OpenRouter chat-completions client powering optional CLI enhancements: repository
 chat, commit-message suggestions
 (`commit --ai`), diff explanations (`explain`), AI-assisted conflict resolution
 (`merge --ai` / `resolve --ai`), and a health narrative (`summary --ai`). Short
 task-specific prompts and a low-latency model keep calls fast. The installation
-provisions the credential; commands never prompt end users for it. Failed request
+stores the credential locally after `gent ai configure`. Failed request
 → graceful fallback to the algorithmic path where possible.
 
 ---

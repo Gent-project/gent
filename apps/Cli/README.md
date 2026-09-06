@@ -24,7 +24,7 @@ Beyond a faithful git-like workflow, Gent adds:
 - **`gent undo` / `gent redo`** — a one-command safety net over an operation journal (friendlier than `git reflog`).
 - **`gent resolve`** — an interactive conflict resolver (ours / theirs / both / edit / AI).
 - **`gent summary`** — a repository health dashboard, plus **`gent log --graph`**.
-- **Direct local AI** (`gent chat`, `gent review`, `gent merge --ai`, `gent resolve --ai`) — low-latency OpenAI calls from the CLI with task-specific prompts and no per-command key prompt.
+- **Direct local AI** (`gent chat`, `gent review`, `gent merge --ai`, `gent resolve --ai`) — low-latency OpenRouter calls from the CLI with task-specific prompts. Configure once with `gent ai configure`.
 - **Genti, your terminal mascot** — a mint one-eyed sky-jelly that *acts out* your workflow: it floats a file crate to the cloud on `gent push`, carries one home on `gent pull`, and reconciles two branches on `gent merge`. It plays once (in place, no scrollback spam) after a successful command. Meet it directly with `gent pet` (add `--loop` to keep it running; try `gent pet push|pull|merge|auth`). Set `GENT_NO_PET=1` (or run in CI / a non-interactive shell) to turn the celebrations off.
 
 See [docs/COMMANDS.md](docs/COMMANDS.md) for the full reference and
@@ -500,14 +500,18 @@ gent explain --staged             # explain currently staged changes
 
 ### Optional AI features
 
-AI calls run directly from the CLI using the credential provisioned for the
-installation. Commands never prompt users for a provider key. Fast task-specific
-prompts keep review, merge resolution, chat, and summaries concise.
+AI calls run directly from the CLI. Run `gent ai configure` once to enter the
+OpenRouter key through a masked prompt; Gent stores it locally with owner-only
+permissions. Fast task-specific prompts keep review, merge resolution, chat,
+and summaries concise.
 
 ```bash
+gent ai configure                 # configure OpenRouter once on this computer
+gent ai configure <your-key>      # same, non-interactive (scripts, SSH)
+gent ai configure <your-key> --model vendor/model   # pin a different model
 gent commit --ai                  # suggest a commit message from the staged diff
 gent explain                      # narrate a diff instead of just printing it
-gent resolve                      # adds an "Ask AI" choice per conflict hunk
+gent resolve                      # ours/theirs/both/AI/edit/skip per conflict hunk
 ```
 
 ### Tags

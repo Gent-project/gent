@@ -188,15 +188,14 @@ Tokens are stored encrypted in `~/.gent/auth.json`.
 
 ## Optional AI features
 
-AI features call OpenAI directly from the CLI with short task-specific prompts.
-The installation provisions the credential, so commands never ask users for a
-provider key.
+AI features call OpenRouter directly from the CLI with short task-specific prompts.
+Run `gent ai configure` once to save the key locally through a masked prompt.
 
 | Where | What it does without local AI | What `--ai` / AI adds |
 |---|---|---|
 | `gent commit --ai` | Prompts for a message | Suggests a message from the staged diff (editable) |
 | `gent explain` | Prints the diff + a hint | Writes a plain-language summary |
-| `gent resolve` | Ours/theirs/both/edit | Adds an "Ask AI" option that proposes a merged hunk |
+| `gent resolve` | Ours/theirs/both/edit/skip | Adds “Resolve with AI” alongside every previous hunk option |
 | `gent summary --ai` | Prints the dashboard | Adds a short health narrative |
 | `gent chat [message]` | Reports AI unavailable | Starts one-shot or interactive repository chat |
 | `gent merge <branch> --ai` | Normal three-way merge | Resolves text conflicts, commits, then reviews the merge |

@@ -216,7 +216,7 @@ const handlers = {
                 continue;
             }
             try {
-                const suggestion = await ai.resolveConflictHunk({
+                const resolution = await ai.resolveConflictHunk({
                     base: sides.base?.toString('utf8') || '',
                     ours: sides.ours?.toString('utf8') || '',
                     theirs: sides.theirs?.toString('utf8') || '',
@@ -226,10 +226,11 @@ const handlers = {
                 await worktree.assertNoSymlinkParent(repo, name);
                 const absolute = path.join(repo.worktree, name);
                 await fs.mkdir(path.dirname(absolute), { recursive: true });
-                await fs.writeFile(absolute, suggestion, 'utf8');
+                await fs.writeFile(absolute, resolution.merged, 'utf8');
                 await merge.markResolved(repo, name);
                 resolved++;
                 console.log(`Resolved and staged ${name}`);
+                console.log(`  AI: ${resolution.summary}`);
             } catch (error) {
                 console.log(`AI did not resolve ${name}: ${error.message}`);
             }

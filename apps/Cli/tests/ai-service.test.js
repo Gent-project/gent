@@ -5,39 +5,34 @@ const axios = require('axios');
 const ai = require('../src/utils/ai-service');
 
 const originalPost = axios.post;
-const originalKey = process.env.OPENAI_API_KEY;
+const originalKey = process.env.OPENROUTER_API_KEY;
 const originalModel = process.env.GENT_AI_MODEL;
 const originalApiUrl = process.env.GENT_AI_API_URL;
 
 test.afterEach(() => {
     axios.post = originalPost;
-    if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
-    else process.env.OPENAI_API_KEY = originalKey;
+    if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = originalKey;
     if (originalModel === undefined) delete process.env.GENT_AI_MODEL;
     else process.env.GENT_AI_MODEL = originalModel;
     if (originalApiUrl === undefined) delete process.env.GENT_AI_API_URL;
     else process.env.GENT_AI_API_URL = originalApiUrl;
 });
 
-test('calls OpenAI directly with the fast task prompt', async () => {
-    process.env.OPENAI_API_KEY = 'test-key';
-    process.env.GENT_AI_MODEL = 'gpt-4.1-mini';
+test('calls OpenRouter directly with the fast task prompt', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    process.env.GENT_AI_MODEL = 'xiaomi/mimo-v2.5:nitro';
     delete process.env.GENT_AI_API_URL;
     axios.post = async (url, body, config) => {
-        assert.equal(url, 'https://api.openai.com/v1/responses');
-        assert.equal(body.model, 'gpt-4.1-mini');
-        assert.equal(body.input, 'review me');
-        assert.match(body.instructions, /Review fast/);
-        assert.equal(body.max_output_tokens, 80);
-        assert.equal(body.store, false);
+        assert.equal(url, 'https://openrouter.ai/api/v1/chat/completions');
+        assert.equal(body.model, 'xiaomi/mimo-v2.5:nitro');
+        assert.equal(body.messages[1].content, 'review me');
+        assert.match(body.messages[0].content, /Review fast/);
+        assert.equal(body.max_tokens, ai.MIN_OUTPUT_TOKENS + ai.REASONING_HEADROOM);
+        assert.equal(body.reasoning.effort, 'low');
         assert.equal(config.headers.Authorization, 'Bearer test-key');
         return {
-            data: {
-                output: [{
-                    type: 'message',
-                    content: [{ type: 'output_text', text: '  No blocking issues.  ' }],
-                }],
-            },
+            data: { choices: [{ finish_reason: 'stop', message: { content: '  No blocking issues.  ' } }] },
         };
     };
 
@@ -49,21 +44,21 @@ test('calls OpenAI directly with the fast task prompt', async () => {
     assert.equal(result, 'No blocking issues.');
 });
 
-test('does not require Gent server authentication', async () => {
-    process.env.OPENAI_API_KEY = 'test-key';
+test('local development key calls OpenRouter without Gent server authentication', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
     assert.equal(ai.isEnabled(), true);
-    assert.equal((await ai.resolveKey()).source, 'local Gent installation');
+    assert.equal((await ai.resolveKey()).source, 'local CLI configuration (OpenRouter)');
 });
 
-test('does not reveal setup instructions when unavailable', async () => {
-    delete process.env.OPENAI_API_KEY;
+test('unconfigured installations explain the one-time CLI setup', async () => {
+    delete process.env.OPENROUTER_API_KEY;
+    await ai.prime();
     assert.equal(ai.isEnabled(), false);
-    await assert.rejects(ai.complete({ prompt: 'hello' }), /unavailable/);
-    assert.doesNotMatch(ai.disabledHint(), /API[_ -]?key|OPENAI_API_KEY/i);
+    assert.match(ai.disabledHint(), /gent ai configure/);
 });
 
 test('reports exhausted quota clearly', async () => {
-    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.OPENROUTER_API_KEY = 'test-key';
     axios.post = async () => {
         const error = new Error('request failed');
         error.response = {
@@ -72,5 +67,88 @@ test('reports exhausted quota clearly', async () => {
         };
         throw error;
     };
-    await assert.rejects(ai.complete({ prompt: 'hello' }), /quota is exhausted/);
+    await assert.rejects(ai.complete({ prompt: 'hello' }), /no credits left/);
+});
+
+// OpenAI sends billing exhaustion as type=insufficient_quota with a distinct
+// code; without matching both it fell through to the generic rate-limit text.
+test('reports an exhausted credit balance as billing, not rate limiting', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    axios.post = async () => {
+        const error = new Error('request failed');
+        error.response = {
+            status: 429,
+            data: { error: { type: 'insufficient_quota', code: 'credit_balance_exhausted' } },
+        };
+        throw error;
+    };
+    await assert.rejects(ai.complete({ prompt: 'hello' }), /no credits left/);
+});
+
+test('reports genuine rate limiting separately', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    axios.post = async () => {
+        const error = new Error('request failed');
+        error.response = {
+            status: 429,
+            data: { error: { type: 'rate_limit_error', code: 'rate_limit_exceeded' } },
+        };
+        throw error;
+    };
+    await assert.rejects(ai.complete({ prompt: 'hello' }), /rate limited/);
+});
+
+test('never sends an output budget the Responses API rejects', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    let sent = null;
+    axios.post = async (_url, body) => {
+        sent = body;
+        return { data: { choices: [{ finish_reason: 'stop', message: { content: 'pong' } }] } };
+    };
+    await ai.complete({ prompt: 'ping', maxTokens: 8 });
+    assert.equal(sent.max_tokens, ai.MIN_OUTPUT_TOKENS + ai.REASONING_HEADROOM);
+});
+
+test('returns merged text with a brief conflict summary', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    axios.post = async () => ({
+        data: {
+            output: [{
+                type: 'message',
+                content: [{
+                    type: 'output_text',
+                    text: JSON.stringify({
+                        merged: 'main\nfeature',
+                        summary: 'Kept the main change and added the feature behavior.',
+                    }),
+                }],
+            }],
+        },
+    });
+
+    const result = await ai.resolveConflictHunk({
+        fileName: 'app.txt',
+        ours: 'main',
+        theirs: 'feature',
+    });
+    assert.deepEqual(result, {
+        merged: 'main\nfeature',
+        summary: 'Kept the main change and added the feature behavior.',
+    });
+});
+
+test('keeps plain-text merge responses compatible', () => {
+    assert.deepEqual(ai.parseMergeResolution('main\nfeature'), {
+        merged: 'main\nfeature',
+        summary: 'Combined the conflicting changes.',
+    });
+});
+
+test('limits AI conflict summaries even when the model is verbose', () => {
+    const result = ai.parseMergeResolution(JSON.stringify({
+        merged: 'resolved',
+        summary: Array.from({ length: 30 }, (_, index) => `word${index + 1}`).join(' '),
+    }));
+    assert.equal(result.summary.split(/\s+/).length, 18);
+    assert.match(result.summary, /\.\.\.$/);
 });

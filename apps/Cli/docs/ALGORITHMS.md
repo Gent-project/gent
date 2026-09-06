@@ -181,7 +181,7 @@ history-changing command, instead of bespoke inverse logic per command.
 
 **Location:** [`src/utils/ai-service.js`](../src/utils/ai-service.js)
 
-A direct OpenAI Responses API client for fast local enhancements: repository
+A direct OpenRouter chat-completions client for fast local CLI enhancements: repository
 chat, commit-message suggestions, diff reviews, and conflict resolution. Each
 task has a short specialized pre-prompt and bounded output. The AI merge path
 resolves text conflicts, creates the real two-parent merge commit, then reviews

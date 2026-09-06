@@ -137,7 +137,7 @@ async function checkAiKey(probe) {
             name: 'AI service',
             status: 'warn',
             detail: 'unavailable in this CLI installation',
-            hint: 'Ask the Gent distributor to provision the local AI credential.',
+            hint: 'Run `gent ai configure` once on this computer.',
         };
     }
 
@@ -145,7 +145,7 @@ async function checkAiKey(probe) {
         return {
             name: 'AI service',
             status: 'pass',
-            detail: `direct OpenAI [${source}], model: ${await ai.resolveModel()} (use --ai to live-test)`,
+            detail: `${source}, model: ${await ai.resolveModel()} (use --ai to live-test)`,
         };
     }
 
@@ -154,14 +154,14 @@ async function checkAiKey(probe) {
         return {
             name: 'AI service',
             status: 'pass',
-            detail: 'verified — OpenAI responded',
+            detail: 'verified — OpenRouter responded',
         };
     } catch (err) {
         return {
             name: 'AI service',
             status: 'fail',
             detail: err.message,
-            hint: 'Retry later or ask the Gent distributor to check AI quota and credentials.',
+            hint: 'Run `gent ai configure` to replace the key, or check credits at https://openrouter.ai/credits.',
         };
     }
 }
