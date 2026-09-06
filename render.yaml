@@ -1,6 +1,7 @@
 services:
   - type: web
     name: gent-api
+    branch: development/server
     env: docker
     region: oregon
     plan: free
