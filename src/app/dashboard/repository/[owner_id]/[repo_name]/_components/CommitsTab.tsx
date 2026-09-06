@@ -4,6 +4,7 @@ import { GitCommit, Copy } from "lucide-react";
 import { useState } from "react";
 import CommitDetails from "./CommitDetails";
 import { Commit } from "@/types/repository";
+import { parseCommitMessage } from "@/lib/commit-message";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 
 interface CommitsTabProps {
@@ -24,23 +25,34 @@ export default function CommitsTab({
   ownerId,
 }: CommitsTabProps) {
   const [selectedSha, setSelectedSha] = useState<string | null>(null);
+  const [expandedShas, setExpandedShas] = useState<string[]>([]);
   const t = getDashboardTheme(isDark);
+
+  const toggleBody = (sha: string) =>
+    setExpandedShas((current) =>
+      current.includes(sha)
+        ? current.filter((value) => value !== sha)
+        : [...current, sha],
+    );
 
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diffInSeconds < 60) return `${diffInSeconds} seconds ago`;
+    const ago = (value: number, unit: string) =>
+      `${value} ${value === 1 ? unit : `${unit}s`} ago`;
+
+    if (diffInSeconds < 60) return ago(diffInSeconds, "second");
     if (diffInSeconds < 3600)
-      return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+      return ago(Math.floor(diffInSeconds / 60), "minute");
     if (diffInSeconds < 86400)
-      return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+      return ago(Math.floor(diffInSeconds / 3600), "hour");
     if (diffInSeconds < 2592000)
-      return `${Math.floor(diffInSeconds / 86400)} days ago`;
+      return ago(Math.floor(diffInSeconds / 86400), "day");
     if (diffInSeconds < 31536000)
-      return `${Math.floor(diffInSeconds / 2592000)} months ago`;
-    return `${Math.floor(diffInSeconds / 31536000)} years ago`;
+      return ago(Math.floor(diffInSeconds / 2592000), "month");
+    return ago(Math.floor(diffInSeconds / 31536000), "year");
   };
 
   if (isLoading) {
@@ -96,53 +108,101 @@ export default function CommitsTab({
 
   return (
     <div>
-      {commits.map((commit, index) => (
-        <div
-          key={commit.id}
-          className={`flex items-start gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-            index !== commits.length - 1 ? "border-b" : ""
-          }`}
-          style={{ borderColor: t.border }}
-        >
+      {commits.map((commit, index) => {
+        const { subject, body } = parseCommitMessage(commit.message);
+        const isExpanded = expandedShas.includes(commit.sha);
+
+        return (
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono"
-            style={{ backgroundColor: t.accentMuted, color: t.accent }}
+            key={commit.id}
+            className={`flex items-start gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+              index !== commits.length - 1 ? "border-b" : ""
+            }`}
+            style={{ borderColor: t.border }}
           >
-            {commit.author_name.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium" style={{ color: t.text }}>
-              {commit.message}
-            </p>
             <div
-              className="flex items-center gap-2 mt-1 text-xs"
-              style={{ color: t.textMuted }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono"
+              style={{ backgroundColor: t.accentMuted, color: t.accent }}
             >
-              <span>{commit.author_name}</span>
-              <span>committed {formatRelativeTime(commit.committed_at)}</span>
+              {commit.author_name.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start gap-2">
+                <button
+                  onClick={() => setSelectedSha(commit.sha)}
+                  title={subject}
+                  className="min-w-0 truncate text-left text-sm font-medium hover:underline"
+                  style={{ color: t.text }}
+                >
+                  {subject}
+                </button>
+                {body && (
+                  <button
+                    onClick={() => toggleBody(commit.sha)}
+                    aria-expanded={isExpanded}
+                    aria-label={
+                      isExpanded
+                        ? "Hide commit description"
+                        : "Show commit description"
+                    }
+                    className="shrink-0 rounded border px-1.5 text-xs font-bold leading-4 hover:opacity-80"
+                    style={{
+                      borderColor: t.border,
+                      backgroundColor: t.surface,
+                      color: t.textMuted,
+                    }}
+                  >
+                    &hellip;
+                  </button>
+                )}
+              </div>
+              {body && isExpanded && (
+                <pre
+                  className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded border p-3 text-xs font-mono"
+                  style={{
+                    borderColor: t.borderMuted,
+                    backgroundColor: t.surface,
+                    color: t.textSecondary,
+                  }}
+                >
+                  {body}
+                </pre>
+              )}
+              <div
+                className="flex items-center gap-2 mt-1 text-xs"
+                style={{ color: t.textMuted }}
+              >
+                <span>{commit.author_name}</span>
+                <span
+                  suppressHydrationWarning
+                  title={new Date(commit.committed_at).toLocaleString()}
+                >
+                  committed {formatRelativeTime(commit.committed_at)}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedSha(commit.sha)}
+                className="px-2 py-1 text-xs rounded font-mono hover:underline"
+                style={{
+                  backgroundColor: t.surface,
+                  color: t.textSecondary,
+                }}
+              >
+                {commit.sha.substring(0, 7)}
+              </button>
+              <button
+                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                style={{ color: t.textMuted }}
+                onClick={() => navigator.clipboard.writeText(commit.sha)}
+              >
+                <Copy className="w-3 h-3" />
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSelectedSha(commit.sha)}
-              className="px-2 py-1 text-xs rounded font-mono hover:underline"
-              style={{
-                backgroundColor: t.surface,
-                color: t.textSecondary,
-              }}
-            >
-              {commit.sha.substring(0, 7)}
-            </button>
-            <button
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-              style={{ color: t.textMuted }}
-              onClick={() => navigator.clipboard.writeText(commit.sha)}
-            >
-              <Copy className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

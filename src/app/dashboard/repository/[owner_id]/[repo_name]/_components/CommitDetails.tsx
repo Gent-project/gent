@@ -2,6 +2,7 @@
 
 import { ArrowLeft, GitCommit, Plus, Minus } from "lucide-react";
 import { useCommit, useCommitDiff } from "@/hooks/use-commits";
+import { parseCommitMessage } from "@/lib/commit-message";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 
 interface CommitDetailsProps {
@@ -82,6 +83,8 @@ export default function CommitDetails({
     );
   }
 
+  const { subject, body } = parseCommitMessage(commit.message);
+
   return (
     <div>
       {/* Back button */}
@@ -111,11 +114,24 @@ export default function CommitDetails({
 
           <div className="min-w-0 flex-1">
             <h2
-              className="text-lg font-semibold mb-1"
+              className="text-lg font-semibold mb-1 break-words"
               style={{ color: t.text }}
             >
-              {commit.message}
+              {subject}
             </h2>
+
+            {body && (
+              <pre
+                className="mb-2 whitespace-pre-wrap break-words rounded border p-3 text-xs font-mono"
+                style={{
+                  borderColor: t.borderMuted,
+                  backgroundColor: t.surface,
+                  color: t.textSecondary,
+                }}
+              >
+                {body}
+              </pre>
+            )}
 
             <p className="text-sm" style={{ color: t.textMuted }}>
               {commit.author_name} committed{" "}
