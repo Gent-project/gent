@@ -1,6 +1,6 @@
 import re
 from rest_framework import serializers
-from api.models import Repository
+from api.models import Repository, User
 from api.services.repository_access import get_user_repo_role
 
 
@@ -29,6 +29,41 @@ class RepositorySerializer(serializers.ModelSerializer):
         if request is None or not request.user.is_authenticated:
             return None
         return get_user_repo_role(request.user, obj)
+
+
+class PublicRepositorySerializer(RepositorySerializer):
+    """Repository fields safe for callers without repository membership."""
+    owner_name = serializers.SerializerMethodField()
+
+    class Meta(RepositorySerializer.Meta):
+        fields = [
+            field for field in RepositorySerializer.Meta.fields
+            if field != 'owner_email'
+        ]
+        read_only_fields = [
+            field for field in RepositorySerializer.Meta.read_only_fields
+            if field != 'owner_email'
+        ]
+
+    def get_owner_name(self, obj):
+        return f'{obj.owner.first_name} {obj.owner.last_name}'.strip() or obj.owner.username
+
+
+class PublicUserSerializer(serializers.ModelSerializer):
+    """Public identity. Email is never matched or returned."""
+    public_repo_count = serializers.IntegerField(read_only=True, default=0)
+    display_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 'display_name',
+            'date_joined', 'public_repo_count',
+        ]
+        read_only_fields = fields
+
+    def get_display_name(self, obj):
+        return f'{obj.first_name} {obj.last_name}'.strip() or obj.username
 
 
 class RepositoryCreateSerializer(serializers.ModelSerializer):

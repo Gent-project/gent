@@ -23,6 +23,11 @@ urlpatterns = [
     path('auth/git-tokens/', views.git_token_list_create, name='git-token-list-create'),
     path('auth/git-tokens/<int:token_id>/', views.git_token_delete, name='git-token-delete'),
 
+    # Public discovery
+    path('search/repos/', views.repository_search, name='repository-search'),
+    path('search/users/', views.user_search, name='user-search'),
+    path('users/<str:owner_ref>/', views.public_user_detail, name='public-user-detail'),
+
     # Repository endpoints
     path('repos/', views.repository_list, name='repository-list'),
     path('repos/create/', views.repository_create, name='repository-create'),

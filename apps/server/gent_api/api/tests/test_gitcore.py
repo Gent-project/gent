@@ -86,6 +86,27 @@ class GitCoreTests(TestCase):
         with self.assertRaises(objects.GitError):
             protocol.upload(self.repo, protocol.pkt(f'want {blob_id} object-format=sha256\n') + b'0000' + protocol.pkt('done\n'))
 
+    def test_anonymous_upload_pack_returns_populated_public_history(self):
+        self.publish()
+        refs = self.client.get('/owner/canonical.git/info/refs?service=git-upload-pack')
+        self.assertEqual(refs.status_code, 200)
+        self.assertIn(self.key.encode(), refs.content)
+
+        request = (
+            protocol.pkt(f'want {self.key} object-format=sha256\n')
+            + b'0000'
+            + protocol.pkt('done\n')
+        )
+        response = self.client.post(
+            '/owner/canonical.git/git-upload-pack',
+            request,
+            content_type='application/x-git-upload-pack-request',
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = b''.join(response.streaming_content)
+        _, pos = protocol.packet(payload, 0)
+        self.assertEqual(pack.decode(payload[pos:]), self.incoming)
+
     def test_upload_streams_only_objects_missing_from_have_history(self):
         self.publish()
         first = objects.parse_commit(self.incoming[self.key][1])

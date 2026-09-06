@@ -1,10 +1,20 @@
 from django.contrib.auth.models import AnonymousUser
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-from api.models import User, Repository, Branch, RepositoryMember, RepositoryMemberRole
+from api.models import (
+    User,
+    Repository,
+    Branch,
+    Blob,
+    Commit,
+    Tree,
+    RepositoryMember,
+    RepositoryMemberRole,
+)
 from api.services.repository_access import (
     get_user_repo_role,
     user_can_read_repo,
@@ -154,6 +164,55 @@ class AnonymousPublicRepositoryAccessTestCase(TestCase):
             {'branch': 'main'},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_anonymous_clone_public_repository_includes_history_and_file_content(self):
+        blob_sha = '1' * 64
+        tree_sha = '2' * 64
+        commit_sha = '3' * 64
+        Blob.objects.create(
+            repository=self.public_repo,
+            sha=blob_sha,
+            size=12,
+            content='hello public',
+        )
+        Tree.objects.create(
+            repository=self.public_repo,
+            sha=tree_sha,
+            entries=[{
+                'mode': '100644',
+                'name': 'README.md',
+                'sha': blob_sha,
+                'type': 'blob',
+            }],
+        )
+        Commit.objects.create(
+            repository=self.public_repo,
+            sha=commit_sha,
+            message='Public initial commit',
+            tree_sha=tree_sha,
+            parent_shas=[],
+            author_name='Public Owner',
+            author_email='public-owner@example.com',
+            committed_at=timezone.now(),
+        )
+        Branch.objects.filter(repository=self.public_repo, name='main').update(
+            commit_sha=commit_sha,
+        )
+
+        response = self.client.get(self._url('clone', self.public_repo))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['branches']['main'], commit_sha)
+        self.assertEqual(response.data['commits'][0]['hash'], commit_sha)
+        self.assertEqual(response.data['commits'][0]['files'], [{
+            'path': 'README.md',
+            'hash': blob_sha,
+        }])
+        self.assertEqual(response.data['objects'], [{
+            'hash': blob_sha,
+            'type': 'blob',
+            'data': 'aGVsbG8gcHVibGlj',
+        }])
 
     def test_anonymous_public_repository_role_is_null(self):
         response = self.client.get(self._url('repository-detail', self.public_repo))

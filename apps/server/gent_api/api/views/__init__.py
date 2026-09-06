@@ -19,6 +19,7 @@ from .clone import clone
 from .tag import tag_list, tag_create, tag_delete
 from .members import member_list, member_remove
 from .git_tokens import git_token_list_create, git_token_delete
+from .discover import repository_search, user_search, public_user_detail
 
 __all__ = [
     'api_root',
@@ -56,4 +57,7 @@ __all__ = [
     'member_remove',
     'git_token_list_create',
     'git_token_delete',
+    'repository_search',
+    'user_search',
+    'public_user_detail',
 ]
