@@ -3,6 +3,7 @@
 import { Search, Plus, Menu, Moon, Sun } from "lucide-react";
 import { getDashboardTheme } from "./dashboard-theme";
 import { LanguageToggle } from "@/app/language-provider";
+import GlobalSearch from "@/components/search/GlobalSearch";
 
 interface DashboardTopBarProps {
   isDark: boolean;
@@ -61,6 +62,8 @@ export default function DashboardTopBar({
           }}
         />
       </div>
+
+      <GlobalSearch className="hidden min-w-0 max-w-xs flex-1 lg:block" />
 
       <span
         className="hidden rounded-full border px-2.5 py-1 font-mono text-[10px] font-medium sm:inline"

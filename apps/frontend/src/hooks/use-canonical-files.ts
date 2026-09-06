@@ -11,7 +11,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-export function useCanonicalFiles(ownerId: number, repoName: string) {
+export function useCanonicalFiles(ownerId: number | string, repoName: string) {
   const repository = useRepository(ownerId, repoName);
   const queryClient = useQueryClient();
   const mutation = useMutation({

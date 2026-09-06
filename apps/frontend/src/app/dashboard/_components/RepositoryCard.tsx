@@ -6,12 +6,14 @@ import { ArrowUpRight, Clock3, FolderGit2, GitBranch, Globe2, LockKeyhole } from
 import { getDashboardTheme } from "./dashboard-theme";
 import { Repository } from "@/types/repository";
 import { DASHBOARD_PATH } from "@/routes/path";
+import { getRepoOwner } from "@/lib/user-display";
 
 interface RepositoryCardProps {
   repo: Repository;
   isDark: boolean;
   index: number;
   highlighted?: boolean;
+  href?: string;
 }
 
 function getRelativeTime(dateString: string): string {
@@ -28,9 +30,10 @@ function getRelativeTime(dateString: string): string {
   return `${Math.floor(months / 12)}y ago`;
 }
 
-export default function RepositoryCard({ repo, isDark, index, highlighted = false }: RepositoryCardProps) {
+export default function RepositoryCard({ repo, isDark, index, highlighted = false, href }: RepositoryCardProps) {
   const t = getDashboardTheme(isDark);
-  const owner = repo.owner_email.split("@")[0];
+  const owner = getRepoOwner(repo);
+  const repositoryHref = href ?? DASHBOARD_PATH.REPOSITORY(repo.owner_id, repo.name);
 
   return (
     <motion.article
@@ -51,7 +54,7 @@ export default function RepositoryCard({ repo, isDark, index, highlighted = fals
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href={DASHBOARD_PATH.REPOSITORY(repo.owner_id, repo.name)}
+              href={repositoryHref}
               className="inline-flex min-w-0 items-center gap-1.5 text-[15px] font-semibold hover:underline"
               style={{ color: t.text }}
             >
@@ -78,7 +81,7 @@ export default function RepositoryCard({ repo, isDark, index, highlighted = fals
         </div>
 
         <Link
-          href={DASHBOARD_PATH.REPOSITORY(repo.owner_id, repo.name)}
+          href={repositoryHref}
           aria-label={`Open ${repo.name}`}
           className="mt-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg border opacity-0 transition-all group-hover:opacity-100 sm:flex"
           style={{ borderColor: t.border, color: t.textMuted }}

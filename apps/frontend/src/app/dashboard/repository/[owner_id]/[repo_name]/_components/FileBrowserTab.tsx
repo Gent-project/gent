@@ -33,11 +33,12 @@ import CreateFileModal from "./CreateFileModal";
 import UploadFileModal from "./UploadFileModal";
 
 interface FileBrowserTabProps {
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   isDark: boolean;
   defaultBranch: string;
   userEmail: string;
+  canWrite?: boolean;
 }
 
 type BrowserEntry = TreeEntry & {
@@ -57,6 +58,7 @@ export default function FileBrowserTab({
   isDark,
   defaultBranch,
   userEmail,
+  canWrite = false,
 }: FileBrowserTabProps) {
   const [currentPath, setCurrentPath] = useState<string[]>([]);
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
@@ -299,14 +301,14 @@ export default function FileBrowserTab({
   };
 
   const handleEditFile = () => {
-    if (fileBlob?.encoding === "base64") return;
+    if (!canWrite || fileBlob?.encoding === "base64") return;
     setEditContent(fileBlob?.content || "");
     setEditError("");
     setIsEditModalOpen(true);
   };
 
   const handleSaveEdit = async () => {
-    if (!selectedEntry || !tree?.entries) return;
+    if (!canWrite || !selectedEntry || !tree?.entries) return;
 
     setIsSavingEdit(true);
     setEditError("");
@@ -533,6 +535,7 @@ export default function FileBrowserTab({
             selectedBranch={selectedBranch}
             defaultBranch={defaultBranch}
             onBranchChange={setSelectedBranch}
+            canWrite={canWrite}
           />
 
           <div className="space-y-3">
@@ -547,7 +550,7 @@ export default function FileBrowserTab({
         </div>
 
         <CreateFileModal
-          isOpen={showCreateModal}
+          isOpen={canWrite && showCreateModal}
           onClose={() => setShowCreateModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -558,7 +561,7 @@ export default function FileBrowserTab({
           currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
-          isOpen={showUploadModal}
+          isOpen={canWrite && showUploadModal}
           onClose={() => setShowUploadModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -591,6 +594,7 @@ export default function FileBrowserTab({
             selectedBranch={selectedBranch}
             defaultBranch={defaultBranch}
             onBranchChange={setSelectedBranch}
+            canWrite={canWrite}
           />
 
           <div className="text-center py-12">
@@ -616,7 +620,7 @@ export default function FileBrowserTab({
         </div>
 
         <CreateFileModal
-          isOpen={showCreateModal}
+          isOpen={canWrite && showCreateModal}
           onClose={() => setShowCreateModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -627,7 +631,7 @@ export default function FileBrowserTab({
           currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
-          isOpen={showUploadModal}
+          isOpen={canWrite && showUploadModal}
           onClose={() => setShowUploadModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -655,6 +659,7 @@ export default function FileBrowserTab({
             selectedBranch={selectedBranch}
             defaultBranch={defaultBranch}
             onBranchChange={setSelectedBranch}
+            canWrite={canWrite}
           />
 
           {/* File header */}
@@ -686,7 +691,7 @@ export default function FileBrowserTab({
               >
                 <Copy className="w-4 h-4" />
               </button>
-              <button
+              {canWrite && <button
                 onClick={handleEditFile}
                 disabled={fileBlob?.encoding === "base64"}
                 className="rounded-lg border p-2 transition-colors"
@@ -694,7 +699,7 @@ export default function FileBrowserTab({
                 title="Edit file"
               >
                 <Edit className="w-4 h-4" />
-              </button>
+              </button>}
             </div>
           </div>
 
@@ -754,7 +759,7 @@ export default function FileBrowserTab({
         </div>
 
         <CreateFileModal
-          isOpen={showCreateModal}
+          isOpen={canWrite && showCreateModal}
           onClose={() => setShowCreateModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -765,7 +770,7 @@ export default function FileBrowserTab({
           currentTreeSha={activeTreeSha}
         />
         <UploadFileModal
-          isOpen={showUploadModal}
+          isOpen={canWrite && showUploadModal}
           onClose={() => setShowUploadModal(false)}
           ownerId={ownerId}
           repoName={repoName}
@@ -774,7 +779,7 @@ export default function FileBrowserTab({
           userEmail={userEmail}
           currentPath={currentPath}
         />
-        {isEditModalOpen && (
+        {canWrite && isEditModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
             <div
               className="w-full max-w-2xl rounded-lg border p-4 shadow-xl"
@@ -854,6 +859,7 @@ export default function FileBrowserTab({
           selectedBranch={selectedBranch}
           defaultBranch={defaultBranch}
           onBranchChange={setSelectedBranch}
+          canWrite={canWrite}
         />
 
         <div className="overflow-hidden rounded-xl border" style={{ borderColor: t.border }}>
@@ -908,7 +914,7 @@ export default function FileBrowserTab({
       </div>
 
       <CreateFileModal
-        isOpen={showCreateModal}
+        isOpen={canWrite && showCreateModal}
         onClose={() => setShowCreateModal(false)}
         ownerId={ownerId}
         repoName={repoName}
@@ -919,7 +925,7 @@ export default function FileBrowserTab({
         currentTreeSha={activeTreeSha}
       />
       <UploadFileModal
-        isOpen={showUploadModal}
+        isOpen={canWrite && showUploadModal}
         onClose={() => setShowUploadModal(false)}
         ownerId={ownerId}
         repoName={repoName}

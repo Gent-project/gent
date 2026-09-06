@@ -11,6 +11,7 @@ import { AUTH_PATH, DASHBOARD_PATH } from "@/routes/path";
 import { RootState } from "@/store";
 import { toggleTheme } from "@/store/slices/theme-slice";
 import { LanguageToggle } from "@/app/language-provider";
+import GlobalSearch from "@/components/search/GlobalSearch";
 
 const navLinks = [
   { href: "/home", label: "Home" },
@@ -61,6 +62,8 @@ export default function SharedNavigation() {
             </span>
           </span>
         </Link>
+
+        <GlobalSearch className="hidden min-w-0 max-w-xs flex-1 lg:block" />
 
         {/* desktop links */}
         <nav className="hidden items-center gap-0.5 md:flex">
@@ -140,6 +143,7 @@ export default function SharedNavigation() {
             className="glass-strong absolute inset-x-3 top-[4.5rem] rounded-2xl p-3 md:hidden"
           >
             <div className="space-y-1">
+              <GlobalSearch className="mb-2" />
               {navLinks.map((link) => (
                 <Link
                   key={link.href}

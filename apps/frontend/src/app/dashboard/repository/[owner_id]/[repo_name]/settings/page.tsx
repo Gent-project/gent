@@ -25,6 +25,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 import { DASHBOARD_PATH } from "@/routes/path";
+import { getRepoOwner } from "@/lib/user-display";
 
 import {
   useCollaborators,
@@ -223,7 +224,7 @@ export default function RepositorySettingsPage() {
             Repository Settings
           </h1>
           <p className="text-sm" style={{ color: t.textMuted }}>
-            {repository.owner_email.split("@")[0]}/{repository.name}
+            {getRepoOwner(repository)}/{repository.name}
           </p>
         </div>
       </div>

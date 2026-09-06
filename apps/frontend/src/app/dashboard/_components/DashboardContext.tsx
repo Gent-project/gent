@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
@@ -60,6 +61,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [dispatch]);
 
   const hasToken = !!token || !!getStoredToken();
+  const isRepositoryReadRoute = /^\/dashboard\/repository\/[^/]+\/[^/]+\/?$/.test(pathname);
+  const loginHref = `${AUTH_PATH.LOGIN}?next=${encodeURIComponent(pathname)}`;
   const isRepositoryFallbackRoute =
     pathname === "/dashboard/repository" ||
     /^\/dashboard\/repository\/[^/]+$/.test(pathname);
@@ -68,7 +71,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (!authChecked) return;
     if (isRepositoryFallbackRoute) return;
     if (!hasToken) {
-      router.replace(AUTH_PATH.LOGIN);
+      setRepositories([]);
+      setReposLoading(false);
+      if (!isRepositoryReadRoute) router.replace(loginHref);
       return;
     }
 
@@ -121,7 +126,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [authChecked, hasToken, isRepositoryFallbackRoute, router]);
+  }, [authChecked, hasToken, isRepositoryFallbackRoute, isRepositoryReadRoute, loginHref, router]);
 
   const handleCreateRepository = async (repo: {
     name: string;
@@ -183,7 +188,22 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   if (!authChecked) return null;
   if (isRepositoryFallbackRoute && !hasToken) return <>{children}</>;
-  if (!hasToken) return null;
+  if (!hasToken) {
+    if (!isRepositoryReadRoute) return null;
+    return (
+      <div className="min-h-screen" style={{ background: t.canvas, color: t.text }}>
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b px-6 py-4" style={{ borderColor: t.border }}>
+          <Link href="/" className="text-xl font-bold">Gent</Link>
+          <div className="flex items-center gap-4 text-sm">
+            <span>Public repository</span>
+            <Link href={loginHref} className="rounded-lg border px-4 py-2" style={{ borderColor: t.border }}>Sign in</Link>
+            <Link href="/auth/signup" className="rounded-lg px-4 py-2" style={{ background: t.accent, color: t.successText }}>Sign up</Link>
+          </div>
+        </header>
+        <main>{children}</main>
+      </div>
+    );
+  }
 
   return (
     <DashboardCtx.Provider

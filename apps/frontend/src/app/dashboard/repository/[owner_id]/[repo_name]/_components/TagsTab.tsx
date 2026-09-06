@@ -11,10 +11,11 @@ interface TagsTabProps {
   tags: TagType[];
   isLoading: boolean;
   isDark: boolean;
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   branches: Array<{ name: string; commit_sha: string }>;
   userEmail: string;
+  canWrite?: boolean;
 }
 
 export default function TagsTab({ 
@@ -24,7 +25,8 @@ export default function TagsTab({
   ownerId,
   repoName,
   branches,
-  userEmail 
+  userEmail,
+  canWrite = false,
 }: TagsTabProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
@@ -68,7 +70,7 @@ export default function TagsTab({
           <h3 className="font-semibold" style={{ color: t.text }}>
             {tags.length} {tags.length === 1 ? 'tag' : 'tags'}
           </h3>
-          <button
+          {canWrite && <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors"
             style={{
@@ -78,7 +80,7 @@ export default function TagsTab({
           >
             <Plus className="w-4 h-4" />
             Create tag
-          </button>
+          </button>}
         </div>
 
         {isLoading ? (
@@ -133,7 +135,7 @@ export default function TagsTab({
                   </p>
                 </div>
                 
-                <div className="relative">
+                {canWrite && <div className="relative">
                   <button
                     onClick={() => setDeleteConfirmation(deleteConfirmation === tag.name ? null : tag.name)}
                     className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -160,7 +162,7 @@ export default function TagsTab({
                       </button>
                     </div>
                   )}
-                </div>
+                </div>}
               </div>
             ))}
           </div>
@@ -173,7 +175,7 @@ export default function TagsTab({
             <p className="text-sm mb-4" style={{ color: t.textMuted }}>
               Tags help you mark important milestones in your repository.
             </p>
-            <button
+            {canWrite && <button
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               style={{
@@ -183,14 +185,14 @@ export default function TagsTab({
             >
               <Plus className="w-4 h-4 inline mr-2" />
               Create your first tag
-            </button>
+            </button>}
           </div>
         )}
       </div>
 
       {/* Create Tag Modal */}
       <CreateTagModal
-        isOpen={showCreateModal}
+        isOpen={canWrite && showCreateModal}
         onClose={() => setShowCreateModal(false)}
         ownerId={ownerId}
         repoName={repoName}

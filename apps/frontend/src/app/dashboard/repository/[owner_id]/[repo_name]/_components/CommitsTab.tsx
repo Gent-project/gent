@@ -11,7 +11,7 @@ interface CommitsTabProps {
   isLoading: boolean;
   isDark: boolean;
   ownerName: string;
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
 }
 

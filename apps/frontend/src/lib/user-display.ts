@@ -41,3 +41,17 @@ export function getUsername(user: UserProfile | null | undefined): string {
   if (user.email) return user.email.split("@")[0];
   return "user";
 }
+
+/**
+ * Owner handle for a repository. Prefers the username, which every response
+ * carries; falls back to the email local part for older cached payloads.
+ * Public discovery responses never include an email.
+ */
+export function getRepoOwner(repo: {
+  owner_username?: string;
+  owner_email?: string;
+}): string {
+  if (repo.owner_username) return repo.owner_username;
+  if (repo.owner_email) return repo.owner_email.split("@")[0];
+  return "user";
+}

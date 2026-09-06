@@ -103,7 +103,8 @@ axios.interceptors.response.use(
     }
 
     // Handle 401 (Unauthorized) and try refresh token
-    if (error?.response?.status === 401 && !originalRequest._retry) {
+    if (error?.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      if (!originalRequest.headers?.Authorization) return Promise.reject(error);
       const requestUrl = String(originalRequest?.url ?? "");
       const isAuthEndpoint =
         requestUrl.includes("auth/login") ||

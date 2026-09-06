@@ -23,6 +23,7 @@ interface FileToolbarProps {
   isDark: boolean;
   onCreate: () => void;
   onUpload: () => void;
+  canWrite?: boolean;
 
   branches: Branch[];
   selectedBranch: string;
@@ -36,6 +37,7 @@ export default function FileToolbar({
   isDark,
   onCreate,
   onUpload,
+  canWrite = false,
   branches,
   selectedBranch,
   defaultBranch,
@@ -269,7 +271,7 @@ export default function FileToolbar({
         </div>
 
         {/* Add file */}
-        <div className="relative" ref={menuRef}>
+        {canWrite && <div className="relative" ref={menuRef}>
           <button
             type="button"
             onClick={() => setShowAddMenu((value) => !value)}
@@ -320,7 +322,7 @@ export default function FileToolbar({
               </button>
             </div>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );

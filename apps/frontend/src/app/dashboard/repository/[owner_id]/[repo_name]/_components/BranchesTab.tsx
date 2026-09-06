@@ -12,9 +12,10 @@ interface BranchesTabProps {
   isLoading: boolean;
   isDark: boolean;
   defaultBranch: string;
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   userEmail: string;
+  canWrite?: boolean;
 }
 
 export default function BranchesTab({ 
@@ -24,7 +25,8 @@ export default function BranchesTab({
   defaultBranch,
   ownerId,
   repoName,
-  userEmail 
+  userEmail,
+  canWrite = false,
 }: BranchesTabProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
@@ -70,7 +72,7 @@ export default function BranchesTab({
           <h3 className="font-semibold" style={{ color: t.text }}>
             {branches.length} {branches.length === 1 ? 'branch' : 'branches'}
           </h3>
-          <button
+          {canWrite && <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors"
             style={{
@@ -80,7 +82,7 @@ export default function BranchesTab({
           >
             <Plus className="w-4 h-4" />
             New branch
-          </button>
+          </button>}
         </div>
 
         {isLoading ? (
@@ -127,7 +129,7 @@ export default function BranchesTab({
                   </p>
                 </div>
                 
-                {branch.name !== defaultBranch && (
+                {canWrite && branch.name !== defaultBranch && (
                   <div className="relative">
                     <button
                       onClick={() => setDeleteConfirmation(deleteConfirmation === branch.name ? null : branch.name)}
@@ -169,7 +171,7 @@ export default function BranchesTab({
             <p className="text-sm mb-4" style={{ color: t.textMuted }}>
               Only the {defaultBranch} branch exists. Create additional branches to organize your work.
             </p>
-            <button
+            {canWrite && <button
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               style={{
@@ -179,14 +181,14 @@ export default function BranchesTab({
             >
               <Plus className="w-4 h-4 inline mr-2" />
               Create branch
-            </button>
+            </button>}
           </div>
         )}
       </div>
 
       {/* Create Branch Modal */}
       <CreateBranchModal
-        isOpen={showCreateModal}
+        isOpen={canWrite && showCreateModal}
         onClose={() => setShowCreateModal(false)}
         ownerId={ownerId}
         repoName={repoName}

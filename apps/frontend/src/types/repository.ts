@@ -1,7 +1,10 @@
 export interface Repository {
   id: number;
   owner_id: number;
-  owner_email: string;
+  owner_email?: string;
+  owner_username: string;
+  owner_name?: string;
+  role?: "owner" | "write" | "read" | null;
   name: string;
   description: string;
   is_private: boolean;
@@ -70,4 +73,26 @@ export interface Blob {
   content: string;
   encoding: string;
   created_at: string;
+}
+
+export interface PublicUser {
+  id: number;
+  username: string;
+  first_name: string;
+  last_name: string;
+  display_name: string;
+  date_joined: string;
+  public_repo_count: number;
+}
+
+export interface PublicProfile {
+  user: PublicUser;
+  repositories: Repository[];
+}
+
+export interface Paginated<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
 }

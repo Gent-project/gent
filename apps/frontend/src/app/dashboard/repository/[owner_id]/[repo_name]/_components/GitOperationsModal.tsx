@@ -10,20 +10,20 @@ import {
   Terminal, 
   Copy, 
   CheckCircle,
-  AlertCircle 
 } from "lucide-react";
-import { usePushPack, usePullRepository } from "@/hooks/use-git-operations";
+import { usePullRepository } from "@/hooks/use-git-operations";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 
 interface GitOperationsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  ownerId: number;
+  ownerId: number | string;
   repoName: string;
   isDark: boolean;
   repositoryUrl: string;
   defaultBranch: string;
   objectFormat?: "legacy" | "sha256";
+  canWrite?: boolean;
 }
 
 export default function GitOperationsModal({ 
@@ -35,10 +35,10 @@ export default function GitOperationsModal({
   repositoryUrl,
   defaultBranch,
   objectFormat,
+  canWrite = false,
 }: GitOperationsModalProps) {
   const [activeTab, setActiveTab] = useState<'clone' | 'push' | 'pull'>('clone');
   
-  const pushPack = usePushPack();
   const pullRepository = usePullRepository();
   const t = getDashboardTheme(isDark);
 
@@ -102,7 +102,7 @@ export default function GitOperationsModal({
             { id: 'clone', label: 'Clone', icon: Download },
             { id: 'push', label: 'Push', icon: Upload },
             { id: 'pull', label: 'Pull', icon: GitPullRequest },
-          ].map((tab) => (
+          ].filter((tab) => canWrite || tab.id === "clone").map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
@@ -166,7 +166,7 @@ export default function GitOperationsModal({
                 </div>
               </div>
 
-              <div>
+              {canWrite && <div>
                 <h4 className="text-sm font-semibold mb-3" style={{ color: t.text }}>
                   Push an existing folder from the command line
                 </h4>
@@ -195,7 +195,7 @@ export default function GitOperationsModal({
                   <Copy className="w-3 h-3" />
                   Copy commands
                 </button>
-              </div>
+              </div>}
             </div>
           )}
 
