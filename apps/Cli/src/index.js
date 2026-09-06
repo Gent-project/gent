@@ -36,6 +36,7 @@ const { route } = require('./commands/canonical');
 const autoCommand = route('auto', require('./commands/auto'));
 const initCommand = route('init', require('./commands/init'));
 const cloneCommand = require('./commands/clone');
+const importCommand = require('./commands/import');
 const statusCommand = route('status', require('./commands/status'));
 const addCommand = route('add', require('./commands/add'));
 const rmCommand = route('rm', require('./commands/rm'));
@@ -132,6 +133,13 @@ program
         }
         return cloneCommand(url, directory, options);
     });
+
+program
+    .command('import <source> <directory>')
+    .description('Import a SHA-1 Git repository as SHA-256 Gent history')
+    .option('--remote <name>', 'Create this Gent remote repository and push imported refs')
+    .option('--private', 'Make the created Gent remote private')
+    .action(importCommand);
 
 // ─── Staging & Working Tree ─────────────────────────────
 
@@ -499,7 +507,7 @@ program
 // Commander's default lists all ~45 commands in one flat block, which reads as
 // noise. Group them by purpose instead, and render our own list after Options.
 const HELP_GROUPS = [
-    ['Start here', ['auto', 'setup', 'init', 'clone']],
+    ['Start here', ['auto', 'setup', 'init', 'clone', 'import']],
     ['Work on changes', ['status', 'add', 'rm', 'reset', 'diff', 'commit']],
     ['History', ['log', 'show', 'tag', 'explain', 'summary']],
     ['Branches & merging', ['branch', 'checkout', 'merge', 'resolve', 'stash', 'undo', 'redo']],

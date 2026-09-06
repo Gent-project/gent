@@ -80,6 +80,22 @@ gent doctor            # health check: node, repo, auth, backend
 gent clone https://gent-api.onrender.com/<owner_id>/<repo_name>.git
 ```
 
+### Import a GitHub repository
+
+GitHub repositories use SHA-1 object IDs while Gent uses SHA-256. Import converts
+the complete reachable branch and tag history into Gent objects, preserving each
+source commit or annotated tag ID in a `gent-source-sha1` header. Signed commit
+and tag signatures are not retained because conversion changes their bytes.
+
+```bash
+# Requires Git locally only for this read-only source adapter.
+gent import https://github.com/<owner>/<repo>.git ./<repo>-gent --remote <gent-repo-name>
+```
+
+`--remote` creates the named Gent repository and pushes all imported branches and
+tags. Run `gent login` first. Git submodules and non-UTF-8 path names are refused
+instead of being silently altered.
+
 Issues and pull requests are **not** implemented — they are out of scope for this version.
 
 ---
