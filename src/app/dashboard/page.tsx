@@ -152,7 +152,7 @@ export default function DashboardPage() {
             onClick={() => refetch()}
             className="px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:shadow-lg flex items-center gap-2"
             style={{
-              background: t.accentGradient,
+              backgroundColor: t.accent,
               color: t.successText,
             }}
           >
@@ -205,7 +205,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={openNewRepoModal}
                 className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-transform hover:-translate-y-0.5"
-                style={{ background: t.accentGradient, color: t.successText }}
+                style={{ backgroundColor: t.accent, color: t.successText }}
               >
                 <Plus className="w-4 h-4" />
                 New repository
@@ -365,7 +365,7 @@ export default function DashboardPage() {
                   onClick={openNewRepoModal}
                   className="px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:shadow-lg flex items-center gap-2"
                   style={{
-                    background: t.accentGradient,
+                    backgroundColor: t.accent,
                     color: t.successText,
                   }}
                 >

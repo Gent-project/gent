@@ -117,8 +117,8 @@ export default function CookieConsent() {
                 onClick={handleAccept}
                 className={`relative w-full px-6 py-2 rounded-lg transition-all font-medium text-sm flex items-center justify-center gap-2 ${
                   isDark
-                    ? "bg-gradient-to-r from-[#7dd3fc] to-[#06b6d4] text-[#0f1419] hover:shadow-xl hover:shadow-cyan-500/50"
-                    : "bg-gradient-to-r from-[#5A7863] to-[#4a6853] text-white hover:shadow-xl hover:shadow-green-500/50"
+                    ? "bg-[#7dd3fc] text-[#0f1419] hover:bg-[#06b6d4] hover:shadow-xl hover:shadow-cyan-500/50"
+                    : "bg-[#5A7863] text-white hover:bg-[#4a6853] hover:shadow-xl hover:shadow-green-500/50"
                 }`}
                 whileHover={{ scale: 1.08, y: -2 }}
                 whileTap={{ scale: 0.95 }}

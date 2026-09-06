@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gent-web",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/Users/saad/development/projects/gent/node_modules/next/dist/bin/next",
+        "dev",
+        "/Users/saad/development/projects/gent",
+        "--port",
+        "3000"
+      ],
+      "port": 3000
+    }
+  ]
+}

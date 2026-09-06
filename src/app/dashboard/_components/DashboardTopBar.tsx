@@ -101,7 +101,7 @@ export default function DashboardTopBar({
         onClick={onNewRepo}
         className="flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold shadow-lg transition-all hover:-translate-y-0.5"
         style={{
-          background: t.accentGradient,
+          backgroundColor: t.accent,
           color: t.successText,
         }}
       >

@@ -217,7 +217,7 @@ export default function ProfileSettingsForm({ isDark }: ProfileSettingsFormProps
                 disabled={updateProfile.isPending}
                 className="px-4 py-2 text-sm font-semibold rounded-lg transition-all hover:shadow-lg disabled:opacity-60 flex items-center gap-2"
                 style={{
-                  background: t.accentGradient,
+                  backgroundColor: t.accent,
                   color: t.successText,
                 }}
               >

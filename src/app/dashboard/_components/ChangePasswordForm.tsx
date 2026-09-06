@@ -232,7 +232,7 @@ export default function ChangePasswordForm({
             !confirmPassword
           }
           className="w-full font-semibold"
-          style={{ background: t.accentGradient, color: t.successText }}
+          style={{ backgroundColor: t.accent, color: t.successText }}
         >
           {mutation.isPending ? "Changing Password..." : "Change Password"}
         </Button>

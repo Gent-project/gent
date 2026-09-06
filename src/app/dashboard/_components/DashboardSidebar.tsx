@@ -145,7 +145,7 @@ export default function DashboardSidebar({
           }}
           className="flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold shadow-lg transition-all hover:scale-[1.02]"
           style={{
-            background: t.accentGradient,
+            backgroundColor: t.accent,
             color: t.successText,
           }}
         >
