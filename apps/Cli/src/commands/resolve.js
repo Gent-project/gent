@@ -32,8 +32,15 @@ const authStorage = require('../utils/auth-storage');
 const journal = require('../utils/journal');
 const ai = require('../utils/ai-service');
 
-async function resolve() {
+async function resolve(options = {}) {
     try {
+        await ai.prime();
+        if (options.ai && !ai.isEnabled()) {
+            console.error(chalk.red(ai.disabledHint()));
+            process.exitCode = 1;
+            return;
+        }
+
         const gentPath = await getGentPath();
         const cwd = process.cwd();
 
@@ -92,7 +99,7 @@ async function resolve() {
                     continue;
                 }
                 idx++;
-                const resolvedLines = await resolveHunk(seg, file, idx, conflictCount);
+                const resolvedLines = await resolveHunk(seg, file, idx, conflictCount, options);
                 if (resolvedLines === null) { aborted = true; break; }
                 out.push(...resolvedLines);
             }
@@ -151,7 +158,7 @@ async function resolve() {
  * Prompt for one conflict hunk. Returns the chosen lines, or null to abort
  * (leave the rest of the file as-is with markers).
  */
-async function resolveHunk(seg, file, idx, total) {
+async function resolveHunk(seg, file, idx, total, options = {}) {
     console.log(chalk.gray(`  Conflict ${idx}/${total}:`));
     console.log(chalk.green('    <<< ours'));
     seg.ours.forEach(l => console.log(chalk.green(`      ${l}`)));
@@ -168,6 +175,12 @@ async function resolveHunk(seg, file, idx, total) {
         choices.splice(3, 0, { name: `Ask AI (${ai.getModel()})`, value: 'ai' });
     }
     choices.push({ name: 'Skip the rest of this file', value: 'skip' });
+
+    if (options.ai) {
+        const suggestion = await askAiForHunk(seg, file);
+        if (suggestion !== null) return suggestion;
+        console.log(chalk.yellow('    Choose a manual resolution instead.'));
+    }
 
     const { choice } = await inquirer.prompt([{
         type: 'list',
@@ -191,25 +204,33 @@ async function resolveHunk(seg, file, idx, total) {
             return text.replace(/\n$/, '').split('\n');
         }
         case 'ai': {
-            try {
-                const suggestion = await ai.resolveConflictHunk({
-                    ours: seg.ours.join('\n'),
-                    theirs: seg.theirs.join('\n'),
-                    fileName: file
-                });
-                console.log(chalk.cyan('    AI suggestion:'));
-                suggestion.split('\n').forEach(l => console.log(chalk.cyan(`      ${l}`)));
-                const { accept } = await inquirer.prompt([{
-                    type: 'confirm', name: 'accept', message: 'Use this suggestion?', default: true
-                }]);
-                if (accept) return suggestion.split('\n');
-                return resolveHunk(seg, file, idx, total); // re-ask
-            } catch (err) {
-                console.log(chalk.yellow(`    AI failed (${err.message}); choose another option.`));
-                return resolveHunk(seg, file, idx, total);
-            }
+            const suggestion = await askAiForHunk(seg, file);
+            if (suggestion !== null) return suggestion;
+            return resolveHunk(seg, file, idx, total, { ai: false });
         }
         default: return seg.ours;
+    }
+}
+
+async function askAiForHunk(seg, file) {
+    try {
+        const suggestion = await ai.resolveConflictHunk({
+            ours: seg.ours.join('\n'),
+            theirs: seg.theirs.join('\n'),
+            fileName: file
+        });
+        console.log(chalk.cyan('    AI suggestion (review before accepting):'));
+        suggestion.split('\n').forEach(line => console.log(chalk.cyan(`      ${line}`)));
+        const { accept } = await inquirer.prompt([{
+            type: 'confirm',
+            name: 'accept',
+            message: 'Use this AI suggestion?',
+            default: false,
+        }]);
+        return accept ? suggestion.split('\n') : null;
+    } catch (error) {
+        console.log(chalk.yellow(`    AI failed (${error.message}); no file was changed.`));
+        return null;
     }
 }
 
