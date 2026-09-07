@@ -101,6 +101,58 @@ class CommitAPITestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
+    def test_list_commits_filters_to_branch_history(self):
+        base = Commit.objects.create(
+            repository=self.repo,
+            sha='base',
+            author=self.user,
+            message='Base commit',
+            tree_sha='tree123',
+            parent_shas=[],
+            author_name='Test User',
+            author_email='user@example.com',
+            committed_at='2024-01-01T00:00:00Z'
+        )
+        branch_commit = Commit.objects.create(
+            repository=self.repo,
+            sha='branch-head',
+            author=self.user,
+            message='Branch commit',
+            tree_sha='tree123',
+            parent_shas=[base.sha],
+            author_name='Test User',
+            author_email='user@example.com',
+            committed_at='2024-01-02T00:00:00Z'
+        )
+        Commit.objects.create(
+            repository=self.repo,
+            sha='unreachable',
+            author=self.user,
+            message='Unreachable commit',
+            tree_sha='tree123',
+            parent_shas=[base.sha],
+            author_name='Test User',
+            author_email='user@example.com',
+            committed_at='2024-01-03T00:00:00Z'
+        )
+        self.branch.commit_sha = branch_commit.sha
+        self.branch.save()
+
+        url = reverse('commit-list', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
+        response = self.client.get(url, {'branch': 'main'})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [commit['sha'] for commit in response.data],
+            ['branch-head', 'base'],
+        )
+
+    def test_list_commits_rejects_unknown_branch(self):
+        url = reverse('commit-list', kwargs={'owner_ref': self.user.id, 'repo_name': 'test-repo'})
+        response = self.client.get(url, {'branch': 'missing'})
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_get_commit_detail(self):
         commit = Commit.objects.create(
             repository=self.repo,

@@ -17,7 +17,7 @@ from api.permissions import CanWriteRepositoryByParams
 @extend_schema(
     responses={200: CommitSerializer(many=True)},
     summary='List commits',
-    description='List all commits in a repository.'
+    description='List all commits in a repository, or commits reachable from a branch.'
 )
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
@@ -25,6 +25,32 @@ def commit_list(request, owner_ref, repo_name):
     """List commits in a repository."""
     repository = get_repository_or_404(owner_ref, repo_name, request.user)
     commits = Commit.objects.filter(repository=repository)
+
+    branch_name = request.query_params.get('branch')
+    if branch_name:
+        branch = get_object_or_404(
+            Branch,
+            repository=repository,
+            name=branch_name,
+        )
+        commits_by_sha = {commit.sha: commit for commit in commits}
+        reachable_shas = set()
+        pending_shas = [branch.commit_sha]
+
+        while pending_shas:
+            commit_sha = pending_shas.pop()
+            if commit_sha in reachable_shas:
+                continue
+
+            commit = commits_by_sha.get(commit_sha)
+            if commit is None:
+                continue
+
+            reachable_shas.add(commit_sha)
+            pending_shas.extend(commit.parent_shas)
+
+        commits = commits.filter(sha__in=reachable_shas)
+
     serializer = CommitSerializer(commits, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
