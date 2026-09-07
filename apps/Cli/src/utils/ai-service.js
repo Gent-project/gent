@@ -4,11 +4,6 @@ const axios = require('axios');
 
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_MODEL = 'xiaomi/mimo-v2.5:nitro';
-// The default model reasons before answering, and those tokens come out of the
-// same budget as the reply. Too small a budget returns content: null with
-// finish_reason "length", so keep a floor and add headroom on every request.
-const MIN_OUTPUT_TOKENS = 256;
-const REASONING_HEADROOM = 512;
 
 const PROMPTS = Object.freeze({
     chat: 'Answer as a concise senior engineer. Use the repository context. Give the direct answer first.',
@@ -87,7 +82,6 @@ async function complete({ prompt, system, profile = 'chat', maxTokens = 1024 }) 
     const apiKey = getApiKey();
     if (!apiKey) throw new Error(disabledHint());
     const instructions = [PROMPTS[profile], system].filter(Boolean).join('\n\n');
-    const budget = Math.max(MIN_OUTPUT_TOKENS, maxTokens) + REASONING_HEADROOM;
     try {
         const response = await axios.post(getApiUrl(), {
             model: getModel(),
@@ -95,7 +89,9 @@ async function complete({ prompt, system, profile = 'chat', maxTokens = 1024 }) 
                 ...(instructions ? [{ role: 'system', content: instructions }] : []),
                 { role: 'user', content: prompt },
             ],
-            max_tokens: budget,
+            // Do not impose a Gent-side output ceiling. Reasoning models can
+            // consume a fixed max_tokens budget before producing visible text.
+            // OpenRouter and the selected model still enforce their own limits.
             // Keep reasoning models brief; ignored by models without reasoning.
             reasoning: { effort: 'low' },
         }, {
@@ -110,7 +106,7 @@ async function complete({ prompt, system, profile = 'chat', maxTokens = 1024 }) 
         const text = extractText(response.data);
         if (!text) {
             throw new Error(truncatedByBudget(response.data)
-                ? `Model "${getModel()}" used the whole ${budget}-token budget before replying. Raise it or set GENT_AI_MODEL to a lighter model.`
+                ? `Model "${getModel()}" reached its provider output limit before replying. Try again or set GENT_AI_MODEL to another model.`
                 : `Model "${getModel()}" returned an empty response.`);
         }
         return text;
@@ -200,8 +196,6 @@ function briefSummary(value) {
 module.exports = {
     PROMPTS,
     DEFAULT_MODEL,
-    MIN_OUTPUT_TOKENS,
-    REASONING_HEADROOM,
     isEnabled,
     getModel,
     getApiKey,

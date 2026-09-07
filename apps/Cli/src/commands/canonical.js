@@ -54,7 +54,7 @@ function route(name, legacy) {
             const repo = await locatedCanonical();
             if (!repo) return legacy(...args);
             if (!handlers[name]) throw new Error(`gent ${name} is not implemented for canonical repositories yet`);
-            const readOnly = ['status', 'log', 'show', 'diff', 'summary'].includes(name);
+            const readOnly = ['status', 'log', 'show', 'diff', 'summary', 'blame'].includes(name);
             let lock;
             try {
                 if (!readOnly) {
@@ -62,7 +62,7 @@ function route(name, legacy) {
                     await repo.assertNoExternalOperation(`gent ${name}`);
                     if (!(name === 'checkout' && args[1]?.abort)) await worktree.assertNoPendingCheckout(repo, `gent ${name}`);
                 }
-                const checkpointed = ['commit', 'checkout', 'reset', 'merge'].includes(name) && !args[1]?.abort && !args[0]?.abort;
+                const checkpointed = ['commit', 'checkout', 'reset', 'merge', 'revert'].includes(name) && !args[1]?.abort && !args[0]?.abort;
                 const checkpoint = checkpointed ? await journal.begin(repo, name) : null;
                 const result = await handlers[name](repo, ...args);
                 if (checkpoint) await journal.finish(repo, checkpoint);
@@ -148,10 +148,24 @@ const handlers = {
         console.log(`Switched to ${result.branch || result.oid}`);
     },
     async reset(repo, files, options) {
-        if (options.hard) await ops.reset(repo, 'hard', options.hard === true ? 'HEAD' : options.hard);
-        else if (options.soft) await ops.reset(repo, 'soft', options.soft === true ? 'HEAD' : options.soft);
+        const positionalTarget = files[0];
+        if (options.hard) {
+            const target = typeof options.hard === 'string' ? options.hard : positionalTarget || 'HEAD';
+            const result = await ops.reset(repo, 'hard', target);
+            console.log(`HEAD is now at ${result.oid.slice(0, 12)}`);
+        }
+        else if (options.soft) {
+            const target = typeof options.soft === 'string' ? options.soft : positionalTarget || 'HEAD';
+            const result = await ops.reset(repo, 'soft', target);
+            console.log(`HEAD is now at ${result.oid.slice(0, 12)}`);
+        }
         else if (files.length) await ops.unstagePaths(repo, files);
         else await ops.reset(repo, 'mixed', 'HEAD');
+    },
+    async revert(repo, revision, options = {}) {
+        const result = await ops.revert(repo, revision, options);
+        if (result.committed) console.log(`[revert ${result.oid.slice(0, 12)}] reverted ${result.targetOid.slice(0, 12)}`);
+        else console.log(`Revert of ${result.targetOid.slice(0, 12)} staged but not committed`);
     },
     async merge(repo, branch, options) {
         if (options.abort) return merge.abortMerge(repo);
@@ -263,6 +277,10 @@ const handlers = {
         for (const commit of await ops.walkHistory(repo, { max: Number(options.number) })) {
             console.log(`${commit.oid.slice(0, 12)} ${commit.message.toString().split('\n')[0]}`);
         }
+    },
+    async blame(repo, file, revision = 'HEAD') {
+        const { printBlame } = require('./blame');
+        printBlame(await ops.blame(repo, file, revision));
     },
     async show(repo, ref = 'HEAD', options = {}) {
         const oid = await ops.peelToCommit(repo, ref);

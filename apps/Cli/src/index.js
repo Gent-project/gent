@@ -44,6 +44,8 @@ const diffCommand = route('diff', require('./commands/diff'));
 const commitCommand = route('commit', require('./commands/commit'));
 const logCommand = route('log', require('./commands/log'));
 const showCommand = route('show', require('./commands/show'));
+const blameCommand = route('blame', require('./commands/blame'));
+const revertCommand = route('revert', require('./commands/revert'));
 const tagCommand = route('tag', require('./commands/tag'));
 const branchCommand = route('branch', require('./commands/branch'));
 const checkoutCommand = route('checkout', require('./commands/checkout'));
@@ -206,6 +208,18 @@ program
     .description('Show commit details and diff')
     .option('--no-patch', 'Suppress diff output')
     .action(showCommand);
+
+program
+    .command('blame <file> [revision]')
+    .description('Show the commit and author responsible for each line')
+    .action(blameCommand);
+
+program
+    .command('revert <commit>')
+    .description('Create a new commit that reverses an earlier commit')
+    .option('-m, --mainline <parent>', 'Parent number when reverting a merge commit')
+    .option('-n, --no-commit', 'Apply and stage the inverse without committing')
+    .action(revertCommand);
 
 program
     .command('tag [name]')
@@ -498,7 +512,7 @@ program
 const HELP_GROUPS = [
     ['Start here', ['auto', 'setup', 'init', 'clone']],
     ['Work on changes', ['status', 'add', 'rm', 'reset', 'diff', 'commit']],
-    ['History', ['log', 'show', 'tag', 'explain', 'summary']],
+    ['History', ['log', 'show', 'blame', 'revert', 'tag', 'explain', 'summary']],
     ['Branches & merging', ['branch', 'checkout', 'merge', 'resolve', 'stash', 'undo', 'redo']],
     ['Remote & sync', ['remote', 'repos', 'members', 'push', 'pull', 'search', 'web', 'share']],
     ['Account', ['register', 'login', 'logout', 'whoami', 'password']],

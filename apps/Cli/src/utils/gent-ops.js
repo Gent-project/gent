@@ -23,8 +23,10 @@ const path = require('path');
 const repository = require('./repository');
 const { MODE, serializeCommit, serializeTag, isObjectId } = require('./git-objects');
 const { GitIndex, IndexEntry } = require('./git-index');
-const { AttributesMatcher } = require('./attributes');
+const { AttributesMatcher, looksBinary } = require('./attributes');
 const { IgnoreMatcher, walkWorktree } = require('./ignore');
+const { traceBlame } = require('./blame-engine');
+const { mergeFileContent } = require('./merge-engine');
 const worktree = require('./worktree');
 const { assertRefName } = require('./refs');
 const { writeAtomic, readFileOrNull } = require('./lockfile');
@@ -179,6 +181,33 @@ async function walkHistory(repo, options = {}) {
         }
     }
     return results;
+}
+
+/** Attribute every text line to the first-parent commit that introduced it. */
+async function blame(repo, filePath, revision = 'HEAD') {
+    const relativePath = repo.relativePath(path.resolve(process.cwd(), filePath));
+    let oid = await peelToCommit(repo, await resolveRevision(repo, revision));
+    const history = [];
+    let existsAtStart = false;
+
+    while (oid) {
+        const commit = await repo.objects.readCommit(oid);
+        const tree = await worktree.readTreeRecursive(repo, commit.tree);
+        const entry = tree.get(relativePath);
+        if (!history.length) existsAtStart = Boolean(entry);
+        const bytes = entry ? await repo.objects.readBlob(entry.oid) : Buffer.alloc(0);
+        if (looksBinary(bytes)) throw new OperationError(`cannot blame binary file '${relativePath}'`);
+        history.push({
+            oid,
+            author: commit.author?.name || commit.author?.email || 'Unknown',
+            timestamp: (commit.author?.timestamp || commit.committer?.timestamp || 0) * 1000,
+            text: bytes.toString('utf8'),
+        });
+        oid = commit.parents[0] || null;
+    }
+
+    if (!existsAtStart) throw new OperationError(`path '${relativePath}' does not exist in ${revision}`);
+    return traceBlame(history);
 }
 
 /**
@@ -771,6 +800,91 @@ async function reset(repo, mode, target) {
     return { oid: commitOid, mode, ...applied };
 }
 
+/** Apply the inverse of a commit to HEAD and optionally create a new commit. */
+async function revert(repo, revision, options = {}) {
+    await repo.assertNoExternalOperation('gent revert');
+    await worktree.assertNoPendingCheckout(repo, 'gent revert');
+    repo.requireWorktree('gent revert');
+
+    const head = await repo.refs.head();
+    if (!head.oid) throw new OperationError('cannot revert before the first commit');
+    const index = await GitIndex.read(repo.indexPath);
+    const dirty = await worktree.status(repo, { index });
+    if (dirty.staged.length || dirty.unstaged.length || dirty.conflicted.length) {
+        throw new OperationError('commit or stash local changes before reverting');
+    }
+
+    const targetOid = await peelToCommit(repo, await resolveRevision(repo, revision));
+    const targetCommit = await repo.objects.readCommit(targetOid);
+    let parentOid = null;
+    if (targetCommit.parents.length > 1) {
+        const mainline = Number(options.mainline);
+        if (!Number.isInteger(mainline) || mainline < 1 || mainline > targetCommit.parents.length) {
+            throw new OperationError(`commit ${targetOid.slice(0, 12)} is a merge; use --mainline <1-${targetCommit.parents.length}>`);
+        }
+        parentOid = targetCommit.parents[mainline - 1];
+    } else {
+        parentOid = targetCommit.parents[0] || null;
+    }
+
+    const empty = new Map();
+    const baseTree = await worktree.readTreeRecursive(repo, targetCommit.tree);
+    const parentTree = parentOid
+        ? await worktree.readTreeRecursive(repo, (await repo.objects.readCommit(parentOid)).tree)
+        : empty;
+    const oursTree = await worktree.readTreeRecursive(repo, (await repo.objects.readCommit(head.oid)).tree);
+    const resultTree = new Map();
+    const conflicts = [];
+    const same = (a, b) => (!a && !b) || (a && b && a.oid === b.oid && a.mode === b.mode);
+
+    for (const filePath of new Set([...baseTree.keys(), ...oursTree.keys(), ...parentTree.keys()])) {
+        const base = baseTree.get(filePath) || null;
+        const ours = oursTree.get(filePath) || null;
+        const theirs = parentTree.get(filePath) || null;
+        if (same(ours, theirs)) { if (ours) resultTree.set(filePath, ours); continue; }
+        if (same(base, ours)) { if (theirs) resultTree.set(filePath, theirs); continue; }
+        if (same(base, theirs)) { if (ours) resultTree.set(filePath, ours); continue; }
+
+        if (!base || !ours || !theirs || ours.mode !== theirs.mode) {
+            conflicts.push(filePath);
+            continue;
+        }
+        const [baseBytes, oursBytes, theirsBytes] = await Promise.all([
+            repo.objects.readBlob(base.oid), repo.objects.readBlob(ours.oid), repo.objects.readBlob(theirs.oid)
+        ]);
+        if ([baseBytes, oursBytes, theirsBytes].some(looksBinary)) {
+            conflicts.push(filePath);
+            continue;
+        }
+        const merged = mergeFileContent(
+            baseBytes.toString('utf8'),
+            oursBytes.toString('utf8'),
+            theirsBytes.toString('utf8'),
+            filePath,
+            { ours: 'HEAD', theirs: `parent of ${targetOid.slice(0, 12)}` }
+        );
+        if (merged.hasConflicts) { conflicts.push(filePath); continue; }
+        resultTree.set(filePath, { mode: ours.mode, oid: await repo.objects.write('blob', Buffer.from(merged.content, 'utf8')) });
+    }
+
+    if (conflicts.length) {
+        throw new OperationError(`revert conflicts with current changes:\n${conflicts.map(name => `  ${name}`).join('\n')}`);
+    }
+
+    const current = new Map(index.staged().map(entry => [entry.path, { mode: entry.mode, oid: entry.oid }]));
+    const plan = await worktree.planCheckout(repo, { from: current, to: resultTree, index });
+    const applied = await worktree.applyCheckout(repo, plan, { index });
+    await index.write(repo.indexPath);
+    await worktree.completeCheckout(repo);
+
+    if (options.commit === false) return { targetOid, committed: false, ...applied };
+    const subject = targetCommit.message.toString('utf8').trim().split('\n')[0];
+    const result = await createCommit(repo, {
+        message: `Revert "${subject}"\n\nThis reverts commit ${targetOid}.`,
+    });
+    return { targetOid, committed: true, oid: result.oid, ...applied };
+}
+
 /**
  * Unstage paths: rewrite their index entries from HEAD, leaving files alone.
  * @param {Object} repo
@@ -811,6 +925,7 @@ module.exports = {
     resolveRevision,
     peelToCommit,
     walkHistory,
+    blame,
     findMergeBase,
     isAncestor,
     expandPaths,
@@ -829,6 +944,7 @@ module.exports = {
     checkout,
     checkoutPaths,
     reset,
+    revert,
     unstagePaths,
     status: worktree.status,
     readTreeRecursive: worktree.readTreeRecursive,

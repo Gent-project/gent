@@ -28,7 +28,7 @@ test('calls OpenRouter directly with the fast task prompt', async () => {
         assert.equal(body.model, 'xiaomi/mimo-v2.5:nitro');
         assert.equal(body.messages[1].content, 'review me');
         assert.match(body.messages[0].content, /Review fast/);
-        assert.equal(body.max_tokens, ai.MIN_OUTPUT_TOKENS + ai.REASONING_HEADROOM);
+        assert.equal(Object.hasOwn(body, 'max_tokens'), false);
         assert.equal(body.reasoning.effort, 'low');
         assert.equal(config.headers.Authorization, 'Bearer test-key');
         return {
@@ -98,7 +98,7 @@ test('reports genuine rate limiting separately', async () => {
     await assert.rejects(ai.complete({ prompt: 'hello' }), /rate limited/);
 });
 
-test('never sends an output budget the Responses API rejects', async () => {
+test('does not impose a client-side output token limit', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     let sent = null;
     axios.post = async (_url, body) => {
@@ -106,7 +106,7 @@ test('never sends an output budget the Responses API rejects', async () => {
         return { data: { choices: [{ finish_reason: 'stop', message: { content: 'pong' } }] } };
     };
     await ai.complete({ prompt: 'ping', maxTokens: 8 });
-    assert.equal(sent.max_tokens, ai.MIN_OUTPUT_TOKENS + ai.REASONING_HEADROOM);
+    assert.equal(Object.hasOwn(sent, 'max_tokens'), false);
 });
 
 test('returns merged text with a brief conflict summary', async () => {

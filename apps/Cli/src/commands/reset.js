@@ -27,10 +27,19 @@ const fs = require('fs').promises;
 const path = require('path');
 const chalk = require('chalk');
 const ora = require('ora');
-const { getGentPath, readJSON, writeJSON, pathExists } = require('../utils/fileSystem');
+const { getGentPath, readJSON, writeJSON } = require('../utils/fileSystem');
 const { STAGING_FILE, COMMITS_FILE } = require('../utils/constants');
-const { readBlobAsString } = require('../utils/hash-engine');
+const { readBlob } = require('../utils/hash-engine');
 const journal = require('../utils/journal');
+
+function safePath(cwd, relativePath) {
+    if (!relativePath || path.isAbsolute(relativePath) || relativePath.split(/[\\/]/).includes('..')) {
+        throw new Error(`Unsafe repository path '${relativePath}'`);
+    }
+    const fullPath = path.resolve(cwd, relativePath);
+    if (!fullPath.startsWith(cwd + path.sep)) throw new Error(`Unsafe repository path '${relativePath}'`);
+    return fullPath;
+}
 
 /**
  * Reset staging or HEAD
@@ -91,14 +100,17 @@ async function unstageFiles(gentPath, files) {
  * Reset HEAD to specific commit
  */
 async function resetHead(gentPath, cwd, args, options) {
-    const targetHash = args && args.length > 0 ? args[0] : null;
+    const selected = options.hard || options.soft;
+    const targetHash = typeof selected === 'string'
+        ? selected
+        : (args && args.length > 0 ? args[0] : null);
     const repository = await readJSON(path.join(gentPath, COMMITS_FILE));
     const currentBranch = repository.currentBranch;
+    const currentHash = repository.branches[currentBranch] || null;
     const commits = repository.commits || [];
 
     if (!targetHash) {
-        console.error(chalk.red('Provide a commit hash to reset to'));
-        return;
+        throw new Error('Provide a commit hash to reset to');
     }
 
     // Find target commit (support short hashes)
@@ -107,11 +119,28 @@ async function resetHead(gentPath, cwd, args, options) {
     );
 
     if (!target) {
-        console.error(chalk.red(`Commit '${targetHash}' not found`));
-        return;
+        throw new Error(`Commit '${targetHash}' not found`);
     }
 
     const spinner = ora(`Resetting to ${target.hash.substring(0, 7)}...`).start();
+
+    const previous = commits.find(c => c.hash === currentHash);
+    const previousTree = previous
+        ? (previous.tree || (previous.files || []).map(f => ({ name: f.path || f.name, hash: f.hash })))
+        : [];
+    const targetTree = target.tree || (target.files || []).map(f => ({
+        name: f.path || f.name, hash: f.hash
+    }));
+    const targetByPath = new Map(targetTree.map(entry => [entry.name || entry.path, entry]));
+    const blobs = new Map();
+    if (options.hard) {
+        for (const entry of targetTree) {
+            const file = entry.name || entry.path;
+            safePath(cwd, file);
+            blobs.set(file, await readBlob(gentPath, entry.hash));
+        }
+        for (const entry of previousTree) safePath(cwd, entry.name || entry.path);
+    }
 
     // Journal pre-state. A hard reset discards working-tree content, so flag it
     // for working-tree restore on undo.
@@ -122,38 +151,31 @@ async function resetHead(gentPath, cwd, args, options) {
         { restoreTree: !!options.hard }
     );
 
-    // Move branch pointer
-    repository.branches[currentBranch] = target.hash;
-    await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
-
     if (options.hard) {
-        // Restore working tree from target commit
-        const tree = target.tree || (target.files || []).map(f => ({
-            name: f.path || f.name, hash: f.hash
-        }));
+        const previousPaths = new Set(previousTree.map(entry => entry.name || entry.path));
 
-        for (const entry of tree) {
-            try {
-                const content = await readBlobAsString(gentPath, entry.hash);
-                const fullPath = path.join(cwd, entry.name || entry.path);
-                await fs.mkdir(path.dirname(fullPath), { recursive: true });
-                await fs.writeFile(fullPath, content, 'utf-8');
-            } catch {
-                // Blob may not exist for legacy commits
-            }
+        // Remove files tracked by the old commit but absent from the target.
+        for (const file of previousPaths) {
+            if (!targetByPath.has(file)) await fs.rm(safePath(cwd, file), { force: true });
+        }
+        for (const [file, content] of blobs) {
+            const fullPath = safePath(cwd, file);
+            await fs.mkdir(path.dirname(fullPath), { recursive: true });
+            await fs.writeFile(fullPath, content);
         }
 
         // Clear staging
         const stagingPath = path.join(gentPath, STAGING_FILE);
         await writeJSON(stagingPath, { entries: [], files: [] });
 
-        spinner.succeed(chalk.green(`HEAD is now at ${target.hash.substring(0, 7)} (hard reset)`));
-        console.log(chalk.gray(`  ${target.message}`));
-    } else {
-        // Soft reset: keep staging
-        spinner.succeed(chalk.green(`HEAD is now at ${target.hash.substring(0, 7)} (soft reset)`));
-        console.log(chalk.gray(`  Staging area preserved. ${target.message}`));
     }
+
+    // Publish the branch move only after a hard reset has restored its files.
+    repository.branches[currentBranch] = target.hash;
+    await writeJSON(path.join(gentPath, COMMITS_FILE), repository);
+
+    spinner.succeed(chalk.green(`HEAD is now at ${target.hash.substring(0, 7)} (${options.hard ? 'hard' : 'soft'} reset)`));
+    console.log(chalk.gray(`  ${options.hard ? '' : 'Staging area preserved. '}${target.message}`));
 }
 
 module.exports = reset;
