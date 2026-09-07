@@ -96,6 +96,8 @@ async function push(remoteName, branchName, options) {
 
         // Determine which commits to push (since last pushed ref)
         config.remoteRefs = config.remoteRefs || {};
+        const remoteRefKey = `${remote}/${branch}`;
+        const knownRemoteHead = config.remoteRefs[remoteRefKey] || null;
         // Everything reachable from any already-pushed ref of this remote is the
         // boundary — a merge can pull in commits from a branch that was never
         // pushed, so we can't bound by this branch's ref alone.
@@ -105,13 +107,20 @@ async function push(remoteName, branchName, options) {
             .filter(Boolean);
         const commits = repository.commits || [];
         const commitsToPush = getCommitsSince(commits, localHead, remoteHave);
+        const branchNeedsUpdate = knownRemoteHead !== localHead;
 
-        if (commitsToPush.length === 0) {
+        if (!branchNeedsUpdate && commitsToPush.length === 0) {
             spinner.succeed(chalk.green('Everything up-to-date'));
             return;
         }
 
-        spinner.text = `Pushing ${commitsToPush.length} commit(s) to ${remote}/${branch}...`;
+        if (knownRemoteHead && branchNeedsUpdate && !options.force && !isAncestor(commits, knownRemoteHead, localHead)) {
+            throw new Error(`non-fast-forward update to ${remote}/${branch}; use gent push --force ${remote} ${branch}`);
+        }
+
+        spinner.text = commitsToPush.length
+            ? `Pushing ${commitsToPush.length} commit(s) to ${remote}/${branch}...`
+            : `Updating ${remote}/${branch} to ${localHead.substring(0, 7)}...`;
 
         // Collect all tree and blob objects from commits
         const treeShas = new Set();
@@ -220,6 +229,7 @@ async function push(remoteName, branchName, options) {
 
         // Build push payload matching PushPackRequest schema
         const payload = {
+            force: !!options.force,
             pack: {
                 commits: packCommits,
                 trees: packTrees,
@@ -238,11 +248,16 @@ async function push(remoteName, branchName, options) {
         const response = await pet.during('push', () => apiClient.post(pushUrl, payload, { timeout: 120000 }));
 
         // Update remote ref
-        config.remoteRefs[`${remote}/${branch}`] = localHead;
+        config.remoteRefs[remoteRefKey] = localHead;
         await writeJSON(configPath, config);
 
-        console.log(chalk.green(`✔ Pushed ${commitsToPush.length} commit(s) to ${remote}/${branch}`));
-        console.log(chalk.gray(`  ${localHead.substring(0, 7)} → ${remote}/${branch}`));
+        if (commitsToPush.length === 0) {
+            console.log(chalk.green(`✔ ${options.force ? 'Force-updated' : 'Updated'} ${remote}/${branch}`));
+            console.log(chalk.gray(`  ${knownRemoteHead ? knownRemoteHead.substring(0, 7) : '(new)'} → ${localHead.substring(0, 7)}`));
+        } else {
+            console.log(chalk.green(`✔ Pushed ${commitsToPush.length} commit(s) to ${remote}/${branch}`));
+            console.log(chalk.gray(`  ${localHead.substring(0, 7)} → ${remote}/${branch}`));
+        }
         console.log(chalk.gray(`  ${packBlobs.length} blob(s), ${packTrees.length} tree(s) transferred`));
 
     } catch (error) {
@@ -305,4 +320,22 @@ function getCommitsSince(allCommits, tipHash, remoteHave) {
     return result;
 }
 
+function isAncestor(allCommits, ancestor, descendant) {
+    const commitMap = new Map(allCommits.map(commit => [commit.hash, commit]));
+    const seen = new Set();
+    const stack = [descendant];
+    while (stack.length) {
+        const sha = stack.pop();
+        if (!sha || seen.has(sha)) continue;
+        if (sha === ancestor) return true;
+        seen.add(sha);
+        const commit = commitMap.get(sha);
+        if (commit?.parent) stack.push(commit.parent);
+        if (commit?.mergeParent) stack.push(commit.mergeParent);
+    }
+    return false;
+}
+
 module.exports = push;
+module.exports.getCommitsSince = getCommitsSince;
+module.exports.isAncestor = isAncestor;
