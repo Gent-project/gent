@@ -30,6 +30,9 @@ export interface RepositoryMember {
   user_id: number;
   username: string;
   email: string;
+  first_name?: string;
+  /** Server's `get_full_name`; an empty string when the account has no name. */
+  display_name?: string;
   role: string;
   added_at: string;
 }

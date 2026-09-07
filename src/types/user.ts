@@ -4,10 +4,10 @@ export interface UserProfile {
   username?: string;
   first_name?: string;
   last_name?: string;
-  name?: string;
 }
 
 export interface UpdateProfilePayload {
   first_name?: string;
   last_name?: string;
+  username?: string;
 }

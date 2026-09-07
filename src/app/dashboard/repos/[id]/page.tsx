@@ -15,11 +15,14 @@ import { getDashboardTheme } from "../../_components/dashboard-theme";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import axios from "@/lib/axios";
+import { getRepoOwnerName } from "@/lib/user-display";
 
 interface Repository {
   id: number;
   owner_id: number;
-  owner_email: string;
+  owner_email?: string;
+  owner_username: string;
+  owner_name?: string;
   name: string;
   description: string;
   is_private: boolean;
@@ -197,7 +200,10 @@ export default function RepositoryDetailPage() {
                   value: repoData?.is_private ? "Private" : "Public",
                 },
                 { label: "Default Branch", value: repoData?.default_branch },
-                { label: "Owner", value: repoData?.owner_email },
+                {
+                  label: "Owner",
+                  value: repoData ? getRepoOwnerName(repoData) : undefined,
+                },
                 { label: "Created Date", value: repoData?.created_at },
                 { label: "Last Updated", value: repoData?.updated_at },
               ].map((item) => (

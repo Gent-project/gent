@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 import type { Commit, Repository } from "@/types/repository";
+import { getRepoOwner, getRepoOwnerName } from "@/lib/user-display";
 
 export interface ActivityRepository {
   id: number;
@@ -74,14 +75,13 @@ export const useActivities = () => {
             repository: {
               id: repo.id,
               name: repo.name,
-              owner: repo.owner_email?.split("@")[0],
+              owner: getRepoOwner(repo),
             },
             actor: {
               name:
                 commit.author_name ||
                 commit.author_email ||
-                repo.owner_email?.split("@")[0] ||
-                "User",
+                getRepoOwnerName(repo),
               email: commit.author_email,
             },
             created_at: commit.committed_at || commit.created_at,
@@ -98,10 +98,10 @@ export const useActivities = () => {
           repository: {
             id: repo.id,
             name: repo.name,
-            owner: repo.owner_email?.split("@")[0],
+            owner: getRepoOwner(repo),
           },
           actor: {
-            name: repo.owner_email?.split("@")[0] || "User",
+            name: getRepoOwnerName(repo),
             email: repo.owner_email,
           },
           created_at: repo.created_at,

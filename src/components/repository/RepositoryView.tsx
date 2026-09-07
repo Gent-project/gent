@@ -33,7 +33,7 @@ import BranchesTab from "@/app/dashboard/repository/[owner_id]/[repo_name]/_comp
 import TagsTab from "@/app/dashboard/repository/[owner_id]/[repo_name]/_components/TagsTab";
 import FileBrowserTab from "@/app/dashboard/repository/[owner_id]/[repo_name]/_components/FileBrowserTab";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
-import { getRepoOwner } from "@/lib/user-display";
+import { getRepoOwner, getRepoOwnerName } from "@/lib/user-display";
 import GentiCliGuide from "@/app/dashboard/_components/GentiCliGuide";
 
 type TabType = "code" | "commits" | "branches" | "tags";
@@ -127,6 +127,9 @@ export default function RepositoryView({
   }
 
   const owner = getRepoOwner(repository);
+  // The heading and breadcrumb mirror the URL, so they keep the handle; the
+  // byline below identifies a person and prefers the real name.
+  const ownerName = getRepoOwnerName(repository);
   // `role` is null for anonymous callers, so this is false on the public route.
   const canWrite = !isPublic && (repository.role === "owner" || repository.role === "write");
   const authorEmail = repository.owner_email ?? "";
@@ -171,7 +174,7 @@ export default function RepositoryView({
             <p className="mt-3 max-w-3xl text-sm leading-6" style={{ color: t.textMuted }} data-no-translate={Boolean(repository.description) || undefined}>{repository.description || "No description provided."}</p>
             <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px]" style={{ color: t.textMuted }}>
               <span className="inline-flex items-center gap-1.5" data-no-translate><GitBranch className="h-3 w-3" />{repository.default_branch}</span>
-              <span className="inline-flex items-center gap-1.5" data-no-translate><UserRound className="h-3 w-3" />{owner}</span>
+              <span className="inline-flex items-center gap-1.5" data-no-translate><UserRound className="h-3 w-3" />{ownerName}</span>
               <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3 w-3" />updated {formatDate(repository.updated_at)}</span>
               {latestCommit && <span className="inline-flex items-center gap-1.5"><GitCommit className="h-3 w-3" />{latestCommit.sha.slice(0, 7)}</span>}
             </div>

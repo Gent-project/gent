@@ -16,6 +16,7 @@ import DashboardSidebar from "./DashboardSidebar";
 import DashboardTopBar from "./DashboardTopBar";
 import NewRepositoryModal from "./NewRepositoryModal";
 import { getDashboardTheme } from "./dashboard-theme";
+import { getRepoOwner } from "@/lib/user-display";
 import type { MockRepository } from "../_data/mock-repos";
 
 type DashboardContextValue = {
@@ -90,14 +91,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
         setRepositories(
           data.map((repo: any) => ({
-            id: String(repo.id ?? repo.owner_email ?? repo.name ?? ""),
+            id: String(repo.id ?? repo.name ?? ""),
             name: String(repo.name ?? ""),
             owner:
               typeof repo.owner === "string" && repo.owner
                 ? repo.owner
-                : typeof repo.owner_email === "string"
-                  ? repo.owner_email.split("@")[0]
-                  : "unknown",
+                : getRepoOwner(repo),
             description: String(repo.description ?? ""),
             isPrivate: Boolean(repo.is_private),
             stars: typeof repo.stars === "number" ? repo.stars : 0,
@@ -144,14 +143,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       });
 
       const createdRepo: MockRepository = {
-        id: String(data.id ?? data.owner_email ?? data.name ?? ""),
+        id: String(data.id ?? data.name ?? ""),
         name: String(data.name ?? repo.name),
         owner:
           typeof data.owner === "string" && data.owner
             ? data.owner
-            : typeof data.owner_email === "string"
-              ? data.owner_email.split("@")[0]
-              : "unknown",
+            : getRepoOwner(data),
         description: String(data.description ?? repo.description ?? ""),
         isPrivate: Boolean(data.is_private),
         stars: 0,

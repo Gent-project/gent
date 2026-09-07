@@ -12,6 +12,7 @@ import { DASHBOARD_PATH } from "@/routes/path";
 import { useRouter } from "next/navigation";
 import { useRepositories } from "@/hooks/use-repositories";
 import { LanguageToggle } from "@/app/language-provider";
+import { getDisplayName, getInitials, getUsername } from "@/lib/user-display";
 
 interface DashboardSidebarProps {
   isDark: boolean;
@@ -80,17 +81,17 @@ export default function DashboardSidebar({
               color: t.successText,
             }}
           >
-            {user?.name?.charAt(0).toUpperCase() || "U"}
+            {getInitials(user)}
           </div>
           <div className="flex-1 min-w-0">
             <p
               className="text-sm font-semibold truncate"
               style={{ color: t.text }}
             >
-              {user?.name || "User"}
+              {getDisplayName(user)}
             </p>
             <p className="text-xs truncate" style={{ color: t.textMuted }}>
-              {user?.email || "user@example.com"}
+              @{getUsername(user)}
             </p>
           </div>
         </div>

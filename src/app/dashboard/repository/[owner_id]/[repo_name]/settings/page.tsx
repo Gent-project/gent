@@ -32,7 +32,7 @@ import {
   useRemoveCollaborator,
 } from "@/hooks/use-collaborators";
 import { useBranches } from "@/hooks/use-branches";
-import { getRepoOwner } from "@/lib/user-display";
+import { getMemberName, getRepoOwner } from "@/lib/user-display";
 export default function RepositorySettingsPage() {
   const params = useParams();
   const router = useRouter();
@@ -508,7 +508,9 @@ export default function RepositorySettingsPage() {
                               }}
                             >
                               <span className="text-sm font-semibold">
-                                {member.email?.charAt(0)?.toUpperCase() || "U"}
+                                {getMemberName(member)
+                                  .charAt(0)
+                                  .toUpperCase()}
                               </span>
                             </div>
 
@@ -517,8 +519,18 @@ export default function RepositorySettingsPage() {
                                 className="text-sm font-medium truncate"
                                 style={{ color: t.text }}
                               >
-                                {member.email}
+                                {getMemberName(member)}
                               </p>
+
+                              {member.email &&
+                                member.email !== getMemberName(member) && (
+                                  <p
+                                    className="text-xs truncate"
+                                    style={{ color: t.textMuted }}
+                                  >
+                                    {member.email}
+                                  </p>
+                                )}
 
                               <p
                                 className="text-xs"

@@ -9,6 +9,27 @@ interface ProfileSettingsFormProps {
   isDark: boolean;
 }
 
+/**
+ * DRF reports per-field problems as `{ username: ["This username is already
+ * taken."] }`, which the generic error/detail lookup would swallow.
+ */
+function readProfileError(err: unknown): string {
+  const fallback = "Failed to update profile";
+  if (!err || typeof err !== "object" || !("response" in err)) return fallback;
+
+  const response = (err as { response?: { data?: unknown } }).response;
+  const data = response?.data;
+  if (!data || typeof data !== "object") return fallback;
+
+  const record = data as Record<string, unknown>;
+  for (const key of ["username", "first_name", "last_name", "error", "detail"]) {
+    const value = record[key];
+    if (Array.isArray(value) && value.length) return String(value[0]);
+    if (typeof value === "string" && value) return value;
+  }
+  return fallback;
+}
+
 export default function ProfileSettingsForm({ isDark }: ProfileSettingsFormProps) {
   const t = getDashboardTheme(isDark);
   const { data: profile, isLoading, isError, error, refetch } = useProfile();
@@ -16,6 +37,7 @@ export default function ProfileSettingsForm({ isDark }: ProfileSettingsFormProps
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -23,6 +45,7 @@ export default function ProfileSettingsForm({ isDark }: ProfileSettingsFormProps
     if (profile) {
       setFirstName(profile.first_name ?? "");
       setLastName(profile.last_name ?? "");
+      setUsername(profile.username ?? "");
     }
   }, [profile]);
 
@@ -36,29 +59,33 @@ export default function ProfileSettingsForm({ isDark }: ProfileSettingsFormProps
       return;
     }
 
+    // Mirrors the server's rules: lowercased, [a-z0-9_-], never all digits.
+    const nextUsername = username.trim().toLowerCase();
+    if (!nextUsername) {
+      setFormError("Username is required.");
+      return;
+    }
+    if (!/^[a-z0-9_-]+$/.test(nextUsername)) {
+      setFormError(
+        "Username may only contain letters, numbers, underscores, and dashes."
+      );
+      return;
+    }
+    if (/^[0-9]+$/.test(nextUsername)) {
+      setFormError("Username cannot be all digits.");
+      return;
+    }
+
     try {
       await updateProfile.mutateAsync({
         first_name: firstName.trim(),
         last_name: lastName.trim(),
+        username: nextUsername,
       });
+      setUsername(nextUsername);
       setSuccessMessage("Profile updated successfully.");
     } catch (err: unknown) {
-      const message =
-        err &&
-        typeof err === "object" &&
-        "response" in err &&
-        err.response &&
-        typeof err.response === "object" &&
-        "data" in err.response &&
-        err.response.data &&
-        typeof err.response.data === "object"
-          ? String(
-              (err.response.data as { error?: string; detail?: string }).error ??
-                (err.response.data as { detail?: string }).detail ??
-                "Failed to update profile"
-            )
-          : "Failed to update profile";
-      setFormError(message);
+      setFormError(readProfileError(err));
     }
   };
 
@@ -136,23 +163,30 @@ export default function ProfileSettingsForm({ isDark }: ProfileSettingsFormProps
               />
             </div>
 
-            {profile?.username && (
-              <div>
-                <label
-                  className="block text-sm font-medium mb-1.5"
-                  style={{ color: t.text }}
-                >
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={profile.username}
-                  disabled
-                  className="w-full max-w-md px-3 py-2 text-sm rounded-md border opacity-70 cursor-not-allowed"
-                  style={inputStyle}
-                />
-              </div>
-            )}
+            <div>
+              <label
+                className="block text-sm font-medium mb-1.5"
+                style={{ color: t.text }}
+              >
+                Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                maxLength={150}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                className="w-full max-w-md px-3 py-2 text-sm rounded-md border outline-none focus:ring-2"
+                style={inputStyle}
+                placeholder="username"
+              />
+              <p className="text-xs mt-1.5" style={{ color: t.textMuted }}>
+                Lowercase letters, numbers, underscores, and dashes. This is
+                your public handle — it appears in repository URLs.
+              </p>
+            </div>
 
             <div className="grid sm:grid-cols-2 gap-4 max-w-md">
               <div>
@@ -204,6 +238,7 @@ export default function ProfileSettingsForm({ isDark }: ProfileSettingsFormProps
                 onClick={() => {
                   setFirstName(profile?.first_name ?? "");
                   setLastName(profile?.last_name ?? "");
+                  setUsername(profile?.username ?? "");
                   setFormError("");
                   setSuccessMessage("");
                 }}

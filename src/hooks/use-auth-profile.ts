@@ -24,7 +24,6 @@ function normalizeProfile(data: Record<string, unknown>): UserProfile {
     username: (raw.username as string) ?? undefined,
     first_name: (raw.first_name as string) ?? undefined,
     last_name: (raw.last_name as string) ?? undefined,
-    name: (raw.name as string) ?? undefined,
   };
 }
 
@@ -70,6 +69,11 @@ export function useUpdateProfile() {
     onSuccess: (profile) => {
       dispatch(setUser(profile));
       queryClient.setQueryData(PROFILE_QUERY_KEY, profile);
+      // A username change rewrites the owner handle in every repository
+      // payload, so cached repo lists and detail views are now stale.
+      queryClient.invalidateQueries({ queryKey: ["repositories"] });
+      queryClient.invalidateQueries({ queryKey: ["repository"] });
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
     },
   });
 }
