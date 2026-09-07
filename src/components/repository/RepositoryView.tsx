@@ -63,6 +63,7 @@ export default function RepositoryView({
 }: RepositoryViewProps) {
   const isDark = useSelector((state: RootState) => state.theme.isDark);
   const [activeTab, setActiveTab] = useState<TabType>("code");
+  const [commitBranch, setCommitBranch] = useState("");
   const [showGitOpsModal, setShowGitOpsModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const ownerId = ownerParam;
@@ -74,7 +75,12 @@ export default function RepositoryView({
     refetch: refetchRepository,
   } = useRepository(ownerId, repoName);
   const { data: branches = [], isLoading: branchesLoading } = useBranches(ownerId, repoName);
-  const { data: commits = [], isLoading: commitsLoading } = useCommits(ownerId, repoName);
+  const selectedCommitBranch = commitBranch || repository?.default_branch;
+  const { data: commits = [], isLoading: commitsLoading } = useCommits(
+    ownerId,
+    repoName,
+    selectedCommitBranch,
+  );
   const { data: tags = [], isLoading: tagsLoading } = useTags(ownerId, repoName);
   const t = getDashboardTheme(isDark);
 
@@ -134,7 +140,9 @@ export default function RepositoryView({
   const canWrite = !isPublic && (repository.role === "owner" || repository.role === "write");
   const authorEmail = repository.owner_email ?? "";
   const cloneUrl = getCloneUrl(repository.owner_id, repository.name);
-  const latestCommit = commits[0];
+  const defaultBranchHead = branches.find(
+    (branch) => branch.name === repository.default_branch,
+  )?.commit_sha;
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   const tabs = [
     { id: "code" as TabType, label: "Code", icon: Code2, count: null },
@@ -176,7 +184,7 @@ export default function RepositoryView({
               <span className="inline-flex items-center gap-1.5" data-no-translate><GitBranch className="h-3 w-3" />{repository.default_branch}</span>
               <span className="inline-flex items-center gap-1.5" data-no-translate><UserRound className="h-3 w-3" />{ownerName}</span>
               <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3 w-3" />updated {formatDate(repository.updated_at)}</span>
-              {latestCommit && <span className="inline-flex items-center gap-1.5"><GitCommit className="h-3 w-3" />{latestCommit.sha.slice(0, 7)}</span>}
+              {defaultBranchHead && <span className="inline-flex items-center gap-1.5"><GitCommit className="h-3 w-3" />{defaultBranchHead.slice(0, 7)}</span>}
             </div>
           </div>
           {repository.role === "owner" && (
@@ -201,7 +209,7 @@ export default function RepositoryView({
         <section className="min-w-0 overflow-hidden rounded-2xl border" style={{ background: t.elevated, borderColor: t.border }}>
           <div className={activeTab === "code" ? "p-3 sm:p-4" : "p-5 sm:p-6"}>
             {activeTab === "code" && <FileBrowserTab ownerId={ownerId} repoName={repoName} isDark={isDark} defaultBranch={repository.default_branch} userEmail={authorEmail} canWrite={canWrite} />}
-            {activeTab === "commits" && <CommitsTab commits={commits} isLoading={commitsLoading} isDark={isDark} ownerName={owner} repoName={repoName} ownerId={repository.owner_id} />}
+            {activeTab === "commits" && <CommitsTab commits={commits} branches={branches} selectedBranch={selectedCommitBranch || repository.default_branch} onBranchChange={setCommitBranch} isLoading={commitsLoading} isDark={isDark} ownerName={owner} repoName={repoName} ownerId={repository.owner_id} />}
             {activeTab === "branches" && <BranchesTab branches={branches} isLoading={branchesLoading} isDark={isDark} defaultBranch={repository.default_branch} ownerId={ownerId} repoName={repoName} userEmail={authorEmail} canWrite={canWrite} />}
             {activeTab === "tags" && <TagsTab tags={tags} isLoading={tagsLoading} isDark={isDark} ownerId={ownerId} repoName={repoName} branches={branches} userEmail={authorEmail} canWrite={canWrite} />}
           </div>

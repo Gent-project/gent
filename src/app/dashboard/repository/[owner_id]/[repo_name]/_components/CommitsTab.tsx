@@ -1,14 +1,17 @@
 "use client";
 
-import { GitCommit, Copy } from "lucide-react";
+import { GitBranch, GitCommit, Copy } from "lucide-react";
 import { useState } from "react";
 import CommitDetails from "./CommitDetails";
-import { Commit } from "@/types/repository";
+import { Branch, Commit } from "@/types/repository";
 import { parseCommitMessage } from "@/lib/commit-message";
 import { getDashboardTheme } from "@/app/dashboard/_components/dashboard-theme";
 
 interface CommitsTabProps {
   commits: Commit[];
+  branches: Branch[];
+  selectedBranch: string;
+  onBranchChange: (branch: string) => void;
   isLoading: boolean;
   isDark: boolean;
   ownerName: string;
@@ -18,6 +21,9 @@ interface CommitsTabProps {
 
 export default function CommitsTab({
   commits,
+  branches,
+  selectedBranch,
+  onBranchChange,
   isLoading,
   isDark,
   ownerName,
@@ -55,6 +61,30 @@ export default function CommitsTab({
     return ago(Math.floor(diffInSeconds / 31536000), "year");
   };
 
+  const branchSelector = (
+    <div
+      className="flex items-center justify-between gap-3 border-b px-4 py-3"
+      style={{ borderColor: t.border }}
+    >
+      <span className="inline-flex items-center gap-2 text-xs font-medium" style={{ color: t.textMuted }}>
+        <GitBranch className="h-4 w-4" /> Branch history
+      </span>
+      <select
+        aria-label="Commit history branch"
+        value={selectedBranch}
+        onChange={(event) => onBranchChange(event.target.value)}
+        className="max-w-48 rounded-lg border px-3 py-1.5 text-xs font-medium outline-none"
+        style={{ background: t.inputBg, borderColor: t.border, color: t.text }}
+      >
+        {branches.map((branch) => (
+          <option key={branch.name} value={branch.name}>
+            {branch.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -80,17 +110,20 @@ export default function CommitsTab({
 
   if (commits.length === 0) {
     return (
-      <div className="text-center py-12 p-6">
-        <GitCommit
-          className="w-16 h-16 mx-auto mb-4 opacity-40"
-          style={{ color: t.textMuted }}
-        />
-        <h3 className="text-lg font-semibold mb-2" style={{ color: t.text }}>
-          No commits yet
-        </h3>
-        <p className="text-sm" style={{ color: t.textMuted }}>
-          This repository doesn't have any commits yet.
-        </p>
+      <div>
+        {branchSelector}
+        <div className="text-center py-12 p-6">
+          <GitCommit
+            className="w-16 h-16 mx-auto mb-4 opacity-40"
+            style={{ color: t.textMuted }}
+          />
+          <h3 className="text-lg font-semibold mb-2" style={{ color: t.text }}>
+            No commits yet
+          </h3>
+          <p className="text-sm" style={{ color: t.textMuted }}>
+            This branch doesn't have any commits yet.
+          </p>
+        </div>
       </div>
     );
   }
@@ -108,6 +141,7 @@ export default function CommitsTab({
 
   return (
     <div>
+      {branchSelector}
       {commits.map((commit, index) => {
         const { subject, body } = parseCommitMessage(commit.message);
         const isExpanded = expandedShas.includes(commit.sha);

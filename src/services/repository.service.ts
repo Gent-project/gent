@@ -198,9 +198,11 @@ export class RepositoryService {
   static async getCommits(
     ownerId: number | string,
     repoName: string,
+    branch?: string,
   ): Promise<Commit[]> {
     const response = await axios.get(
       `/repos/${ownerId}/${repoName}/commits/`,
+      { params: branch ? { branch } : undefined },
     );
     return response.data;
   }
