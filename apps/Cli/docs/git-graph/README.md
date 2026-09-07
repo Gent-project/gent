@@ -28,17 +28,18 @@ optional value at that location, and `...` repetition as separate argv values.
 ## Setup on macOS
 
 Install the pinned Git Graph extension and make sure a real Git executable is
-available. Configure Gent with that executable:
+available. From the canonical Gent repository, configure Gent with that
+executable:
 
 ```bash
 gent graph setup --git-path /usr/bin/git
 gent graph doctor
 ```
 
-Copy the JSON printed by `gent graph setup` into a dedicated VS Code profile's
-settings. It sets `git.path` to the absolute `gent-git-graph` executable. Use a
-dedicated profile because `git.path` also affects VS Code's built-in Git
-extension. The checked-in
+Setup writes `.vscode/settings.json` with `git.path` pointing to the absolute
+`gent-git-graph` executable. Reload the VS Code window before opening Git Graph.
+When setup runs outside a canonical repository, it prints the setting for a
+dedicated VS Code profile instead. The checked-in
 [`demo-profile-settings.json`](demo-profile-settings.json) supplies the safe
 Git Graph defaults; replace its adapter-path placeholder with the path printed
 by setup. Do not point Gent's saved real-Git path back at the adapter.
@@ -46,8 +47,8 @@ by setup. Do not point Gent's saved real-Git path back at the adapter.
 The adapter accepts `--version` without a repository because Git Graph uses
 that probe to validate `git.path`. `gent graph doctor` checks executable
 resolution, Node availability outside an interactive shell, SHA-256 support,
-repository classification, remote configuration, and saved login availability
-without printing credentials.
+repository classification, remote configuration, workspace `git.path`, and
+saved login availability without printing credentials.
 
 Only macOS is an acceptance target for v1. The implementation may be portable,
 but Windows and Linux are not claimed until tested.

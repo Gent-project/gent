@@ -383,7 +383,7 @@ const graph = program
 
 graph
     .command('setup')
-    .description('Configure the installed Git executable used for read queries')
+    .description('Configure Git Graph for the current canonical Gent repository')
     .requiredOption('--git-path <absolute-path>', 'Absolute path to the installed Git executable')
     .action(async options => {
         try {

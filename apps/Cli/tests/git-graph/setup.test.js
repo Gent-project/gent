@@ -111,6 +111,27 @@ test('graph setup saves real Git and prints the adapter git.path snippet', async
     });
 });
 
+test('graph setup configures the current canonical VS Code workspace', async t => {
+    const f = await fixture(t);
+    const worktree = path.join(f.root, 'canonical');
+    await repository.init(worktree);
+    await withGraphConfig(f.configPath, async () => {
+        const { result, output } = await captureConsole(() => graph.setup({
+            cwd: worktree,
+            gitPath: f.gitPath,
+            adapterPath: f.adapterPath,
+        }));
+        const settingsPath = path.join(worktree, '.vscode', 'settings.json');
+        assert.equal(result.workspaceSettings, settingsPath);
+        assert.deepEqual(JSON.parse(await fs.readFile(settingsPath, 'utf8')), { 'git.path': f.adapterPath });
+        assert.match(await fs.readFile(path.join(worktree, '.gent', 'info', 'exclude'), 'utf8'),
+            /^\/\.vscode\/settings\.json$/m);
+        assert.match(output, /Configured VS Code workspace/);
+        assert.match(output, /Reload the VS Code window/);
+        assert.equal((await graph.checkWorkspaceSettings(worktree, f.adapterPath)).status, 'pass');
+    });
+});
+
 test('graph doctor verifies Git SHA-256 support and canonical repository state', async t => {
     const f = await fixture(t);
     const worktree = path.join(f.root, 'canonical');
@@ -120,6 +141,7 @@ test('graph doctor verifies Git SHA-256 support and canonical repository state',
 
     await withGraphConfig(f.configPath, async () => {
         await config.writeConfig({ realGitPath: f.gitPath });
+        await graph.installWorkspaceSettings(worktree, f.adapterPath);
         const previousExitCode = process.exitCode;
         process.exitCode = undefined;
         try {
@@ -130,6 +152,7 @@ test('graph doctor verifies Git SHA-256 support and canonical repository state',
             assert.equal(checks.find(check => check.name === 'Git SHA-256 support').status, 'pass');
             assert.match(checks.find(check => check.name === 'Repository').detail, /canonical Gent repository/);
             assert.equal(checks.find(check => check.name === 'Remote configuration').detail, 'configured: origin');
+            assert.equal(checks.find(check => check.name === 'VS Code workspace').status, 'pass');
             assert.doesNotMatch(output, /secret-user|secret-token/);
             assert.equal(process.exitCode, undefined);
         } finally {
