@@ -1,8 +1,10 @@
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { spawn } = require('node:child_process');
 const chalk = require('chalk');
+const jsonc = require('jsonc-parser');
 
 const authStorage = require('../utils/auth-storage');
 const graphConfig = require('../utils/git-graph-config');
@@ -39,21 +41,21 @@ async function setup(options = {}) {
     const validated = await graphConfig.validateRealGit(options.gitPath, entrypoint);
     const configPath = await graphConfig.writeConfig({ realGitPath: validated.path });
     const adapterPath = explicitAdapter ? entrypoint : await installLauncher(entrypoint);
-    const workspaceSettings = await installWorkspaceSettings(options.cwd || process.cwd(), adapterPath);
+    const vscodeSettings = await installVSCodeProfileSettings(options.cwd || process.cwd(), adapterPath);
 
     console.log(`Configured real Git: ${validated.path}`);
     console.log(`Git version: ${validated.version}`);
     console.log(`Saved adapter configuration: ${configPath}`);
-    if (workspaceSettings) {
-        console.log(`Configured VS Code workspace: ${workspaceSettings}`);
-        console.log('Reload the VS Code window before opening Git Graph.');
+    if (vscodeSettings) {
+        console.log(`Configured VS Code profile: ${vscodeSettings}`);
+        console.log('The adapter applies to every folder opened with this VS Code profile.');
     } else {
         console.log('\nVS Code settings.json:');
         console.log(JSON.stringify({ 'git.path': adapterPath }, null, 2));
         console.log('\nUse a dedicated VS Code profile because git.path also affects the built-in Git extension.');
     }
 
-    return { adapterPath, configPath, workspaceSettings, ...validated };
+    return { adapterPath, configPath, vscodeSettings, ...validated };
 }
 
 async function canonicalLocation(cwd) {
@@ -69,60 +71,82 @@ async function canonicalLocation(cwd) {
     return set.get('gent.format') === FORMAT_MARKER ? located : null;
 }
 
-async function installWorkspaceSettings(cwd, adapterPath) {
+function vscodeUserRoot() {
+    if (process.env.GENT_VSCODE_USER_DIR) return path.resolve(process.env.GENT_VSCODE_USER_DIR);
+    if (process.platform === 'darwin') return path.join(os.homedir(), 'Library', 'Application Support', 'Code', 'User');
+    if (process.platform === 'win32' && process.env.APPDATA) return path.join(process.env.APPDATA, 'Code', 'User');
+    return path.join(os.homedir(), '.config', 'Code', 'User');
+}
+
+async function resolveVSCodeProfileSettings(cwd) {
     const located = await canonicalLocation(cwd);
     if (!located) return null;
-    const settingsPath = path.join(located.worktree, '.vscode', 'settings.json');
-    let settings = {};
-    let created = false;
+    const userRoot = vscodeUserRoot();
+    const storagePath = path.join(userRoot, 'globalStorage', 'storage.json');
+    let storage = {};
     try {
-        const raw = await fs.readFile(settingsPath, 'utf8');
-        settings = JSON.parse(raw);
-        if (!settings || Array.isArray(settings) || typeof settings !== 'object') {
-            throw new Error('settings root must be an object');
-        }
+        storage = JSON.parse(await fs.readFile(storagePath, 'utf8'));
     } catch (error) {
-        if (error.code !== 'ENOENT') {
-            throw new Error(`cannot update '${settingsPath}': ${error.message}`);
-        }
-        created = true;
+        if (error.code !== 'ENOENT') throw new Error(`cannot read VS Code profile associations: ${error.message}`);
     }
-    settings['git.path'] = adapterPath;
+    const uri = pathToFileURL(located.worktree).href;
+    const profile = storage.profileAssociations?.workspaces?.[uri];
+    if (!profile || profile === '__default__profile__') return path.join(userRoot, 'settings.json');
+    if (!/^[A-Za-z0-9_-]+$/.test(profile)) throw new Error(`invalid VS Code profile identifier '${profile}'`);
+    return path.join(userRoot, 'profiles', profile, 'settings.json');
+}
+
+function parseSettings(raw, settingsPath) {
+    const errors = [];
+    const settings = jsonc.parse(raw, errors, { allowTrailingComma: true, disallowComments: false });
+    if (errors.length || !settings || Array.isArray(settings) || typeof settings !== 'object') {
+        const detail = errors.length ? jsonc.printParseErrorCode(errors[0].error) : 'settings root must be an object';
+        throw new Error(`cannot parse '${settingsPath}': ${detail}`);
+    }
+    return settings;
+}
+
+async function installVSCodeProfileSettings(cwd, adapterPath) {
+    const settingsPath = await resolveVSCodeProfileSettings(cwd);
+    if (!settingsPath) return null;
+    const raw = await fs.readFile(settingsPath, 'utf8').catch(error => {
+        if (error.code === 'ENOENT') return '{}\n';
+        throw error;
+    });
+    parseSettings(raw, settingsPath);
+    const eol = raw.includes('\r\n') ? '\r\n' : '\n';
+    const edits = jsonc.modify(raw, ['git.path'], adapterPath, {
+        formattingOptions: { insertSpaces: true, tabSize: 2, eol },
+    });
+    const updated = jsonc.applyEdits(raw, edits);
     await fs.mkdir(path.dirname(settingsPath), { recursive: true });
     const temporary = `${settingsPath}.${process.pid}.tmp`;
-    await fs.writeFile(temporary, JSON.stringify(settings, null, 2) + '\n');
+    await fs.writeFile(temporary, updated);
     await fs.rename(temporary, settingsPath);
-    if (created) {
-        const excludePath = path.join(located.gitdir, 'info', 'exclude');
-        const existing = await fs.readFile(excludePath, 'utf8').catch(error => {
-            if (error.code === 'ENOENT') return '';
-            throw error;
-        });
-        if (!existing.split('\n').includes('/.vscode/settings.json')) {
-            await fs.mkdir(path.dirname(excludePath), { recursive: true });
-            const separator = existing && !existing.endsWith('\n') ? '\n' : '';
-            await fs.writeFile(excludePath, `${existing}${separator}/.vscode/settings.json\n`);
-        }
-    }
     return settingsPath;
 }
 
-async function checkWorkspaceSettings(cwd, adapterPath) {
-    const located = await canonicalLocation(cwd);
-    if (!located) return null;
-    const settingsPath = path.join(located.worktree, '.vscode', 'settings.json');
+async function checkVSCodeProfileSettings(cwd, adapterPath) {
+    let settingsPath;
+    try {
+        settingsPath = await resolveVSCodeProfileSettings(cwd);
+    } catch (error) {
+        return fail('VS Code profile', error.message,
+            'Repair the VS Code profile association or set git.path manually in the active profile.');
+    }
+    if (!settingsPath) return null;
     let settings;
     try {
-        settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
+        settings = parseSettings(await fs.readFile(settingsPath, 'utf8'), settingsPath);
     } catch (error) {
-        const detail = error.code === 'ENOENT' ? `missing ${settingsPath}` : `cannot read ${settingsPath}: ${error.message}`;
-        return fail('VS Code workspace', detail, 'Run `gent graph setup --git-path <absolute-path>` from this repository.');
+        const detail = error.code === 'ENOENT' ? `missing ${settingsPath}` : error.message;
+        return fail('VS Code profile', detail, 'Run `gent graph setup --git-path <absolute-path>` from this repository.');
     }
     if (settings?.['git.path'] !== adapterPath) {
-        return fail('VS Code workspace', `git.path does not point to ${adapterPath}`,
+        return fail('VS Code profile', `git.path in ${settingsPath} does not point to ${adapterPath}`,
             'Run `gent graph setup --git-path <absolute-path>` from this repository.');
     }
-    return pass('VS Code workspace', `${settingsPath} uses the Gent adapter`);
+    return pass('VS Code profile', `${settingsPath} uses the Gent adapter`);
 }
 
 async function doctor(options = {}) {
@@ -175,8 +199,8 @@ async function doctor(options = {}) {
     const repoCheck = await checkRepository(options.cwd || process.cwd());
     checks.push(repoCheck.repository);
     checks.push(repoCheck.remote);
-    const workspaceCheck = await checkWorkspaceSettings(options.cwd || process.cwd(), adapterPath);
-    if (workspaceCheck) checks.push(workspaceCheck);
+    const profileCheck = await checkVSCodeProfileSettings(options.cwd || process.cwd(), adapterPath);
+    if (profileCheck) checks.push(profileCheck);
 
     if (await authStorage.isAuthenticated()) {
         const user = await authStorage.getUser();
@@ -323,8 +347,9 @@ module.exports = {
     resolveAdapterPath,
     resolveAdapterEntrypoint,
     installLauncher,
-    installWorkspaceSettings,
-    checkWorkspaceSettings,
+    resolveVSCodeProfileSettings,
+    installVSCodeProfileSettings,
+    checkVSCodeProfileSettings,
     probeSha256,
     checkRepository,
 };
