@@ -31,6 +31,7 @@ const chalk = require('chalk');
 const packageJson = require('../package.json');
 const interactive = require('./utils/interactive');
 const { route } = require('./commands/canonical');
+const { createProgress } = require('./utils/progress');
 
 // Import core commands
 const autoCommand = route('auto', require('./commands/auto'));
@@ -127,8 +128,15 @@ program
             process.exit(1);
         }
         if (/^https?:/.test(url) && /\.git\/?$/.test(url)) {
-            try { console.log(`Cloned to ${await require('./utils/smart-http').clone(url, directory)}`); }
-            catch (error) { console.error(`Error: ${error.message}`); process.exitCode = 1; }
+            const progress = createProgress('Starting clone...');
+            try {
+                const destination = await require('./utils/smart-http').clone(url, directory, { onProgress: progress.update });
+                progress.succeed(`Cloned to ${destination}`);
+            } catch (error) {
+                progress.fail('Clone failed');
+                console.error(`Error: ${error.message}`);
+                process.exitCode = 1;
+            }
             return;
         }
         return cloneCommand(url, directory, options);

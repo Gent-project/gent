@@ -179,8 +179,11 @@ function configured(repo, name = 'origin') {
 }
 async function fetch(repo, name = 'origin', options = {}) {
     nameCheck(name);
-    const url = typeof options === 'string' ? options : configured(repo, name);
+    const settings = typeof options === 'object' ? options : {};
+    const progress = settings.onProgress || (() => {});
+    const url = typeof options === 'string' ? options : settings.url || configured(repo, name);
     const prune = typeof options === 'object' && options.prune === true;
+    progress(`Contacting ${name}...`);
     const ad = await discover(url);
     const selected = [...ad.refs].filter(([ref]) => ref.startsWith('refs/heads/') || (ref.startsWith('refs/tags/') && !ref.endsWith('^{}')));
     const updates = [];
@@ -193,9 +196,11 @@ async function fetch(repo, name = 'origin', options = {}) {
     if (selected.length) {
         const wants = [...new Set(selected.map(([, oid]) => oid))];
         const body = Buffer.concat([...wants.map((oid, i) => pkt(`want ${oid}${i ? '' : ' object-format=sha256'}\n`)), Buffer.from('0000'), pkt('done\n')]);
+        progress(`Downloading objects from ${name}...`);
         const data = await request(url, 'git-upload-pack', body);
         const first = packet(data, 0);
         if (first.line?.toString() !== 'NAK\n') throw new Error('unsupported upload response');
+        progress('Validating received objects...');
         const incoming = await readPackStream(data.subarray(first.pos), { maxObjects: 10000, resolveBase: oid => repo.objects.has(oid).then(has => has ? repo.objects.read(oid) : null) });
         const byOid = new Map(incoming.map(item => [item.oid, item]));
         await closure(selected.map(([ref, oid]) => [oid, ref.startsWith('refs/heads/') ? 'commit' : null]), oid => byOid.get(oid) || repo.objects.read(oid));
@@ -207,7 +212,10 @@ async function fetch(repo, name = 'origin', options = {}) {
             if (!advertised.has(ref)) updates.push({ name: ref, delete: true, expectedOldOid: oid });
         }
     }
-    if (updates.length) await repo.refs.updateMany(updates, `fetch ${name}`);
+    if (updates.length) {
+        progress('Updating remote references...');
+        await repo.refs.updateMany(updates, `fetch ${name}`);
+    }
     return ad;
 }
 async function fetchAll(repo, options = {}) {
@@ -240,9 +248,11 @@ function parsePushStatus(data, ref) {
     if (lines[0] !== 'unpack ok' || !lines.includes(`ok ${ref}`) || lines.some(line => line.startsWith('ng '))) throw new Error(`push rejected: ${lines.join('; ')}`);
 }
 async function push(repo, name = 'origin', branch, options = {}) {
+    const progress = options.onProgress || (() => {});
     const url = configured(repo, name), head = await repo.refs.head();
     branch ||= head.branch;
     if (!branch) throw new Error('specify a branch from detached HEAD');
+    progress(`Contacting ${name}...`);
     const ad = await discover(url, 'git-receive-pack');
     const ref = await resolvePushRef(repo, branch, ad.refs);
     if (!ref.startsWith('refs/heads/') && !ref.startsWith('refs/tags/')) throw new Error('only branches and tags may be pushed');
@@ -265,10 +275,13 @@ async function push(repo, name = 'origin', branch, options = {}) {
         throw new Error('non-fast-forward push; fetch and merge first');
     }
     if (!ad.caps.includes('report-status')) throw new Error('remote must report ref status');
+    progress('Preparing objects...');
     const all = await closure([[target, ref.startsWith('refs/heads/') ? 'commit' : null]], oid => repo.objects.read(oid));
     const body = Buffer.concat([pkt(`${old} ${target} ${ref}\0report-status object-format=sha256\n`), Buffer.from('0000'), buildPack([...all.values()]).pack]);
+    progress(`Uploading objects to ${name}...`);
     const data = await request(url, 'git-receive-pack', body);
     parsePushStatus(data, ref);
+    progress('Updating local tracking reference...');
     await updateTracking();
 }
 async function deleteRemoteRef(repo, name = 'origin', value) {
@@ -288,8 +301,10 @@ async function deleteRemoteRef(repo, name = 'origin', value) {
         if (before) await repo.refs.delete(tracking, { expectedOldOid: before, reason: `push ${name}: delete` });
     }
 }
-async function clone(url, directory) {
+async function clone(url, directory, options = {}) {
+    const progress = options.onProgress || (() => {});
     url = remoteUrl(url);
+    progress('Contacting remote...');
     const ad = await discover(url);
     const destination = path.resolve(directory || new URL(url).pathname.split('/').pop().replace(/\.git$/, ''));
     // Exclusive directory creation avoids touching existing user files on failure.
@@ -297,14 +312,17 @@ async function clone(url, directory) {
     try {
         const branch = ad.head?.startsWith('refs/heads/') ? ad.head.slice(11) : 'main';
         validateRefName(`refs/heads/${branch}`);
+        progress('Initializing local repository...');
         const { repo } = await repository.init(destination, { defaultBranch: branch });
         repo.localConfig.set('remote.origin.url', url);
         repo.localConfig.set('remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*');
         repo.localConfig.set(`branch.${branch}.remote`, 'origin');
         repo.localConfig.set(`branch.${branch}.merge`, `refs/heads/${branch}`);
         await repo.localConfig.save();
-        const current = await fetch(repo, 'origin', url), tip = current.refs.get(`refs/heads/${branch}`);
+        const current = await fetch(repo, 'origin', { url, onProgress: progress });
+        const tip = current.refs.get(`refs/heads/${branch}`);
         if (tip) {
+            progress(`Checking out ${branch}...`);
             await repo.refs.update(`refs/heads/${branch}`, tip, { expectedOldOid: null, reason: 'clone' });
             await ops.checkout(repo, branch, { force: true });
         }

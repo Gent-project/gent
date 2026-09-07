@@ -84,8 +84,18 @@ test('clone removes its destination when a remote branch contains nested Gent me
         });
     });
     const destination = path.join(root, 'clone');
-    await assert.rejects(transport.clone(`${url}/owner/repo.git`, destination),
+    const phases = [];
+    await assert.rejects(transport.clone(`${url}/owner/repo.git`, destination, { onProgress: text => phases.push(text) }),
         /remote branch contains a reserved metadata path/);
+    assert.deepEqual(phases, [
+        'Contacting remote...',
+        'Initializing local repository...',
+        'Contacting origin...',
+        'Downloading objects from origin...',
+        'Validating received objects...',
+        'Updating remote references...',
+        'Checking out main...',
+    ]);
     await assert.rejects(fs.access(destination), error => error.code === 'ENOENT');
 });
 

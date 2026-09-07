@@ -15,6 +15,7 @@ const { GitIndex } = require('../utils/git-index');
 const { AttributesMatcher, looksBinary } = require('../utils/attributes');
 const { formatUnifiedDiff } = require('../utils/diff-engine');
 const ai = require('../utils/ai-service');
+const { createProgress } = require('../utils/progress');
 
 async function locatedCanonical() {
     let found;
@@ -87,16 +88,41 @@ const handlers = {
         } else if (!sub) console.log(transport.configured(repo, name));
         else throw new Error('use remote add|set-url|remove');
     },
-    async fetch(repo, remote = 'origin') { await transport.fetch(repo, remote); console.log(`Fetched ${remote}`); },
+    async fetch(repo, remote = 'origin') {
+        const progress = createProgress(`Fetching ${remote}...`);
+        try {
+            await transport.fetch(repo, remote, { onProgress: progress.update });
+            progress.succeed(`Fetched ${remote}`);
+        } catch (error) {
+            progress.fail(`Fetch from ${remote} failed`);
+            throw error;
+        }
+    },
     async push(repo, remote = 'origin', branch, options = {}) {
-        await transport.push(repo, remote, branch, options); console.log('Push complete');
+        const progress = createProgress(`Preparing push to ${remote}...`);
+        try {
+            await transport.push(repo, remote, branch, { ...options, onProgress: progress.update });
+            progress.succeed('Push complete');
+        } catch (error) {
+            progress.fail('Push failed');
+            throw error;
+        }
     },
     async pull(repo, remote = 'origin', branch) {
         branch ||= (await repo.refs.head()).branch;
         if (!branch) throw new Error('specify a branch from detached HEAD');
-        await transport.fetch(repo, remote);
-        const result = await merge.merge(repo, `refs/remotes/${remote}/${branch}`);
-        console.log(result.status);
+        const progress = createProgress(`Pulling ${remote}/${branch}...`);
+        let result;
+        try {
+            await transport.fetch(repo, remote, { onProgress: progress.update });
+            progress.update(`Merging ${remote}/${branch}...`);
+            result = await merge.merge(repo, `refs/remotes/${remote}/${branch}`);
+            if (result.status === 'conflicts') progress.fail('Pull completed with conflicts');
+            else progress.succeed(`Pull complete: ${result.status}`);
+        } catch (error) {
+            progress.fail('Pull failed');
+            throw error;
+        }
         if (result.status === 'conflicts') process.exitCode = 1;
     },
     async undo(repo, options = {}) {
