@@ -119,6 +119,8 @@ test('returns merged text with a brief conflict summary', async () => {
                     type: 'output_text',
                     text: JSON.stringify({
                         merged: 'main\nfeature',
+                        ours_summary: 'The current branch updates the main behavior.',
+                        theirs_summary: 'The incoming branch adds the feature behavior.',
                         summary: 'Kept the main change and added the feature behavior.',
                     }),
                 }],
@@ -133,6 +135,8 @@ test('returns merged text with a brief conflict summary', async () => {
     });
     assert.deepEqual(result, {
         merged: 'main\nfeature',
+        oursSummary: 'The current branch updates the main behavior.',
+        theirsSummary: 'The incoming branch adds the feature behavior.',
         summary: 'Kept the main change and added the feature behavior.',
     });
 });
@@ -140,7 +144,9 @@ test('returns merged text with a brief conflict summary', async () => {
 test('keeps plain-text merge responses compatible', () => {
     assert.deepEqual(ai.parseMergeResolution('main\nfeature'), {
         merged: 'main\nfeature',
-        summary: 'Combined the conflicting changes.',
+        oursSummary: 'The current branch contributes the OURS lines shown above.',
+        theirsSummary: 'The incoming branch contributes the THEIRS lines shown above.',
+        summary: 'Combined the non-duplicate intent from both branches.',
     });
 });
 
@@ -149,6 +155,6 @@ test('limits AI conflict summaries even when the model is verbose', () => {
         merged: 'resolved',
         summary: Array.from({ length: 30 }, (_, index) => `word${index + 1}`).join(' '),
     }));
-    assert.equal(result.summary.split(/\s+/).length, 18);
+    assert.equal(result.summary.split(/\s+/).length, 24);
     assert.match(result.summary, /\.\.\.$/);
 });

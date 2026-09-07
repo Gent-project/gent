@@ -8,7 +8,7 @@ const DEFAULT_MODEL = 'xiaomi/mimo-v2.5:nitro';
 const PROMPTS = Object.freeze({
     chat: 'Answer as a concise senior engineer. Use the repository context. Give the direct answer first.',
     review: 'Review fast. Return only concrete correctness, security, or regression risks, then brief fixes. If none, say "No blocking issues."',
-    merge: 'Resolve this merge conflict fast. Preserve both intended behaviors. Return only valid JSON with this shape: {"merged":"final merged text","summary":"one sentence, at most 18 words, saying what was kept or combined"}. Do not use markdown fences.',
+    merge: 'Resolve this merge conflict carefully. Preserve both intended behaviors. Return only valid JSON with this shape: {"ours_summary":"specific description of what the current branch contributes, at most 24 words","theirs_summary":"specific description of what the incoming branch contributes, at most 24 words","merged":"final merged text","summary":"specific explanation of the merge decision, at most 24 words"}. Do not use markdown fences.',
     commit: 'Write one concise conventional commit message. Return only the message.',
     explain: 'Explain this change briefly and concretely. Return short bullets only.',
     docs: 'Write concise, accurate repository documentation from only the supplied context.',
@@ -169,25 +169,29 @@ function parseMergeResolution(response) {
         if (typeof parsed.merged !== 'string') throw new Error('missing merged text');
         return {
             merged: parsed.merged,
-            summary: briefSummary(parsed.summary),
+            oursSummary: briefSummary(parsed.ours_summary, 'The current branch contributes the OURS lines shown above.'),
+            theirsSummary: briefSummary(parsed.theirs_summary, 'The incoming branch contributes the THEIRS lines shown above.'),
+            summary: briefSummary(parsed.summary, 'Combined the non-duplicate intent from both branches.'),
         };
     } catch {
         return {
             merged: response,
-            summary: 'Combined the conflicting changes.',
+            oursSummary: 'The current branch contributes the OURS lines shown above.',
+            theirsSummary: 'The incoming branch contributes the THEIRS lines shown above.',
+            summary: 'Combined the non-duplicate intent from both branches.',
         };
     }
 }
 
-function briefSummary(value) {
+function briefSummary(value, fallback = 'Combined the conflicting changes.') {
     const summary = typeof value === 'string'
         ? value.replace(/\s+/g, ' ').trim()
         : '';
-    if (!summary) return 'Combined the conflicting changes.';
+    if (!summary) return fallback;
     const words = summary.split(' ');
-    const wordLimited = words.length <= 18
+    const wordLimited = words.length <= 24
         ? summary
-        : `${words.slice(0, 18).join(' ')}...`;
+        : `${words.slice(0, 24).join(' ')}...`;
     return wordLimited.length <= 160
         ? wordLimited
         : `${wordLimited.slice(0, 157).trimEnd()}...`;

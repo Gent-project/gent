@@ -183,7 +183,11 @@ const handlers = {
             }
             if (options.ai) {
                 console.log('Resolving all text conflicts with Gent AI...');
-                await handlers.resolve(repo, { ai: true });
+                await handlers.resolve(repo, {
+                    ai: true,
+                    oursLabel: (await repo.refs.head()).branch || 'HEAD',
+                    theirsLabel: branch,
+                });
             } else {
                 console.log('Automatic merge failed; fix conflicts and then commit the result.');
                 console.log('Resolve files, stage with gent add, then gent merge --continue or gent commit -m <message>.');
@@ -244,7 +248,10 @@ const handlers = {
                 await merge.markResolved(repo, name);
                 resolved++;
                 console.log(`Resolved and staged ${name}`);
-                console.log(`  AI: ${resolution.summary}`);
+                console.log(`  Gent AI analysis (${ai.getModel()}):`);
+                console.log(`    Current branch (${options.oursLabel || 'ours'}): ${resolution.oursSummary}`);
+                console.log(`    Incoming branch (${options.theirsLabel || 'theirs'}): ${resolution.theirsSummary}`);
+                console.log(`    AI merge decision: ${resolution.summary}`);
             } catch (error) {
                 console.log(`AI did not resolve ${name}: ${error.message}`);
             }

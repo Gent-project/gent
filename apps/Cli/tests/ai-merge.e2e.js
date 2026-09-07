@@ -75,6 +75,8 @@ const server = http.createServer((request, response) => {
         const text = isMerge
             ? JSON.stringify({
                 merged: /BASE:\nalpha\nbase/.test(input) ? 'alpha\nmain\nfeature' : 'main\nfeature',
+                ours_summary: 'The current branch changes the value to main.',
+                theirs_summary: 'The incoming branch changes the value to feature.',
                 summary: 'Kept the main change and merged the feature behavior.',
             })
             : 'No blocking issues.';
@@ -96,7 +98,10 @@ server.listen(0, '127.0.0.1', async () => {
         const result = await runAsync(work, ['merge', 'feature', '--ai'], aiEnv);
         assert.equal(result.code, 0, result.output);
         assert.match(result.output, /Merge committed/);
-        assert.match(result.output, /AI: Kept the main change and merged the feature behavior\./);
+        assert.match(result.output, /Gent AI analysis \(xiaomi\/mimo-v2\.5:nitro\)/);
+        assert.match(result.output, /Current branch \(main\): The current branch changes the value to main\./);
+        assert.match(result.output, /Incoming branch \(feature\): The incoming branch changes the value to feature\./);
+        assert.match(result.output, /AI merge decision: Kept the main change and merged the feature behavior\./);
         assert.match(result.output, /AI review of the completed merge/);
         assert.match(result.output, /No blocking issues/);
         assert.equal(fs.readFileSync(path.join(work, 'app.txt'), 'utf8'), 'alpha\nmain\nfeature');
@@ -126,7 +131,10 @@ server.listen(0, '127.0.0.1', async () => {
         const canonicalResult = await runAsync(canonical, ['merge', 'feature', '--ai'], aiEnv);
         assert.equal(canonicalResult.code, 0, canonicalResult.output);
         assert.match(canonicalResult.output, /Merge committed/);
-        assert.match(canonicalResult.output, /AI: Kept the main change and merged the feature behavior\./);
+        assert.match(canonicalResult.output, /Gent AI analysis \(xiaomi\/mimo-v2\.5:nitro\)/);
+        assert.match(canonicalResult.output, /Current branch \(main\): The current branch changes the value to main\./);
+        assert.match(canonicalResult.output, /Incoming branch \(feature\): The incoming branch changes the value to feature\./);
+        assert.match(canonicalResult.output, /AI merge decision: Kept the main change and merged the feature behavior\./);
         assert.match(canonicalResult.output, /AI review of the completed merge/);
         assert.equal(fs.readFileSync(path.join(canonical, 'app.txt'), 'utf8'), 'alpha\nmain\nfeature');
         const fsck = spawnSync('git', ['fsck', '--strict'], { cwd: canonical, encoding: 'utf8' });

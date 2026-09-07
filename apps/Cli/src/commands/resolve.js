@@ -66,6 +66,12 @@ async function resolve(options = {}) {
         }
 
         console.log(chalk.bold.cyan(`\nResolving merge of '${mergeState.sourceBranch}' — ${markerFiles.length} file(s)\n`));
+        const repository = await readJSON(path.join(gentPath, COMMITS_FILE));
+        const hunkOptions = {
+            ...options,
+            oursLabel: repository.currentBranch || 'ours',
+            theirsLabel: mergeState.sourceBranch || 'theirs',
+        };
 
         // Working copy of merged tree entries (we patch hashes as files resolve).
         const entriesByName = new Map((mergeState.mergedEntries || []).map(e => [e.name, { ...e }]));
@@ -101,7 +107,7 @@ async function resolve(options = {}) {
                     continue;
                 }
                 idx++;
-                const resolvedLines = await resolveHunk(seg, file, idx, conflictCount, options, aiSummaries);
+                const resolvedLines = await resolveHunk(seg, file, idx, conflictCount, hunkOptions, aiSummaries);
                 if (resolvedLines === null) { aborted = true; break; }
                 out.push(...resolvedLines);
             }
@@ -178,7 +184,7 @@ async function resolveHunk(seg, file, idx, total, options = {}, aiSummaries = []
     const choices = resolutionChoices();
 
     if (options.ai) {
-        const suggestion = await askAiForHunk(seg, file, true, aiSummaries);
+        const suggestion = await askAiForHunk(seg, file, true, aiSummaries, options);
         if (suggestion !== null) return suggestion;
         return null;
     }
@@ -205,9 +211,9 @@ async function resolveHunk(seg, file, idx, total, options = {}, aiSummaries = []
             return text.replace(/\n$/, '').split('\n');
         }
         case 'ai': {
-            const suggestion = await askAiForHunk(seg, file, false, aiSummaries);
+            const suggestion = await askAiForHunk(seg, file, false, aiSummaries, options);
             if (suggestion !== null) return suggestion;
-            return resolveHunk(seg, file, idx, total, { ai: false }, aiSummaries);
+            return resolveHunk(seg, file, idx, total, { ...options, ai: false }, aiSummaries);
         }
         default: return seg.ours;
     }
@@ -224,18 +230,19 @@ function resolutionChoices() {
     ];
 }
 
-async function askAiForHunk(seg, file, autoAccept = false, aiSummaries = []) {
+async function askAiForHunk(seg, file, autoAccept = false, aiSummaries = [], labels = {}) {
     try {
         const resolution = await ai.resolveConflictHunk({
             ours: seg.ours.join('\n'),
             theirs: seg.theirs.join('\n'),
             fileName: file
         });
+        printAiAnalysis(resolution, labels);
         if (autoAccept) {
             aiSummaries.push(resolution.summary);
             return resolution.merged.split('\n');
         }
-        console.log(chalk.cyan('    AI suggestion (review before accepting):'));
+        console.log(chalk.bold.cyan('    AI-proposed merged content:'));
         resolution.merged.split('\n').forEach(line => console.log(chalk.cyan(`      ${line}`)));
         const { accept } = await inquirer.prompt([{
             type: 'confirm',
@@ -250,6 +257,23 @@ async function askAiForHunk(seg, file, autoAccept = false, aiSummaries = []) {
         console.log(chalk.yellow(`    AI failed (${error.message}); no file was changed.`));
         return null;
     }
+}
+
+function aiAnalysisLines(resolution, labels = {}) {
+    const ours = labels.oursLabel || 'ours';
+    const theirs = labels.theirsLabel || 'theirs';
+    return [
+        `Gent AI analysis (${ai.getModel()}):`,
+        `Current branch (${ours}): ${resolution.oursSummary}`,
+        `Incoming branch (${theirs}): ${resolution.theirsSummary}`,
+        `AI merge decision: ${resolution.summary}`,
+    ];
+}
+
+function printAiAnalysis(resolution, labels) {
+    const [heading, ...details] = aiAnalysisLines(resolution, labels);
+    console.log(chalk.bold.cyan(`    ${heading}`));
+    details.forEach(line => console.log(chalk.cyan(`      ${line}`)));
 }
 
 function summarizeFileChanges(summaries) {
@@ -331,3 +355,4 @@ async function finalizeMerge(gentPath, staging, mergeState, entriesByName) {
 
 module.exports = resolve;
 module.exports.resolutionChoices = resolutionChoices;
+module.exports.aiAnalysisLines = aiAnalysisLines;
