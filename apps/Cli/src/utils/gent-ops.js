@@ -621,6 +621,19 @@ async function recoverBranchRename(repo) {
     let state;
     try { state = JSON.parse(marker.toString('utf8')); }
     catch { throw new OperationError('branch rename recovery state is malformed', 'GENT_BRANCH_RENAME_RECOVERY'); }
+    const oldRef = `refs/heads/${state.oldName}`;
+    const newRef = `refs/heads/${state.newName}`;
+    assertRefName(oldRef);
+    assertRefName(newRef);
+    const head = await repo.refs.head();
+    if (!(await repo.refs.resolveToOid(newRef)) &&
+        await repo.refs.resolveToOid(oldRef) === state.oid &&
+        (!state.headWasOld || head.ref === oldRef)) {
+        // No ref was published: abandon the attempted rename rather than
+        // retrying a permanent namespace/filesystem failure on every write.
+        await fs.rm(path.join(repo.gentWorktreeMetaDir, BRANCH_RENAME_STATE));
+        return null;
+    }
     return finishBranchRename(repo, state);
 }
 
@@ -633,6 +646,11 @@ async function renameBranch(repo, oldName, newName) {
     if (oldName === newName) throw new OperationError('the old and new branch names are identical');
     const oid = await repo.refs.resolveToOid(oldRef);
     if (!oid) throw new OperationError(`branch '${oldName}' does not exist`);
+    for (const [ref] of await repo.refs.list('refs/heads/')) {
+        if (newRef.startsWith(ref + '/') || ref.startsWith(newRef + '/')) {
+            throw new OperationError(`cannot rename '${oldName}' to '${newName}': ref namespace conflicts with '${ref}'`);
+        }
+    }
     if (await repo.refs.resolveToOid(newRef)) throw new OperationError(`branch '${newName}' already exists`);
     const head = await repo.refs.head();
     const oldLog = await readFileOrNull(repo.refs.reflogPath(oldRef));
@@ -737,7 +755,8 @@ async function deleteTag(repo, name) {
  * @param {Object} repo
  * @param {String} target - branch name, tag or revision
  * @param {Object} [options]
- * @param {Boolean} [options.create] - create the branch first
+ * @param {Boolean} [options.create] - create the branch after checkout preflight
+ * @param {String} [options.startPoint] - new branch revision (defaults to HEAD)
  * @param {Boolean} [options.force] - discard local changes
  * @param {Boolean} [options.detach]
  * @returns {Promise<{branch: String|null, oid: String, written: Number, deleted: Number}>}
@@ -748,13 +767,15 @@ async function checkout(repo, target, options = {}) {
     repo.requireWorktree('gent checkout');
 
     const previousHead = await repo.refs.head();
-    if (options.create) await createBranch(repo, target);
-
     const branchRef = `refs/heads/${target}`;
     const branchOid = await repo.refs.resolveToOid(branchRef).catch(() => null);
-    const detach = options.detach || !branchOid;
+    if (options.create) {
+        assertRefName(branchRef);
+        if (branchOid) throw new OperationError(`branch '${target}' already exists`);
+    }
+    const detach = options.detach || (!options.create && !branchOid);
 
-    const commitOid = await peelToCommit(repo, branchOid || await resolveRevision(repo, target));
+    const commitOid = await peelToCommit(repo, options.create ? (options.startPoint || 'HEAD') : (branchOid || await resolveRevision(repo, target)));
     const targetTree = await worktree.readTreeRecursive(repo, (await repo.objects.readCommit(commitOid)).tree);
 
     const index = await GitIndex.read(repo.indexPath);
@@ -767,18 +788,25 @@ async function checkout(repo, target, options = {}) {
     const current = new Map(index.staged().map(e => [e.path, { mode: e.mode, oid: e.oid }]));
 
     const plan = await worktree.planCheckout(repo, { from: current, to: targetTree, index, force: options.force });
-    const applied = await worktree.applyCheckout(repo, plan, { index });
-    await index.write(repo.indexPath);
+    if (plan.blockers.length) throw new worktree.CheckoutBlocked(plan.blockers);
+    if (options.create) await createBranch(repo, target, commitOid);
+    try {
+        const applied = await worktree.applyCheckout(repo, plan, { index });
+        await index.write(repo.indexPath);
 
-    if (detach) {
-        await repo.refs.setHeadDetached(commitOid, `checkout: moving to ${target}`, previousHead);
-    } else {
-        await repo.refs.setHeadSymbolic(branchRef, `checkout: moving to ${target}`, previousHead);
+        if (detach) {
+            await repo.refs.setHeadDetached(commitOid, `checkout: moving to ${target}`, previousHead);
+        } else {
+            await repo.refs.setHeadSymbolic(branchRef, `checkout: moving to ${target}`, previousHead);
+        }
+
+        await clearMergeState(repo);
+        await worktree.completeCheckout(repo);
+        return { branch: detach ? null : target, oid: commitOid, ...applied };
+    } catch (error) {
+        if (options.create) error.message += `\nBranch '${target}' was created, but checkout did not finish. Inspect gent status before retrying; if checkout recovery is pending, run gent checkout --abort.`;
+        throw error;
     }
-
-    await clearMergeState(repo);
-    await worktree.completeCheckout(repo);
-    return { branch: detach ? null : target, oid: commitOid, ...applied };
 }
 
 /**

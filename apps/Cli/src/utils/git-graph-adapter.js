@@ -113,7 +113,7 @@ function validateRead(invocation) {
         return args.length >= 2 && args.every(a => allowed.has(a)) && args.includes('--porcelain');
     }
     if (command === 'show') {
-        if (args.length === 1) return /^[^:]+:.+/.test(args[0]);
+        if (args.length === 1) return isRevision(args[0]) && /^[^:]+:.+/.test(args[0]);
         return args.length === 3 && args[0] === '--quiet' && isRevision(args[1]) && args[2].startsWith('--format=');
     }
     if (command === 'log') {
@@ -201,8 +201,7 @@ async function mutate(repo, command, args) {
     if (command === 'checkout') {
         if (args[0] === '-b' && args.length === 3) {
             const [, name, startPoint] = args;
-            await ops.createBranch(repo, name, startPoint);
-            const result = await ops.checkout(repo, name);
+            const result = await ops.checkout(repo, name, { create: true, startPoint });
             if (startPoint.startsWith('refs/remotes/') || (await repo.refs.resolveToOid(`refs/remotes/${startPoint}`))) {
                 const remoteRef = startPoint.startsWith('refs/remotes/') ? startPoint.slice(13) : startPoint;
                 const slash = remoteRef.indexOf('/');
@@ -367,6 +366,7 @@ async function main(argv) {
     }
     const result = await executeCanonicalOperation({
         name: `graph-${invocation.command}`,
+        startDir: invocation.cwd,
         repo: classification.repo,
         checkpoint: checkpointFor(invocation.command),
         displayName: `gent-git-graph ${invocation.command}`

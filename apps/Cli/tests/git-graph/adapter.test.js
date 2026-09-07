@@ -101,3 +101,121 @@ test('handles version discovery without a repository', async t => {
     const f = await fixture(t);
     assert.match(f.run(['--version'], 0, f.root).stdout, /^git version /);
 });
+
+test('show rejects an output option containing a colon without overwriting files', async t => {
+    const f = await fixture(t);
+    const output = path.join(f.root, 'review:output');
+    await fs.writeFile(output, 'keep this content');
+    assert.match(f.run(['show', `--output=${output}`], 1).stderr, /unapproved show query/);
+    assert.equal(await fs.readFile(output, 'utf8'), 'keep this content');
+    assert.equal(f.run(['show', `${f.base}:hello world.txt`]).stdout, 'base\n');
+});
+
+test('rename namespace collisions leave no recovery marker or blocked mutations', async t => {
+    const f = await fixture(t);
+    const marker = path.join(f.repo.gentWorktreeMetaDir, 'branch-rename.json');
+    assert.match(f.run(['branch', '-m', 'main', 'main/topic'], 1).stderr, /namespace conflicts/);
+    await ops.createBranch(f.repo, 'topic/child');
+    assert.match(f.run(['branch', '-m', 'main', 'topic'], 1).stderr, /namespace conflicts/);
+    await assert.rejects(fs.access(marker), { code: 'ENOENT' });
+    f.run(['tag', 'after-refusal', f.base]);
+    const repo = await repository.open(f.work);
+    assert.equal((await repo.refs.head()).branch, 'main');
+    assert.equal(await repo.refs.resolveToOid('refs/tags/after-refusal'), f.base);
+});
+
+test('an unstarted rename from the previous implementation no longer blocks writes', async t => {
+    const f = await fixture(t);
+    const marker = path.join(f.repo.gentWorktreeMetaDir, 'branch-rename.json');
+    await fs.writeFile(marker, JSON.stringify({
+        oldName: 'main', newName: 'main/topic', oid: f.base,
+        headWasOld: true, config: {}, reflog: null
+    }));
+    f.run(['tag', 'after-recovery', f.base]);
+    await assert.rejects(fs.access(marker), { code: 'ENOENT' });
+    const repo = await repository.open(f.work);
+    assert.equal((await repo.refs.head()).branch, 'main');
+    assert.equal(await repo.refs.resolveToOid('refs/heads/main'), f.base);
+    assert.equal(await repo.refs.resolveToOid('refs/tags/after-recovery'), f.base);
+});
+
+test('a rename that published its new ref still finishes recovery', async t => {
+    const f = await fixture(t);
+    const marker = path.join(f.repo.gentWorktreeMetaDir, 'branch-rename.json');
+    const reflog = await fs.readFile(f.repo.refs.reflogPath('refs/heads/main'));
+    await fs.writeFile(marker, JSON.stringify({
+        oldName: 'main', newName: 'renamed', oid: f.base,
+        headWasOld: true, config: { remote: 'origin', merge: 'refs/heads/main' },
+        reflog: reflog.toString('base64')
+    }));
+    await f.repo.refs.update('refs/heads/renamed', f.base, { expectedOldOid: null });
+    f.run(['tag', 'after-recovery', f.base]);
+    const repo = await repository.open(f.work);
+    assert.equal((await repo.refs.head()).branch, 'renamed');
+    assert.equal(await repo.refs.resolveToOid('refs/heads/main'), null);
+    assert.equal(repo.config.get('branch.renamed.remote'), 'origin');
+    assert.deepEqual(await fs.readFile(repo.refs.reflogPath('refs/heads/renamed')), reflog);
+    await assert.rejects(fs.access(marker), { code: 'ENOENT' });
+});
+
+test('-C checks interrupted migration in the resolved repository before mutation', async t => {
+    const f = await fixture(t);
+    await fs.mkdir(path.join(f.work, 'sub'));
+    await fs.writeFile(path.join(f.work, '.gent-migration.json'), '{}');
+    const result = f.run(['-C', f.work, '-C', 'sub', 'branch', 'blocked', f.base], 1, f.root);
+    assert.match(result.stderr, /interrupted migration/);
+    assert.equal(await (await repository.open(f.work)).refs.resolveToOid('refs/heads/blocked'), null);
+});
+
+test('create-and-checkout refuses staged work before creating a branch and permits retry', async t => {
+    const f = await fixture(t);
+    const file = path.join(f.work, 'hello world.txt');
+    await fs.writeFile(file, 'staged\n');
+    await ops.addPaths(f.repo, [file]);
+    const index = await fs.readFile(f.repo.indexPath);
+    assert.match(f.run(['checkout', '-b', 'new', f.base], 1).stderr, /staged changes/);
+    let repo = await repository.open(f.work);
+    assert.equal(await repo.refs.resolveToOid('refs/heads/new'), null);
+    assert.equal((await repo.refs.head()).branch, 'main');
+    assert.deepEqual(await fs.readFile(repo.indexPath), index);
+    assert.equal(await fs.readFile(file, 'utf8'), 'staged\n');
+    await ops.createCommit(f.repo, { message: 'save staged work' });
+    f.run(['checkout', '-b', 'new', f.base]);
+    repo = await repository.open(f.work);
+    assert.equal((await repo.refs.head()).branch, 'new');
+    assert.equal((await repo.refs.head()).oid, f.base);
+    assert.equal(await fs.readFile(file, 'utf8'), 'base\n');
+});
+
+test('create-and-checkout detects untracked overwrites before creating a branch', async t => {
+    const f = await fixture(t);
+    const file = path.join(f.work, 'collision.txt');
+    await fs.writeFile(file, 'committed\n');
+    await ops.addPaths(f.repo, [file]);
+    const target = await ops.createCommit(f.repo, { message: 'target' });
+    await ops.checkout(f.repo, f.base);
+    await fs.writeFile(file, 'untracked\n');
+    const result = f.run(['checkout', '-b', 'new', target.oid], 1);
+    assert.match(result.stderr, /untracked/);
+    assert.equal(await (await repository.open(f.work)).refs.resolveToOid('refs/heads/new'), null);
+    assert.equal(await fs.readFile(file, 'utf8'), 'untracked\n');
+});
+
+test('a late checkout failure reports the created branch and retains abort recovery', async t => {
+    const f = await fixture(t);
+    const worktree = require('../../src/utils/worktree');
+    const file = path.join(f.work, 'hello world.txt');
+    await fs.writeFile(file, 'target\n');
+    await ops.addPaths(f.repo, [file]);
+    const target = await ops.createCommit(f.repo, { message: 'target' });
+    await ops.checkout(f.repo, f.base);
+    t.mock.method(f.repo.refs, 'setHeadSymbolic', async () => { throw new Error('injected HEAD write failure'); });
+    await assert.rejects(ops.checkout(f.repo, 'new', { create: true, startPoint: target.oid }),
+        /injected HEAD write failure[\s\S]*Branch 'new' was created[\s\S]*gent checkout --abort/);
+    assert.equal(await f.repo.refs.resolveToOid('refs/heads/new'), target.oid);
+    assert.equal(await fs.readFile(file, 'utf8'), 'target\n');
+    assert.ok(await worktree.pendingCheckout(f.repo));
+    await worktree.abortCheckout(f.repo);
+    assert.equal(await fs.readFile(file, 'utf8'), 'base\n');
+    assert.equal(await worktree.pendingCheckout(f.repo), null);
+});
