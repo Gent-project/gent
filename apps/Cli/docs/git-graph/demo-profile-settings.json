@@ -1,0 +1,40 @@
+{
+  "git.path": "/absolute/path/to/gent-git-graph",
+  "git.autofetch": false,
+  "extensions.autoUpdate": "off",
+  "git-graph.repository.fetchAndPrune": false,
+  "git-graph.repository.fetchAndPruneTags": false,
+  "git-graph.repository.sign.commits": false,
+  "git-graph.repository.sign.tags": false,
+  "git-graph.dialog.fetchIntoLocalBranch.forceFetch": false,
+  "git-graph.dialog.fetchRemote.pruneTags": false,
+  "git-graph.dialog.merge.noCommit": false,
+  "git-graph.dialog.merge.squashCommits": false,
+  "git-graph.dialog.pullBranch.squashCommits": false,
+  "git-graph.contextMenuActionsVisibility": {
+    "branch": {
+      "rebase": false,
+      "createArchive": false
+    },
+    "commit": {
+      "cherrypick": false,
+      "revert": false,
+      "drop": false,
+      "rebase": false
+    },
+    "remoteBranch": {
+      "fetch": false,
+      "createArchive": false
+    },
+    "stash": {
+      "createBranch": false
+    },
+    "tag": {
+      "createArchive": false
+    },
+    "uncommittedChanges": {
+      "clean": false,
+      "openSourceControlView": false
+    }
+  }
+}

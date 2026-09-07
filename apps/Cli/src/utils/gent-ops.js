@@ -568,6 +568,87 @@ async function deleteBranch(repo, name, options = {}) {
     return oid;
 }
 
+const BRANCH_RENAME_STATE = 'branch-rename.json';
+
+async function finishBranchRename(repo, state) {
+    const oldRef = `refs/heads/${state.oldName}`;
+    const newRef = `refs/heads/${state.newName}`;
+    const newOid = await repo.refs.resolveToOid(newRef);
+    if (!newOid) {
+        await repo.refs.update(newRef, state.oid, {
+            expectedOldOid: null,
+            reason: `branch: renamed ${state.oldName} to ${state.newName}`
+        });
+    } else if (newOid !== state.oid) {
+        throw new OperationError(`cannot recover branch rename: '${state.newName}' changed`, 'GENT_BRANCH_RENAME_RECOVERY');
+    }
+
+    const head = await repo.refs.head();
+    if (state.headWasOld && head.ref === oldRef) {
+        await repo.refs.setHeadSymbolic(newRef, `Branch: renamed ${state.oldName} to ${state.newName}`, head);
+    }
+
+    const oldOid = await repo.refs.resolveToOid(oldRef);
+    if (oldOid && oldOid !== state.oid) {
+        throw new OperationError(`cannot recover branch rename: '${state.oldName}' changed`, 'GENT_BRANCH_RENAME_RECOVERY');
+    }
+    if (oldOid) await repo.refs.delete(oldRef, { expectedOldOid: state.oid, reason: `branch: renamed to ${state.newName}` });
+
+    for (const key of ['remote', 'merge', 'pushremote']) {
+        const oldKey = `branch.${state.oldName}.${key}`;
+        const newKey = `branch.${state.newName}.${key}`;
+        const value = state.config[key];
+        if (value !== null && value !== undefined) repo.localConfig.set(newKey, value);
+        repo.localConfig.unset(oldKey);
+    }
+    await repo.localConfig.save();
+
+    const oldLog = repo.refs.reflogPath(oldRef);
+    const newLog = repo.refs.reflogPath(newRef);
+    if (state.reflog) {
+        await fs.mkdir(path.dirname(newLog), { recursive: true });
+        await writeAtomic(newLog, Buffer.from(state.reflog, 'base64'));
+    }
+    await fs.rm(oldLog, { force: true });
+    await fs.rm(path.join(repo.gentWorktreeMetaDir, BRANCH_RENAME_STATE), { force: true });
+    repo.refs.invalidate();
+    return { oldName: state.oldName, newName: state.newName, oid: state.oid };
+}
+
+async function recoverBranchRename(repo) {
+    const marker = await readFileOrNull(path.join(repo.gentWorktreeMetaDir, BRANCH_RENAME_STATE));
+    if (!marker) return null;
+    let state;
+    try { state = JSON.parse(marker.toString('utf8')); }
+    catch { throw new OperationError('branch rename recovery state is malformed', 'GENT_BRANCH_RENAME_RECOVERY'); }
+    return finishBranchRename(repo, state);
+}
+
+async function renameBranch(repo, oldName, newName) {
+    await repo.assertNoExternalOperation('gent branch -m');
+    const oldRef = `refs/heads/${oldName}`;
+    const newRef = `refs/heads/${newName}`;
+    assertRefName(oldRef);
+    assertRefName(newRef);
+    if (oldName === newName) throw new OperationError('the old and new branch names are identical');
+    const oid = await repo.refs.resolveToOid(oldRef);
+    if (!oid) throw new OperationError(`branch '${oldName}' does not exist`);
+    if (await repo.refs.resolveToOid(newRef)) throw new OperationError(`branch '${newName}' already exists`);
+    const head = await repo.refs.head();
+    const oldLog = await readFileOrNull(repo.refs.reflogPath(oldRef));
+    const state = {
+        oldName,
+        newName,
+        oid,
+        headWasOld: head.ref === oldRef,
+        reflog: oldLog ? oldLog.toString('base64') : null,
+        config: Object.fromEntries(['remote', 'merge', 'pushremote'].map(key => [key, repo.config.get(`branch.${oldName}.${key}`, null)]))
+    };
+    await fs.mkdir(repo.gentWorktreeMetaDir, { recursive: true });
+    await writeAtomic(path.join(repo.gentWorktreeMetaDir, BRANCH_RENAME_STATE), JSON.stringify(state) + '\n');
+    return finishBranchRename(repo, state);
+}
+
 // ─── Tags ────────────────────────────────────────────────
 
 /**
@@ -823,6 +904,8 @@ module.exports = {
     listBranches,
     createBranch,
     deleteBranch,
+    renameBranch,
+    recoverBranchRename,
     listTags,
     createTag,
     deleteTag,

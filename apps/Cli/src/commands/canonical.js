@@ -10,8 +10,8 @@ const merge = require('../utils/merge-ops');
 const stash = require('../utils/stash-ops');
 const journal = require('../utils/canonical-journal');
 const worktree = require('../utils/worktree');
+const { assertNoInterruptedMigration, executeCanonicalOperation } = require('../utils/canonical-operation');
 const { GitIndex } = require('../utils/git-index');
-const { Lock } = require('../utils/lockfile');
 const { AttributesMatcher, looksBinary } = require('../utils/attributes');
 const { formatUnifiedDiff } = require('../utils/diff-engine');
 const ai = require('../utils/ai-service');
@@ -29,10 +29,7 @@ async function locatedCanonical() {
 function route(name, legacy) {
     const handler = async (...args) => {
         try {
-            for (let dir = process.cwd(); ; dir = path.dirname(dir)) {
-                if (await fs.access(path.join(dir, '.gent-migration.json')).then(() => true, () => false)) throw new Error('interrupted migration; use gent migrate --continue or --abort');
-                if (path.dirname(dir) === dir) break;
-            }
+            await assertNoInterruptedMigration(process.cwd());
             if (name === 'init') {
                 const options = args[0] || {};
                 if (!options.objectFormat) {
@@ -55,19 +52,14 @@ function route(name, legacy) {
             if (!repo) return legacy(...args);
             if (!handlers[name]) throw new Error(`gent ${name} is not implemented for canonical repositories yet`);
             const readOnly = ['status', 'log', 'show', 'diff', 'summary'].includes(name);
-            let lock;
-            try {
-                if (!readOnly) {
-                    lock = await Lock.acquire(path.join(repo.gentWorktreeMetaDir, 'operation'));
-                    await repo.assertNoExternalOperation(`gent ${name}`);
-                    if (!(name === 'checkout' && args[1]?.abort)) await worktree.assertNoPendingCheckout(repo, `gent ${name}`);
-                }
-                const checkpointed = ['commit', 'checkout', 'reset', 'merge'].includes(name) && !args[1]?.abort && !args[0]?.abort;
-                const checkpoint = checkpointed ? await journal.begin(repo, name) : null;
-                const result = await handlers[name](repo, ...args);
-                if (checkpoint) await journal.finish(repo, checkpoint);
-                return result;
-            } finally { if (lock) await lock.release(); }
+            const checkpoint = ['commit', 'checkout', 'reset', 'merge'].includes(name) && !args[1]?.abort && !args[0]?.abort;
+            return executeCanonicalOperation({
+                name,
+                repo,
+                readOnly,
+                checkpoint,
+                allowPendingCheckout: name === 'checkout' && args[1]?.abort
+            }, opened => handlers[name](opened, ...args));
         } catch (error) {
             console.error(`Error: ${error.message}`);
             process.exitCode = 1;

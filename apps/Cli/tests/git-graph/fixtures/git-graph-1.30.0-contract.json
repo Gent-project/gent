@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "extension": {
+    "id": "mhutchie.git-graph",
+    "version": "1.30.0",
+    "sourceCommit": "881a9e613045bacbbadf8940f6b6c5b8bd699335",
+    "officialVsixSha256": "b0779a30caf9866434900159c71322464e9fd267e3920d9732703819ff831f00"
+  },
+  "notation": {
+    "placeholder": "Values enclosed in <...> are one argv element supplied by Git Graph.",
+    "optional": "Values enclosed in [...] are optional argv elements at exactly that position.",
+    "repeated": "A value ending in ... is repeated as separate argv elements.",
+    "separator": "XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb"
+  },
+  "formatTemplates": {
+    "log": "%H<SEP>%P<SEP><AUTHOR_NAME><SEP><AUTHOR_EMAIL><SEP><DATE><SEP>%s",
+    "commitDetails": "%H<SEP>%P<SEP><AUTHOR_NAME><SEP><AUTHOR_EMAIL><SEP>%at<SEP><COMMITTER_NAME><SEP><COMMITTER_EMAIL><SEP>%ct<SEP><SIGNATURE_STATUS><SEP><SIGNER><SEP><SIGNING_KEY><SEP>%B",
+    "stash": "%H<SEP>%P<SEP>%gD<SEP><AUTHOR_NAME><SEP><AUTHOR_EMAIL><SEP><DATE><SEP>%s",
+    "tagDetails": "%(objectname)<SEP>%(taggername)<SEP>%(taggeremail)<SEP>%(taggerdate:unix)<SEP>%(contents)",
+    "mailmapOff": {
+      "AUTHOR_NAME": "%an",
+      "AUTHOR_EMAIL": "%ae",
+      "COMMITTER_NAME": "%cn",
+      "COMMITTER_EMAIL": "%ce"
+    },
+    "mailmapOn": {
+      "AUTHOR_NAME": "%aN",
+      "AUTHOR_EMAIL": "%aE",
+      "COMMITTER_NAME": "%cN",
+      "COMMITTER_EMAIL": "%cE"
+    },
+    "authorDate": "%at",
+    "commitDate": "%ct",
+    "signatureOff": {
+      "SIGNATURE_STATUS": "",
+      "SIGNER": "",
+      "SIGNING_KEY": ""
+    },
+    "signatureOn": {
+      "SIGNATURE_STATUS": "%G?",
+      "SIGNER": "%GS",
+      "SIGNING_KEY": "%GK"
+    }
+  },
+  "startup": [
+    {
+      "id": "executable-version",
+      "args": ["--version"],
+      "cwd": null
+    },
+    {
+      "id": "repository-root",
+      "args": ["rev-parse", "--show-toplevel"],
+      "cwd": "<candidate-path>"
+    }
+  ],
+  "reads": [
+    {
+      "id": "branches-local",
+      "args": ["branch", "--no-color"]
+    },
+    {
+      "id": "branches-all",
+      "args": ["branch", "-a", "--no-color"]
+    },
+    {
+      "id": "remotes",
+      "args": ["remote"]
+    },
+    {
+      "id": "remote-url",
+      "args": ["config", "--get", "remote.<remote>.url"]
+    },
+    {
+      "id": "config-consolidated",
+      "args": ["--no-pager", "config", "--list", "-z", "--includes"]
+    },
+    {
+      "id": "config-local",
+      "args": ["--no-pager", "config", "--list", "-z", "--includes", "--local"]
+    },
+    {
+      "id": "config-global",
+      "args": ["--no-pager", "config", "--list", "-z", "--includes", "--global"]
+    },
+    {
+      "id": "refs-all",
+      "args": ["show-ref", "-d", "--head"]
+    },
+    {
+      "id": "refs-local-and-tags",
+      "args": ["show-ref", "--heads", "--tags", "-d", "--head"]
+    },
+    {
+      "id": "graph-log-selected",
+      "args": ["-c", "log.showSignature=false", "log", "--max-count=<count>", "--format=<LOG_FORMAT>", "--<date|author-date|topo>-order", "[--first-parent]", "<selected-ref>...", "--"]
+    },
+    {
+      "id": "graph-log-all",
+      "args": ["-c", "log.showSignature=false", "log", "--max-count=<count>", "--format=<LOG_FORMAT>", "--<date|author-date|topo>-order", "[--first-parent]", "--branches", "[--tags]", "[--reflog]", "[--remotes|--glob=refs/remotes/<remote>...]", "[<stash-base-hash>...]", "HEAD", "--"]
+    },
+    {
+      "id": "commit-subject",
+      "args": ["-c", "log.showSignature=false", "log", "--format=%s", "-n", "1", "<commit>", "--"]
+    },
+    {
+      "id": "commit-details",
+      "args": ["-c", "log.showSignature=false", "show", "--quiet", "<commit>", "--format=<COMMIT_DETAILS_FORMAT>"]
+    },
+    {
+      "id": "file-at-commit",
+      "args": ["show", "<commit>:<path>"]
+    },
+    {
+      "id": "tag-details",
+      "args": ["for-each-ref", "refs/tags/<tag>", "--format=<TAG_DETAILS_FORMAT>"]
+    },
+    {
+      "id": "stashes",
+      "args": ["reflog", "--format=<STASH_FORMAT>", "refs/stash", "--"]
+    },
+    {
+      "id": "uncommitted-count",
+      "args": ["status", "--untracked-files=<all|no>", "--porcelain"]
+    },
+    {
+      "id": "uncommitted-files",
+      "args": ["status", "-s", "--untracked-files=<all|no>", "--porcelain", "-z"]
+    },
+    {
+      "id": "diff-name-status",
+      "args": ["diff", "--name-status", "--find-renames", "--diff-filter=<AMDR|R>", "-z", "<from>", "[<to>]"]
+    },
+    {
+      "id": "diff-numstat",
+      "args": ["diff", "--numstat", "--find-renames", "--diff-filter=AMDR", "-z", "<from>", "[<to>]"]
+    },
+    {
+      "id": "tree-name-status",
+      "args": ["diff-tree", "--name-status", "-r", "--root", "--find-renames", "--diff-filter=AMDR", "-z", "<commit>"]
+    },
+    {
+      "id": "tree-numstat",
+      "args": ["diff-tree", "--numstat", "-r", "--root", "--find-renames", "--diff-filter=AMDR", "-z", "<commit>"]
+    },
+    {
+      "id": "staged-changes-probe",
+      "args": ["diff-index", "HEAD"],
+      "note": "Only used by Git Graph after a squash action; the read itself is safe, but squash is unsupported by Gent."
+    }
+  ],
+  "supportedMutations": [
+    { "id": "remote-add", "args": ["remote", "add", "<name>", "<url>"] },
+    { "id": "remote-remove", "args": ["remote", "remove", "<name>"] },
+    { "id": "remote-set-url", "args": ["remote", "set-url", "<name>", "<new-url>", "<old-url>"] },
+    { "id": "tag-lightweight", "args": ["tag", "<tag>", "<commit>"] },
+    { "id": "tag-annotated", "args": ["tag", "-a", "<tag>", "-m", "<message>", "<commit>"] },
+    { "id": "tag-delete-remote", "args": ["push", "<remote>", "--delete", "<tag>"] },
+    { "id": "tag-delete-local", "args": ["tag", "-d", "<tag>"] },
+    { "id": "fetch-all", "args": ["fetch", "--all", "[--prune]"] },
+    { "id": "fetch-remote", "args": ["fetch", "<remote>", "[--prune]"] },
+    { "id": "push-branch", "args": ["push", "<remote>", "<branch>", "[--set-upstream]"] },
+    { "id": "push-tag", "args": ["push", "<remote>", "<tag>"] },
+    { "id": "checkout-branch", "args": ["checkout", "<branch>"] },
+    { "id": "checkout-remote-branch", "args": ["checkout", "-b", "<local-branch>", "<remote>/<branch>"] },
+    { "id": "checkout-commit", "args": ["checkout", "<commit>"] },
+    { "id": "create-branch", "args": ["branch", "<branch>", "<commit>"] },
+    { "id": "create-and-checkout-branch", "args": ["checkout", "-b", "<branch>", "<commit>"] },
+    { "id": "delete-branch", "args": ["branch", "--delete", "[--force]", "<branch>"] },
+    { "id": "delete-remote-branch", "args": ["push", "<remote>", "--delete", "<branch>"] },
+    { "id": "delete-stale-remote-tracking-branch", "args": ["branch", "-d", "-r", "<remote>/<branch>"] },
+    { "id": "pull", "args": ["pull", "<remote>", "<branch>", "[--no-ff]"] },
+    { "id": "rename-branch", "args": ["branch", "-m", "<old-name>", "<new-name>"] },
+    { "id": "merge", "args": ["merge", "<ref>", "[--no-ff]"] },
+    { "id": "reset", "args": ["reset", "--<soft|mixed|hard>", "<commit>"] },
+    { "id": "config-set-identity", "args": ["config", "--local", "<user.name|user.email>", "<value>"] },
+    { "id": "config-unset-identity", "args": ["config", "--local", "--unset-all", "<user.name|user.email>"] },
+    { "id": "stash-apply", "args": ["stash", "apply", "[--index]", "stash@{<n>}"] },
+    { "id": "stash-drop", "args": ["stash", "drop", "stash@{<n>}"] },
+    { "id": "stash-pop", "args": ["stash", "pop", "[--index]", "stash@{<n>}"] },
+    { "id": "stash-push", "args": ["stash", "push", "[--include-untracked]", "[--message]", "[<message>]"] }
+  ],
+  "settingsVariants": [
+    { "setting": "git.path", "effect": "Selects the executable and causes the startup --version probe." },
+    { "setting": "git-graph.repository.showRemoteBranches", "false": "branch --no-color; show-ref --heads --tags -d --head", "true": "branch -a --no-color; show-ref -d --head" },
+    { "setting": "git-graph.repository.showUntrackedFiles", "false": "--untracked-files=no", "true": "--untracked-files=all" },
+    { "setting": "git-graph.repository.commits.order", "values": ["--date-order", "--author-date-order", "--topo-order"] },
+    { "setting": "git-graph.repository.onlyFollowFirstParent", "trueAdds": "--first-parent" },
+    { "setting": "git-graph.repository.showCommitsOnlyReferencedByTags", "trueAdds": "--tags" },
+    { "setting": "git-graph.repository.includeCommitsMentionedByReflogs", "trueAdds": "--reflog" },
+    { "setting": "git-graph.repository.useMailmap", "effect": "Changes %an/%ae/%cn/%ce to %aN/%aE/%cN/%cE." },
+    { "setting": "git-graph.date.type", "effect": "Changes graph and stash DATE from %ct to %at when Author Date is selected." },
+    { "setting": "git-graph.repository.commits.showSignatureStatus", "effect": "For Git >= 2.4.0, changes the three empty commit-detail fields to %G?, %GS and %GK." },
+    { "setting": "git-graph.dialog.createBranch.checkOut", "trueSelects": "checkout -b <branch> <commit>" },
+    { "setting": "git-graph.dialog.deleteBranch.forceDelete", "trueAdds": "--force after --delete" },
+    { "setting": "git-graph.dialog.fetchRemote.prune", "trueAdds": "--prune after the remote or --all argument" },
+    { "setting": "git-graph.dialog.merge.noFastForward", "trueAdds": "--no-ff after the merged ref" },
+    { "setting": "git-graph.dialog.pullBranch.noFastForward", "trueAdds": "--no-ff after the remote branch" },
+    { "setting": "git-graph.dialog.resetCurrentBranchToCommit.mode", "values": ["--soft", "--mixed", "--hard"] },
+    { "setting": "git-graph.dialog.applyStash.reinstateIndex", "trueAdds": "--index before the stash selector" },
+    { "setting": "git-graph.dialog.popStash.reinstateIndex", "trueAdds": "--index before the stash selector" },
+    { "setting": "git-graph.dialog.stashUncommittedChanges.includeUntracked", "trueAdds": "--include-untracked" }
+  ],
+  "unsupported": [
+    { "action": "force push", "patterns": [["push", "<remote>", "<branch>", "--force"], ["push", "<remote>", "<branch>", "--force-with-lease"]] },
+    { "action": "force branch creation or replacement", "patterns": [["branch", "-f", "<branch>", "<commit>"]] },
+    { "action": "force, signed, or replacement tag", "patterns": [["tag", "-f", "..."], ["tag", "-s", "..."]] },
+    { "action": "signed merge, pull, or generated commit", "patterns": [["merge", "...", "-S"], ["pull", "...", "-S"], ["commit", "...", "-S"]] },
+    { "action": "tag pruning", "patterns": [["fetch", "...", "--prune-tags"]] },
+    { "action": "separate push URL", "patterns": [["remote", "set-url", "<name>", "--push", "..."]] },
+    { "action": "remote rename or multiple URL editing", "patterns": [["remote", "rename", "..."], ["remote", "set-url", "<name>", "--add", "..."], ["remote", "set-url", "<name>", "--delete", "..."]] },
+    { "action": "fetch directly into local branch", "patterns": [["fetch", "[-f]", "<remote>", "<remote-branch>:<local-branch>"]] },
+    { "action": "squash or no-commit merge/pull", "patterns": [["merge", "...", "--squash"], ["merge", "...", "--no-commit"], ["pull", "...", "--squash"]] },
+    { "action": "commit-producing and history rewriting actions", "patterns": [["commit", "..."], ["rebase", "..."], ["cherry-pick", "..."], ["revert", "..."]] },
+    { "action": "stash branch or ignored/all files", "patterns": [["stash", "branch", "..."], ["stash", "push", "--all", "..."]] },
+    { "action": "archive, clean, and external diff", "patterns": [["archive", "..."], ["clean", "..."], ["difftool", "..."]] },
+    { "action": "arbitrary or global config mutation", "patterns": [["config", "--global", "..."], ["config", "--local", "<key-other-than-user.name-or-user.email>", "..."]] },
+    { "action": "file-level checkout or reset", "patterns": [["checkout", "...", "--", "<path>..."], ["reset", "...", "--", "<path>..."]] },
+    { "action": "unrecognized commands, options, output files, external diff or text conversion", "patterns": [["<anything-not-listed>"], ["-c", "diff.external=...", "..."], ["--output=<path>", "..."]] }
+  ]
+}

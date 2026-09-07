@@ -69,6 +69,7 @@ const passwordCommand = require('./commands/password');
 // Import new gent-platform commands
 const configCommand = route('config', require('./commands/config'));
 const doctorCommand = require('./commands/doctor');
+const graphCommand = require('./commands/graph');
 const setupCommand = require('./commands/setup');
 const aiCommand = require('./commands/ai');
 const askCommand = route('ask', require('./commands/ask'));
@@ -368,6 +369,35 @@ program
     .option('--ai', 'Also live-test Gent AI with a tiny request')
     .action(doctorCommand);
 
+const graph = program
+    .command('graph')
+    .description('Configure and diagnose VS Code Git Graph integration');
+
+graph
+    .command('setup')
+    .description('Configure the installed Git executable used for read queries')
+    .requiredOption('--git-path <absolute-path>', 'Absolute path to the installed Git executable')
+    .action(async options => {
+        try {
+            await graphCommand.setup(options);
+        } catch (error) {
+            console.error(chalk.red('Error:'), error.message);
+            process.exitCode = 1;
+        }
+    });
+
+graph
+    .command('doctor')
+    .description('Check Git Graph adapter, Git, repository, remote, and authentication')
+    .action(async () => {
+        try {
+            await graphCommand.doctor();
+        } catch (error) {
+            console.error(chalk.red('Error:'), error.message);
+            process.exitCode = 1;
+        }
+    });
+
 program
     .command('ai [subcommand] [key]')
     .description('Configure or inspect local AI (configure|status|test|models)')
@@ -503,7 +533,7 @@ const HELP_GROUPS = [
     ['Remote & sync', ['remote', 'repos', 'members', 'push', 'pull', 'search', 'web', 'share']],
     ['Account', ['register', 'login', 'logout', 'whoami', 'password']],
     ['AI', ['ask', 'review', 'docs', 'changelog', 'ai']],
-    ['Config & tools', ['config', 'doctor', 'template', 'help']],
+    ['Config & tools', ['config', 'doctor', 'graph', 'template', 'help']],
     ['Fun', ['pet']],
 ];
 

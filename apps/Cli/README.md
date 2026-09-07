@@ -54,6 +54,22 @@ Run without linking:
 node src/index.js --help
 ```
 
+## VS Code Git Graph (canonical repositories)
+
+Gent ships `gent-git-graph` for the unmodified Git Graph 1.30.0 extension.
+Configure the installed Git executable once, then copy the printed `git.path`
+setting into a dedicated VS Code profile:
+
+```bash
+gent graph setup --git-path /usr/bin/git
+gent graph doctor
+```
+
+The adapter delegates only the pinned read contract to Git; supported writes,
+authentication, and remote traffic stay inside Gent. Use this only with fresh
+canonical SHA-256 repositories. See [docs/git-graph/README.md](docs/git-graph/README.md)
+for the supported action matrix, rejected variants, and macOS demo workflow.
+
 ## Full Step-by-Step Workflow
 
 ### 1. Create an account

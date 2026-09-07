@@ -1,12 +1,17 @@
 /** Independent bounded protocol-v0 client. No external Git engine. */
 const fs = require('fs').promises;
 const path = require('path');
+const os = require('os');
 const axios = require('axios');
 const objects = require('./git-objects');
 const { buildPack, readPackStream } = require('./packfile');
 const { assertRefName: validateRefName } = require('./refs');
 const repository = require('./repository');
 const ops = require('./gent-ops');
+const authStorage = require('./auth-storage');
+const userConfig = require('./user-config');
+const { GENT_DIR } = require('./constants');
+const { Lock } = require('./lockfile');
 const MAX_BYTES = 128 * 1024 * 1024;
 const ZERO = '0'.repeat(64);
 
@@ -35,18 +40,76 @@ function remoteUrl(value) {
     }
     return url.toString().replace(/\/$/, '');
 }
-async function request(url, service, body) {
-    const headers = {};
+async function savedCredential(url) {
     if (process.env.GENT_HTTP_TOKEN) {
         if (!process.env.GENT_HTTP_USER) throw new Error('set GENT_HTTP_USER with GENT_HTTP_TOKEN');
-        headers.Authorization = 'Basic ' + Buffer.from(`${process.env.GENT_HTTP_USER}:${process.env.GENT_HTTP_TOKEN}`).toString('base64');
+        return {
+            header: 'Basic ' + Buffer.from(`${process.env.GENT_HTTP_USER}:${process.env.GENT_HTTP_TOKEN}`).toString('base64'),
+            saved: false,
+            access: null
+        };
     }
+    const { value: apiUrl } = await userConfig.getResolved('api.base_url');
+    if (!apiUrl || new URL(apiUrl).origin !== new URL(url).origin) return null;
+    const access = await authStorage.getAccessToken();
+    return access ? { header: `Bearer ${access}`, saved: true, access } : null;
+}
+async function refreshSavedCredential(failedAccess) {
+    const target = path.join(os.homedir(), GENT_DIR, 'auth-refresh');
+    const lock = await Lock.acquire(target, { retries: 50, mode: 0o600 });
+    try {
+        const currentAccess = await authStorage.getAccessToken();
+        if (currentAccess && currentAccess !== failedAccess) return currentAccess;
+        const refresh = await authStorage.getRefreshToken();
+        if (!refresh) throw new Error('authentication required; run gent login');
+        const { value: apiUrl } = await userConfig.getResolved('api.base_url');
+        let result;
+        try {
+            result = await axios.post(`${String(apiUrl).replace(/\/$/, '')}/api/auth/token/refresh/`, { refresh }, {
+                timeout: 30000, maxRedirects: 0, validateStatus: () => true
+            });
+        } catch (error) {
+            throw new Error(`token refresh failed: ${error.message}`);
+        }
+        if (result.status !== 200 || !result.data?.access) throw new Error('authentication required; run gent login');
+        await authStorage.updateTokens(result.data.access, result.data.refresh);
+        return result.data.access;
+    } finally {
+        await lock.release();
+    }
+}
+async function request(url, service, body) {
+    url = remoteUrl(url);
+    const headers = {};
+    const credential = await savedCredential(url);
+    if (credential) headers.Authorization = credential.header;
     const suffix = body ? service : `info/refs?service=${service}`;
     if (body) headers['Content-Type'] = `application/x-${service}-request`;
-    const result = await axios({ url: `${remoteUrl(url)}/${suffix}`, method: body ? 'POST' : 'GET', data: body,
+    const config = { url: `${url}/${suffix}`, method: body ? 'POST' : 'GET', data: body,
         headers, responseType: 'arraybuffer', timeout: 30000, maxRedirects: 0,
-        maxBodyLength: MAX_BYTES, maxContentLength: MAX_BYTES,
-        validateStatus: () => true });
+        maxBodyLength: MAX_BYTES, maxContentLength: MAX_BYTES, validateStatus: () => true };
+    let result;
+    try {
+        result = await axios(config);
+    } catch (error) {
+        if (body && service === 'git-receive-pack') {
+            throw new Error(`push result is unknown (${error.message}); fetch before retrying`);
+        }
+        throw error;
+    }
+    if (result.status === 401 && credential?.saved) {
+        const access = await refreshSavedCredential(credential.access);
+        config.headers.Authorization = `Bearer ${access}`;
+        try {
+            result = await axios(config);
+        } catch (error) {
+            if (body && service === 'git-receive-pack') {
+                throw new Error(`push result is unknown (${error.message}); fetch before retrying`);
+            }
+            throw error;
+        }
+    }
+    if (result.status === 401) throw new Error('authentication required; run gent login');
     if (result.status !== 200) throw new Error(`remote returned HTTP ${result.status}`);
     const expected = `application/x-${service}-${body ? 'result' : 'advertisement'}`;
     if (result.headers['content-type']?.split(';')[0] !== expected) throw new Error('invalid smart HTTP content type');
@@ -114,8 +177,10 @@ function configured(repo, name = 'origin') {
     if (!url) throw new Error(`remote '${name}' is not configured; use gent remote add ${name} <url>`);
     return remoteUrl(url);
 }
-async function fetch(repo, name = 'origin', url = configured(repo, name)) {
+async function fetch(repo, name = 'origin', options = {}) {
     nameCheck(name);
+    const url = typeof options === 'string' ? options : configured(repo, name);
+    const prune = typeof options === 'object' && options.prune === true;
     const ad = await discover(url);
     const selected = [...ad.refs].filter(([ref]) => ref.startsWith('refs/heads/') || (ref.startsWith('refs/tags/') && !ref.endsWith('^{}')));
     const updates = [];
@@ -135,21 +200,67 @@ async function fetch(repo, name = 'origin', url = configured(repo, name)) {
         const byOid = new Map(incoming.map(item => [item.oid, item]));
         await closure(selected.map(([ref, oid]) => [oid, ref.startsWith('refs/heads/') ? 'commit' : null]), oid => byOid.get(oid) || repo.objects.read(oid));
         for (const item of incoming) await repo.objects.writeVerified(item.oid, item.type, item.payload);
-        await repo.refs.updateMany(updates, `fetch ${name}`);
     }
+    if (prune) {
+        const advertised = new Set([...ad.refs.keys()].filter(ref => ref.startsWith('refs/heads/')).map(ref => `refs/remotes/${name}/${ref.slice(11)}`));
+        for (const [ref, oid] of await repo.refs.list(`refs/remotes/${name}/`)) {
+            if (!advertised.has(ref)) updates.push({ name: ref, delete: true, expectedOldOid: oid });
+        }
+    }
+    if (updates.length) await repo.refs.updateMany(updates, `fetch ${name}`);
     return ad;
+}
+async function fetchAll(repo, options = {}) {
+    const names = repo.config.subsections('remote');
+    for (const name of names) {
+        try {
+            await fetch(repo, name, options);
+        } catch (error) {
+            throw new Error(`fetch '${name}' failed: ${error.message}`);
+        }
+    }
+}
+async function resolvePushRef(repo, value, remoteRefs, options = {}) {
+    if (value.startsWith('refs/')) {
+        validateRefName(value);
+        return value;
+    }
+    const candidates = [`refs/heads/${value}`, `refs/tags/${value}`];
+    const matches = [];
+    for (const candidate of candidates) {
+        const exists = remoteRefs?.has(candidate) || (!options.remoteOnly && await repo.refs.resolveToOid(candidate));
+        if (exists) matches.push(candidate);
+    }
+    if (matches.length > 1) throw new Error(`ambiguous ref '${value}'; specify refs/heads/${value} or refs/tags/${value}`);
+    return matches[0] || candidates[0];
+}
+function parsePushStatus(data, ref) {
+    let pos = 0; const lines = [];
+    while (pos < data.length) { const row = packet(data, pos); pos = row.pos; if (row.line === null) break; lines.push(row.line.toString().trim()); }
+    if (lines[0] !== 'unpack ok' || !lines.includes(`ok ${ref}`) || lines.some(line => line.startsWith('ng '))) throw new Error(`push rejected: ${lines.join('; ')}`);
 }
 async function push(repo, name = 'origin', branch, options = {}) {
     const url = configured(repo, name), head = await repo.refs.head();
     branch ||= head.branch;
     if (!branch) throw new Error('specify a branch from detached HEAD');
-    const ref = branch.startsWith('refs/') ? branch : `refs/heads/${branch}`;
-    validateRefName(ref);
+    const ad = await discover(url, 'git-receive-pack');
+    const ref = await resolvePushRef(repo, branch, ad.refs);
     if (!ref.startsWith('refs/heads/') && !ref.startsWith('refs/tags/')) throw new Error('only branches and tags may be pushed');
     const target = await repo.refs.resolveToOid(ref);
     if (!target) throw new Error(`unknown ref ${ref}`);
-    const ad = await discover(url, 'git-receive-pack'), old = ad.refs.get(ref) || ZERO;
-    if (target === old) return;
+    const old = ad.refs.get(ref) || ZERO;
+    const updateTracking = async () => {
+        if (!ref.startsWith('refs/heads/')) return;
+        const short = ref.slice(11), tracking = `refs/remotes/${name}/${short}`;
+        const before = await repo.refs.resolveToOid(tracking);
+        if (before !== target) await repo.refs.update(tracking, target, { expectedOldOid: before, reason: `push ${name}` });
+        if (options.setUpstream) {
+            repo.localConfig.set(`branch.${short}.remote`, name);
+            repo.localConfig.set(`branch.${short}.merge`, ref);
+            await repo.localConfig.save();
+        }
+    };
+    if (target === old) { await updateTracking(); return; }
     if (old !== ZERO && !options.force && (ref.startsWith('refs/tags/') || !(await ops.isAncestor(repo, old, target)))) {
         throw new Error('non-fast-forward push; fetch and merge first');
     }
@@ -157,9 +268,25 @@ async function push(repo, name = 'origin', branch, options = {}) {
     const all = await closure([[target, ref.startsWith('refs/heads/') ? 'commit' : null]], oid => repo.objects.read(oid));
     const body = Buffer.concat([pkt(`${old} ${target} ${ref}\0report-status object-format=sha256\n`), Buffer.from('0000'), buildPack([...all.values()]).pack]);
     const data = await request(url, 'git-receive-pack', body);
-    let pos = 0; const lines = [];
-    while (pos < data.length) { const row = packet(data, pos); pos = row.pos; if (row.line === null) break; lines.push(row.line.toString().trim()); }
-    if (lines[0] !== 'unpack ok' || !lines.includes(`ok ${ref}`) || lines.some(line => line.startsWith('ng '))) throw new Error(`push rejected: ${lines.join('; ')}`);
+    parsePushStatus(data, ref);
+    await updateTracking();
+}
+async function deleteRemoteRef(repo, name = 'origin', value) {
+    if (!value) throw new Error('specify a remote branch or tag to delete');
+    const url = configured(repo, name), ad = await discover(url, 'git-receive-pack');
+    const ref = await resolvePushRef(repo, value, ad.refs, { remoteOnly: true });
+    if (!ref.startsWith('refs/heads/') && !ref.startsWith('refs/tags/')) throw new Error('only branches and tags may be deleted');
+    const old = ad.refs.get(ref);
+    if (!old) throw new Error(`remote ref does not exist: ${ref}`);
+    if (!ad.caps.includes('report-status')) throw new Error('remote must report ref status');
+    const body = Buffer.concat([pkt(`${old} ${ZERO} ${ref}\0report-status object-format=sha256\n`), Buffer.from('0000')]);
+    const data = await request(url, 'git-receive-pack', body);
+    parsePushStatus(data, ref);
+    if (ref.startsWith('refs/heads/')) {
+        const tracking = `refs/remotes/${name}/${ref.slice(11)}`;
+        const before = await repo.refs.resolveToOid(tracking);
+        if (before) await repo.refs.delete(tracking, { expectedOldOid: before, reason: `push ${name}: delete` });
+    }
 }
 async function clone(url, directory) {
     url = remoteUrl(url);
@@ -192,4 +319,4 @@ async function migrationInfo(url) {
     if (result.data?.format !== 'gent-migration-1' || result.data.object_format !== 'sha256') throw new Error('server cutover must finish before connected migration');
     return result.data;
 }
-module.exports = { migrationInfo, pkt, packet, discover, closure, fetch, push, clone, configured, remoteUrl, nameCheck };
+module.exports = { migrationInfo, pkt, packet, request, discover, closure, fetch, fetchAll, push, deleteRemoteRef, clone, configured, remoteUrl, nameCheck };
