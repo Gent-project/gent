@@ -294,20 +294,28 @@ async function clone(url, directory) {
     const destination = path.resolve(directory || new URL(url).pathname.split('/').pop().replace(/\.git$/, ''));
     // Exclusive directory creation avoids touching existing user files on failure.
     await fs.mkdir(destination);
-    const branch = ad.head?.startsWith('refs/heads/') ? ad.head.slice(11) : 'main';
-    validateRefName(`refs/heads/${branch}`);
-    const { repo } = await repository.init(destination, { defaultBranch: branch });
-    repo.localConfig.set('remote.origin.url', url);
-    repo.localConfig.set('remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*');
-    repo.localConfig.set(`branch.${branch}.remote`, 'origin');
-    repo.localConfig.set(`branch.${branch}.merge`, `refs/heads/${branch}`);
-    await repo.localConfig.save();
-    const current = await fetch(repo, 'origin', url), tip = current.refs.get(`refs/heads/${branch}`);
-    if (tip) {
-        await repo.refs.update(`refs/heads/${branch}`, tip, { expectedOldOid: null, reason: 'clone' });
-        await ops.checkout(repo, branch, { force: true });
+    try {
+        const branch = ad.head?.startsWith('refs/heads/') ? ad.head.slice(11) : 'main';
+        validateRefName(`refs/heads/${branch}`);
+        const { repo } = await repository.init(destination, { defaultBranch: branch });
+        repo.localConfig.set('remote.origin.url', url);
+        repo.localConfig.set('remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*');
+        repo.localConfig.set(`branch.${branch}.remote`, 'origin');
+        repo.localConfig.set(`branch.${branch}.merge`, `refs/heads/${branch}`);
+        await repo.localConfig.save();
+        const current = await fetch(repo, 'origin', url), tip = current.refs.get(`refs/heads/${branch}`);
+        if (tip) {
+            await repo.refs.update(`refs/heads/${branch}`, tip, { expectedOldOid: null, reason: 'clone' });
+            await ops.checkout(repo, branch, { force: true });
+        }
+        return destination;
+    } catch (error) {
+        await fs.rm(destination, { recursive: true, force: true });
+        if (error.code === 'GENT_UNSAFE_PATH') {
+            throw new Error(`remote branch contains a reserved metadata path; its owner must remove it and push a new commit (${error.message})`);
+        }
+        throw error;
     }
-    return destination;
 }
 async function migrationInfo(url) {
     const headers = {};

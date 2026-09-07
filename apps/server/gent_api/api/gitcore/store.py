@@ -40,6 +40,30 @@ def closure(roots, resolve):
     return objects
 
 
+def validate_branch_tip(key, reachable):
+    """Reject a branch tip that Gent cannot safely materialize."""
+    kind, data = reachable[key]
+    if kind != 'commit':
+        raise GitError('branch target is not a commit')
+    pending = [parse_commit(data)['tree']]
+    visited = set()
+    while pending:
+        tree_key = pending.pop()
+        if tree_key in visited:
+            continue
+        visited.add(tree_key)
+        tree_kind, tree_data = reachable[tree_key]
+        if tree_kind != 'tree':
+            raise GitError('commit tree relationship has incorrect type')
+        for entry in parse_tree(tree_data):
+            lowered = entry['name_bytes'].lower()
+            if lowered in (b'.git', b'.gent'):
+                name = entry['name_bytes'].decode('utf-8', 'replace')
+                raise GitError(f"branch tip contains reserved repository metadata path '{name}'")
+            if entry['mode'] == '40000':
+                pending.append(entry['sha'])
+
+
 def public_refs(repository):
     return dict(GitRef.objects.filter(repository=repository, name__regex=r'^refs/(heads|tags)/').values_list('name', 'target'))
 
@@ -100,6 +124,9 @@ def publish(repository, user, updates, incoming, authorize=None):
         dependencies(kind, data)
     reachable = closure([(key, 'commit' if name.startswith('refs/heads/') else None)
                          for name, key in current.items()], resolve)
+    for _, new, name in updates:
+        if new != ZERO and name.startswith('refs/heads/'):
+            validate_branch_tip(new, reachable)
     # Unreachable incoming objects are quarantined and discarded.
     for key, (kind, data) in reachable.items():
         _, created = GitObject.objects.get_or_create(repository=repository, oid=key,

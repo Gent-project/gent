@@ -71,6 +71,46 @@ class GitCoreTests(TestCase):
                 store.publish(self.repo, self.user, [(objects.ZERO, target, ref)], self.incoming)
         self.assertFalse(GitObject.objects.exists())
 
+    def test_branch_tip_with_nested_gent_metadata_is_rejected(self):
+        incoming = {}
+
+        def add(kind, data):
+            key = objects.object_id(kind, data)
+            incoming[key] = (kind, data)
+            return key
+
+        blob_id = add('blob', b'repository metadata\n')
+        metadata_tree = add('tree', objects.serialize_tree([
+            {'name': 'HEAD', 'mode': '100644', 'sha': blob_id},
+        ]))
+        cli_tree = add('tree', objects.serialize_tree([
+            {'name': '.gent', 'mode': '40000', 'sha': metadata_tree},
+        ]))
+        apps_tree = add('tree', objects.serialize_tree([
+            {'name': 'Cli', 'mode': '40000', 'sha': cli_tree},
+        ]))
+        root_tree = add('tree', objects.serialize_tree([
+            {'name': 'apps', 'mode': '40000', 'sha': apps_tree},
+        ]))
+        commit = (f'tree {root_tree}\nauthor Outside <outside@example.com> 1700000000 +0300\n'
+                  'committer Other <other@example.com> 1700000010 +0000\n\nbad metadata\n').encode()
+        commit_id = add('commit', commit)
+
+        with self.assertRaisesRegex(objects.GitError, "reserved repository metadata path '.gent'"):
+            store.publish(self.repo, self.user,
+                          [(objects.ZERO, commit_id, 'refs/heads/main')], incoming)
+        self.assertFalse(GitObject.objects.exists())
+        self.assertFalse(GitRef.objects.exists())
+
+        safe_tree = add('tree', objects.serialize_tree([]))
+        safe_commit = (f'tree {safe_tree}\nparent {commit_id}\n'
+                       'author Outside <outside@example.com> 1700000020 +0300\n'
+                       'committer Other <other@example.com> 1700000030 +0000\n\nremove metadata\n').encode()
+        safe_commit_id = add('commit', safe_commit)
+        store.publish(self.repo, self.user,
+                      [(objects.ZERO, safe_commit_id, 'refs/heads/main')], incoming)
+        self.assertEqual(GitRef.objects.get(name='refs/heads/main').target, safe_commit_id)
+
     def test_gitlink_does_not_require_external_object(self):
         data = objects.serialize_tree([{'mode': '160000', 'name': 'sub', 'sha': 'a' * 64}])
         key = objects.object_id('tree', data)

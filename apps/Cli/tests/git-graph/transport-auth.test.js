@@ -8,6 +8,8 @@ const repository = require('../../src/utils/repository');
 const ops = require('../../src/utils/gent-ops');
 const authStorage = require('../../src/utils/auth-storage');
 const transport = require('../../src/utils/smart-http');
+const gitObjects = require('../../src/utils/git-objects');
+const { buildPack } = require('../../src/utils/packfile');
 
 const ZERO = '0'.repeat(64);
 
@@ -43,6 +45,49 @@ function configure(repo, url, names = ['origin']) {
         repo.localConfig.set(`remote.${name}.fetch`, `+refs/heads/*:refs/remotes/${name}/*`);
     }
 }
+
+test('clone removes its destination when a remote branch contains nested Gent metadata', async t => {
+    const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'gent-bad-clone-')));
+    t.after(() => fs.rm(root, { recursive: true, force: true }));
+    const items = [];
+    const add = (type, payload) => {
+        const item = { type, payload, oid: gitObjects.hashObject(type, payload) };
+        items.push(item);
+        return item.oid;
+    };
+    const blob = add('blob', Buffer.from('metadata\n'));
+    const metadata = add('tree', gitObjects.serializeTree([
+        { mode: gitObjects.MODE.REGULAR, name: 'HEAD', oid: blob },
+    ]));
+    const cli = add('tree', gitObjects.serializeTree([
+        { mode: gitObjects.MODE.TREE, name: '.gent', oid: metadata },
+    ]));
+    const tree = add('tree', gitObjects.serializeTree([
+        { mode: gitObjects.MODE.TREE, name: 'apps', oid: cli },
+    ]));
+    const identity = { name: 'Test', email: 'test@example.com', timestamp: 1700000000, timezone: '+0000' };
+    const commit = add('commit', gitObjects.serializeCommit({
+        tree, author: identity, committer: identity, message: 'bad metadata\n',
+    }));
+    const pack = buildPack(items).pack;
+    const url = await server(t, (req, res) => {
+        if (req.url.includes('info/refs')) {
+            const data = advertisement('git-upload-pack', [[commit, 'refs/heads/main']],
+                'object-format=sha256 symref=HEAD:refs/heads/main');
+            res.writeHead(200, { 'content-type': 'application/x-git-upload-pack-advertisement' });
+            return res.end(data);
+        }
+        req.resume();
+        req.on('end', () => {
+            res.writeHead(200, { 'content-type': 'application/x-git-upload-pack-result' });
+            res.end(Buffer.concat([transport.pkt('NAK\n'), pack]));
+        });
+    });
+    const destination = path.join(root, 'clone');
+    await assert.rejects(transport.clone(`${url}/owner/repo.git`, destination),
+        /remote branch contains a reserved metadata path/);
+    await assert.rejects(fs.access(destination), error => error.code === 'ENOENT');
+});
 
 test('confirmed and up-to-date pushes update tracking and set upstream; rejection does not', async t => {
     const repo = await fixture(t);
