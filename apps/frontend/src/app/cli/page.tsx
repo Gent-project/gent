@@ -25,7 +25,7 @@ const quickStart = [
   "gent init",
   "gent add README.md",
   'gent commit -m "Initial commit"',
-  "gent remote add origin https://gent-api.onrender.com/api/repos/1/my-repo",
+  "gent remote add origin https://gent-api.onrender.com/1/my-repo.git",
   "gent push origin main",
 ];
 
@@ -146,7 +146,7 @@ export default function CliDocsPage() {
           <div className="mt-6 rounded-2xl border border-line bg-surface/40 p-4 backdrop-blur">
             <p className="text-sm font-semibold">Remote URL format</p>
             <code className="mt-2 block break-all rounded-lg bg-[#040a08] p-3 font-mono text-sm text-brand-2">
-              https://gent-api.onrender.com/api/repos/&lt;owner_id&gt;/&lt;repo_name&gt;
+              https://gent-api.onrender.com/&lt;owner_id&gt;/&lt;repo_name&gt;.git
             </code>
           </div>
         </Reveal>

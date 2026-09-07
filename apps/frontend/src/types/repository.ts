@@ -11,7 +11,7 @@ export interface Repository {
   description: string;
   is_private: boolean;
   default_branch: string;
-  object_format?: "legacy" | "sha256";
+  object_format: "legacy" | "sha256";
   created_at: string;
   updated_at: string;
 }

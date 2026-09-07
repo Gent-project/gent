@@ -130,7 +130,7 @@ export default function RepositoryView({
   // `role` is null for anonymous callers, so this is false on the public route.
   const canWrite = !isPublic && (repository.role === "owner" || repository.role === "write");
   const authorEmail = repository.owner_email ?? "";
-  const cloneUrl = getCloneUrl(repository.owner_id, repository.name, "https", repository.object_format);
+  const cloneUrl = getCloneUrl(repository.owner_id, repository.name, repository.object_format);
   const latestCommit = commits[0];
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   const tabs = [

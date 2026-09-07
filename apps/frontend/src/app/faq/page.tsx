@@ -45,11 +45,11 @@ const faqCategories = [
       },
       {
         q: "How do I connect a local folder to a repository?",
-        a: "Run gent init, add and commit your files, then set the remote with gent remote add origin using the API repository URL shown in the dashboard.",
+        a: "Run gent init, add and commit your files, then set the remote with gent remote add origin using the clone URL shown on the repository page.",
       },
       {
         q: "Which remote URL format works with the CLI?",
-        a: "Use https://gent-api.onrender.com/api/repos/<owner_id>/<repo_name>. The dashboard clone section uses this same structure.",
+        a: "Use https://gent-api.onrender.com/<owner_id>/<repo_name>.git for canonical repositories. Copy the exact URL from the repository page.",
       },
       {
         q: "Where can I read the command list?",

@@ -104,7 +104,7 @@ export default function SharedFooter() {
 
       <div className="mx-auto flex max-w-6xl flex-col gap-2 border-t border-line px-6 py-6 text-xs text-faint sm:flex-row sm:items-center sm:justify-between">
         <span>© {new Date().getFullYear()} Gent. Built for developers.</span>
-        <span data-no-translate className="font-mono">/api/repos/&lt;owner_id&gt;/&lt;repo_name&gt;</span>
+        <span data-no-translate className="font-mono">/&lt;owner_id&gt;/&lt;repo_name&gt;.git</span>
       </div>
     </footer>
   );

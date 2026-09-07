@@ -92,8 +92,7 @@ export const usePullRepository = () => {
 export const getCloneUrl = (
   ownerId: number | string,
   repoName: string,
-  protocol: "https" | "ssh" = "https",
-  objectFormat: "legacy" | "sha256" = "legacy",
+  objectFormat: "legacy" | "sha256",
 ) => {
   const owner = encodeURIComponent(String(ownerId));
   const name = encodeURIComponent(repoName);

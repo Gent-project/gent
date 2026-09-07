@@ -223,8 +223,8 @@ const translations: Record<string, string> = {
   "The dashboard reads repositories, branches, commits, trees, blobs, tags, and members directly from Gent API endpoints.":
     "تقرأ لوحة التحكم المستودعات والفروع والالتزامات والأشجار وكائنات Blob والوسوم والأعضاء مباشرة من نقاط Gent API.",
   "Lightweight version control for this project.": "تحكم خفيف بالإصدارات لهذا المشروع.",
-  "Gent dashboard uses the same API repository path expected by the CLI:":
-    "تستخدم لوحة تحكم Gent مسار مستودع API نفسه الذي يتوقعه CLI:",
+  "Gent dashboard shows the clone URL expected by the CLI:":
+    "تعرض لوحة تحكم Gent رابط الاستنساخ الذي يتوقعه CLI:",
   "CLI + API + Web": "سطر الأوامر + الواجهة البرمجية + الويب",
   "Search Gent questions": "ابحث في أسئلة Gent",
   "No FAQ entries match this search.": "لا توجد نتائج مطابقة لهذا البحث.",
@@ -349,11 +349,11 @@ const translations: Record<string, string> = {
   "Install the package with npm install -g gent-cli, then sign in with gent login.":
     "ثبت الحزمة باستخدام npm install -g gent-cli ثم سجل الدخول عبر gent login.",
   "How do I connect a local folder to a repository?": "كيف أربط مجلداً محلياً بمستودع؟",
-  "Run gent init, add and commit your files, then set the remote with gent remote add origin using the API repository URL shown in the dashboard.":
-    "شغل gent init، ثم أضف ملفاتك وسجلها، وبعدها اضبط الرابط البعيد باستخدام gent remote add origin مع رابط API الظاهر في لوحة التحكم.",
+  "Run gent init, add and commit your files, then set the remote with gent remote add origin using the clone URL shown on the repository page.":
+    "شغل gent init، ثم أضف ملفاتك وسجلها، وبعدها اضبط الرابط البعيد باستخدام gent remote add origin مع رابط الاستنساخ الظاهر في صفحة المستودع.",
   "Which remote URL format works with the CLI?": "ما صيغة الرابط البعيد التي تعمل مع CLI؟",
-  "Use https://gent-api.onrender.com/api/repos/<owner_id>/<repo_name>. The dashboard clone section uses this same structure.":
-    "استخدم https://gent-api.onrender.com/api/repos/<owner_id>/<repo_name>. قسم الاستنساخ في لوحة التحكم يستخدم البنية نفسها.",
+  "Use https://gent-api.onrender.com/<owner_id>/<repo_name>.git for canonical repositories. Copy the exact URL from the repository page.":
+    "استخدم https://gent-api.onrender.com/<owner_id>/<repo_name>.git للمستودعات القياسية. انسخ الرابط الدقيق من صفحة المستودع.",
   "Where can I read the command list?": "أين أقرأ قائمة الأوامر؟",
   "Open the CLI Docs page from the top banner. It groups commands for setup, staging, history, branches, remotes, account, safety, and inspection.":
     "افتح صفحة توثيق CLI من الشريط العلوي. تجمع الأوامر للإعداد والتجهيز والسجل والفروع والروابط البعيدة والحساب والسلامة والفحص.",
