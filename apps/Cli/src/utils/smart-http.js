@@ -93,7 +93,9 @@ async function request(url, service, body) {
         result = await axios(config);
     } catch (error) {
         if (body && service === 'git-receive-pack') {
-            throw new Error(`push result is unknown (${error.message}); fetch before retrying`);
+            const unknown = new Error(`push result is unknown (${error.message}); fetch before retrying`);
+            unknown.code = 'GENT_PUSH_RESULT_UNKNOWN';
+            throw unknown;
         }
         throw error;
     }
@@ -104,7 +106,9 @@ async function request(url, service, body) {
             result = await axios(config);
         } catch (error) {
             if (body && service === 'git-receive-pack') {
-                throw new Error(`push result is unknown (${error.message}); fetch before retrying`);
+                const unknown = new Error(`push result is unknown (${error.message}); fetch before retrying`);
+                unknown.code = 'GENT_PUSH_RESULT_UNKNOWN';
+                throw unknown;
             }
             throw error;
         }
@@ -114,6 +118,14 @@ async function request(url, service, body) {
     const expected = `application/x-${service}-${body ? 'result' : 'advertisement'}`;
     if (result.headers['content-type']?.split(';')[0] !== expected) throw new Error('invalid smart HTTP content type');
     return Buffer.from(result.data);
+}
+async function remoteReached(url, ref, target) {
+    try {
+        const current = await discover(url, 'git-receive-pack');
+        return (current.refs.get(ref) || ZERO) === target;
+    } catch {
+        return false;
+    }
 }
 async function discover(url, service = 'git-upload-pack') {
     const data = await request(url, service);
@@ -279,8 +291,12 @@ async function push(repo, name = 'origin', branch, options = {}) {
     const all = await closure([[target, ref.startsWith('refs/heads/') ? 'commit' : null]], oid => repo.objects.read(oid));
     const body = Buffer.concat([pkt(`${old} ${target} ${ref}\0report-status object-format=sha256\n`), Buffer.from('0000'), buildPack([...all.values()]).pack]);
     progress(`Uploading objects to ${name}...`);
-    const data = await request(url, 'git-receive-pack', body);
-    parsePushStatus(data, ref);
+    try {
+        const data = await request(url, 'git-receive-pack', body);
+        parsePushStatus(data, ref);
+    } catch (error) {
+        if (error.code !== 'GENT_PUSH_RESULT_UNKNOWN' || !(await remoteReached(url, ref, target))) throw error;
+    }
     progress('Updating local tracking reference...');
     await updateTracking();
 }
@@ -293,8 +309,12 @@ async function deleteRemoteRef(repo, name = 'origin', value) {
     if (!old) throw new Error(`remote ref does not exist: ${ref}`);
     if (!ad.caps.includes('report-status')) throw new Error('remote must report ref status');
     const body = Buffer.concat([pkt(`${old} ${ZERO} ${ref}\0report-status object-format=sha256\n`), Buffer.from('0000')]);
-    const data = await request(url, 'git-receive-pack', body);
-    parsePushStatus(data, ref);
+    try {
+        const data = await request(url, 'git-receive-pack', body);
+        parsePushStatus(data, ref);
+    } catch (error) {
+        if (error.code !== 'GENT_PUSH_RESULT_UNKNOWN' || !(await remoteReached(url, ref, ZERO))) throw error;
+    }
     if (ref.startsWith('refs/heads/')) {
         const tracking = `refs/remotes/${name}/${ref.slice(11)}`;
         const before = await repo.refs.resolveToOid(tracking);

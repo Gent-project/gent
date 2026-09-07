@@ -2,7 +2,7 @@ import base64
 import hashlib
 from unittest.mock import patch
 from django.test import TestCase
-from api.models import User, Repository, GitObject, GitRef, Commit, PersonalAccessToken
+from api.models import User, Repository, GitObject, GitRef, Commit, Branch, PersonalAccessToken
 from api.gitcore import objects, pack, store, protocol
 
 
@@ -55,6 +55,14 @@ class GitCoreTests(TestCase):
         with self.assertRaises(objects.GitError):
             self.publish()
         self.assertEqual(GitRef.objects.get().target, self.key)
+
+    def test_ref_deletion_does_not_rescan_reachable_objects(self):
+        self.publish()
+        with patch.object(store, 'closure', side_effect=AssertionError('deletion rescanned history')):
+            store.publish(self.repo, self.user, [(self.key, objects.ZERO, 'refs/heads/main')], {})
+        self.assertFalse(GitRef.objects.filter(repository=self.repo, name='refs/heads/main').exists())
+        self.assertFalse(Branch.objects.filter(repository=self.repo, name='main').exists())
+        self.assertEqual(GitObject.objects.filter(repository=self.repo).count(), len(self.incoming))
 
     def test_database_failure_rolls_back_objects_refs_and_indexes(self):
         with patch.object(GitRef.objects, 'update_or_create', side_effect=RuntimeError('database failed')):

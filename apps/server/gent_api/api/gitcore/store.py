@@ -117,22 +117,25 @@ def publish(repository, user, updates, incoming, authorize=None):
             raise GitError('ref directory/file collision')
     if len(incoming) > MAX_OBJECTS or sum(len(data) for _, data in incoming.values()) > MAX_BYTES:
         raise GitError('incoming objects exceed service limits')
-    resolve = lambda key: incoming.get(key) or read(repository, key)
-    for key, (kind, data) in incoming.items():
-        if object_id(kind, data) != key:
-            raise GitError('supplied object ID mismatch')
-        dependencies(kind, data)
-    reachable = closure([(key, 'commit' if name.startswith('refs/heads/') else None)
-                         for name, key in current.items()], resolve)
-    for _, new, name in updates:
-        if new != ZERO and name.startswith('refs/heads/'):
-            validate_branch_tip(new, reachable)
-    # Unreachable incoming objects are quarantined and discarded.
-    for key, (kind, data) in reachable.items():
-        _, created = GitObject.objects.get_or_create(repository=repository, oid=key,
-                            defaults={'type': kind, 'size': len(data), 'data': data})
-        if created:
-            index_object(repository, key, kind, data)
+    deleting_only = not incoming and all(new == ZERO for _, new, _ in updates)
+    reachable = {}
+    if not deleting_only:
+        resolve = lambda key: incoming.get(key) or read(repository, key)
+        for key, (kind, data) in incoming.items():
+            if object_id(kind, data) != key:
+                raise GitError('supplied object ID mismatch')
+            dependencies(kind, data)
+        reachable = closure([(key, 'commit' if name.startswith('refs/heads/') else None)
+                             for name, key in current.items()], resolve)
+        for _, new, name in updates:
+            if new != ZERO and name.startswith('refs/heads/'):
+                validate_branch_tip(new, reachable)
+        # Unreachable incoming objects are quarantined and discarded.
+        for key, (kind, data) in reachable.items():
+            _, created = GitObject.objects.get_or_create(repository=repository, oid=key,
+                                defaults={'type': kind, 'size': len(data), 'data': data})
+            if created:
+                index_object(repository, key, kind, data)
     for old, new, name in updates:
         if new == ZERO:
             GitRef.objects.filter(repository=repository, name=name).delete()

@@ -161,6 +161,57 @@ test('remote deletion checks report-status and updates only branch tracking stat
     assert.equal(await repo.refs.resolveToOid('refs/heads/main'), oid);
 });
 
+test('remote deletion reconciles an ambiguous response without repeating the write', async t => {
+    const repo = await fixture(t);
+    const oid = (await repo.refs.head()).oid;
+    let present = true, reads = 0, writes = 0;
+    const url = await server(t, (req, res) => {
+        if (req.url.includes('info/refs')) {
+            reads++;
+            const data = advertisement('git-receive-pack', present ? [[oid, 'refs/heads/main']] : []);
+            res.writeHead(200, { 'content-type': 'application/x-git-receive-pack-advertisement' });
+            return res.end(data);
+        }
+        writes++;
+        req.resume();
+        req.on('end', () => {
+            present = false;
+            req.socket.destroy();
+        });
+    });
+    configure(repo, url);
+    await repo.refs.update('refs/remotes/origin/main', oid, { expectedOldOid: null });
+    await transport.deleteRemoteRef(repo, 'origin', 'refs/heads/main');
+    assert.equal(reads, 2);
+    assert.equal(writes, 1);
+    assert.equal(await repo.refs.resolveToOid('refs/remotes/origin/main'), null);
+});
+
+test('push reconciles an ambiguous response without repeating the write', async t => {
+    const repo = await fixture(t);
+    const oid = (await repo.refs.head()).oid;
+    let advertised = ZERO, reads = 0, writes = 0;
+    const url = await server(t, (req, res) => {
+        if (req.url.includes('info/refs')) {
+            reads++;
+            const data = advertisement('git-receive-pack', advertised === ZERO ? [] : [[advertised, 'refs/heads/main']]);
+            res.writeHead(200, { 'content-type': 'application/x-git-receive-pack-advertisement' });
+            return res.end(data);
+        }
+        writes++;
+        req.resume();
+        req.on('end', () => {
+            advertised = oid;
+            req.socket.destroy();
+        });
+    });
+    configure(repo, url);
+    await transport.push(repo, 'origin', 'main');
+    assert.equal(reads, 2);
+    assert.equal(writes, 1);
+    assert.equal(await repo.refs.resolveToOid('refs/remotes/origin/main'), oid);
+});
+
 test('push rejects branch/tag shorthand ambiguity before writing', async t => {
     const repo = await fixture(t);
     const oid = (await repo.refs.head()).oid;
